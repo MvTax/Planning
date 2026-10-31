@@ -852,6 +852,10 @@ function mealSheet(){
   }
   else if(M.state==='result'&&r){
     const ok=r.verdict==='valide',np=r.verdict==='pas_un_plat';
+    if(r.verdict==='interdit'){body=`<div style="position:relative">${img}<span class="bigstamp" style="color:var(--bad);bottom:12px;font-size:22px">INTERDIT</span></div>
+      <section class="card" style="gap:8px;border:2px solid var(--bad)"><span class="lbl" style="color:var(--bad)">Sucre interdit</span><h3 style="font-size:20px">${esc(r.bad.charAt(0).toUpperCase()+r.bad.slice(1))}</h3><p style="font-size:14.5px">Pas de sucre rapide dans ton plan. Remplace-le, puis reprends la photo.</p></section>
+      <label for="mealCam" class="btn danger" style="font-size:17px;padding:18px">${ic('cam')} Reprendre la photo</label>`;}
+    else
     body=`<div style="position:relative">${img}<span class="bigstamp" style="color:${ok?'var(--money)':np?'var(--muted)':'var(--warn)'};bottom:12px">${ok?'VALIDÉ':np?'PAS UN PLAT':'À CORRIGER'}</span></div>
      ${np?`<p>${esc(r.resume||'Je ne vois pas de repas sur cette photo.')}</p>`:`
      <div class="row between" style="align-items:baseline;gap:12px"><h3 style="min-width:0">${esc(r.plat||'Ton plat')}</h3><span class="num" style="font-size:30px;white-space:nowrap">${Math.round(r.kcal||0)}<small class="muted" style="font-size:13px"> kcal</small></span></div>
@@ -885,15 +889,25 @@ function mealPrompt(){
   return`Coach nutrition. Photo d’un plat avant de le manger. Objectif : perte de gras, garder le muscle.${diet?' Régime '+diet+'.':''}
 Repas : ${SLOT_L[M.slot]}. Budget ${bk} kcal (±20 %), au moins ${bp} g de protéines.${last?` Essai précédent : ${Math.round(last.kcal||0)} kcal, demandé : ${(last.fix||[]).join(' ; ')||'rien'}. Si c’est corrigé et dans le budget, valide.`:''}${M.notes.length?` Ingrédients donnés par l’utilisateur (à utiliser) : ${M.notes.join(' ; ')}.`:''}${M.skipped?' Ingrédients cachés inconnus : prends les plus probables.':''}
 Estime les quantités et les calories. Verdict v :
+"interdit" EN PRIORITÉ si tu vois un aliment ou une boisson très sucré, même en petite quantité : crêpe, gaufre, donut, muffin, cookie, brownie, gâteau, pâtisserie, viennoiserie sucrée, bonbons, chocolat, glace, chantilly, pâte à tartiner, céréales sucrées, soda ou canette sucrée, jus de fruits, ice tea, limonade, sirop, boisson énergisante, milkshake, frappé, café ou thé sucré aromatisé, bubble tea. Mets l’élément dans bad. Les boissons zéro sucre sont autorisées ;
 "ok" si dans le budget et protéines correctes ;
 "fix" sinon, avec 1 ou 2 actions courtes et chiffrées dans fix (ex. « Retire la moitié des frites (100 g) », « Ajoute 150 g de skyr ») ;
 "non" si ce n’est pas de la nourriture${noQ?'':` ;
 "q" si des ingrédients caloriques sont cachés (sandwich fermé, burger, sauce…) : q = question courte, sug = 4 à 6 ingrédients probables`}.
 Pas de correction pour moins de 10 % d’écart. msg = 1 phrase courte, tutoiement. ing = 3 à 5 ingrédients vus.
-JSON uniquement : {"v":"","plat":"","kcal":0,"p":0,"g":0,"l":0,"msg":"","fix":[],"ing":[]${noQ?'':',"q":"","sug":[]'}}`;
+JSON uniquement : {"v":"","bad":"","plat":"","kcal":0,"p":0,"g":0,"l":0,"msg":"","fix":[],"ing":[]${noQ?'':',"q":"","sug":[]'}}`;
 }
-function normAI(o){const V={ok:'valide',fix:'a_corriger',non:'pas_un_plat',q:'question'};const L=a=>Array.isArray(a)?a.map(x=>String(x)).filter(Boolean):[];
-  return{verdict:V[o.v]||o.verdict||'a_corriger',plat:o.plat||'',kcal:+o.kcal||0,prot:+(o.p??o.prot)||0,gluc:+(o.g??o.gluc)||0,lip:+(o.l??o.lip)||0,resume:o.msg||o.resume||'',fix:L(o.fix).slice(0,3),ing:L(o.ing).slice(0,6),question:o.q||o.question||'',suggestions:L(o.sug||o.suggestions).slice(0,8)}}
+function normAI(o){const V={ok:'valide',fix:'a_corriger',non:'pas_un_plat',q:'question',interdit:'interdit'};const L=a=>Array.isArray(a)?a.map(x=>String(x)).filter(Boolean):[];
+  return{verdict:V[o.v]||o.verdict||'a_corriger',plat:o.plat||'',kcal:+o.kcal||0,prot:+(o.p??o.prot)||0,gluc:+(o.g??o.gluc)||0,lip:+(o.l??o.lip)||0,resume:o.msg||o.resume||'',fix:L(o.fix).slice(0,3),ing:L(o.ing).slice(0,6),question:o.q||o.question||'',suggestions:L(o.sug||o.suggestions).slice(0,8),bad:o.bad?String(o.bad):''}}
+/* sucres interdits : contrôle par l'app, en plus de l'IA */
+const SUGAR=[['crepe','crêpe'],['gaufre','gaufre'],['donut','donut'],['doughnut','donut'],['muffin','muffin'],['pancake','pancake'],['brioche','brioche'],['cookie','cookie'],['brownie','brownie'],['gateau','gâteau'],['patisserie','pâtisserie'],['viennoiserie','viennoiserie'],['pain au chocolat','pain au chocolat'],['chocolatine','chocolatine'],['eclair','éclair'],['macaron','macaron'],['churros','churros'],['cupcake','cupcake'],['cheesecake','cheesecake'],['tiramisu','tiramisu'],['bonbon','bonbons'],['confiserie','confiserie'],['chocolat','chocolat'],['nutella','pâte à tartiner'],['pate a tartiner','pâte à tartiner'],['glace','glace'],['creme glacee','glace'],['sorbet','sorbet'],['sundae','glace'],['chantilly','chantilly'],['creme fouettee','chantilly'],['milkshake','milkshake'],['milk shake','milkshake'],['frappe','frappé'],['frappuccino','frappuccino'],['bubble tea','bubble tea'],['soda','soda'],['coca','soda'],['cola','soda'],['fanta','soda'],['sprite','soda'],['oasis','soda'],['orangina','soda'],['schweppes','soda'],['ice tea','ice tea'],['iced tea','ice tea'],['the glace','ice tea'],['lipton','ice tea'],['limonade','limonade'],['canette','canette'],['red bull','boisson énergisante'],['monster','boisson énergisante'],['energy drink','boisson énergisante'],['boisson energisante','boisson énergisante'],['sirop','sirop'],['jus de fruit','jus de fruits'],['jus d orange','jus de fruits'],['jus de pomme','jus de fruits'],['nectar','jus de fruits'],['smoothie','smoothie'],['cereales chocolat','céréales sucrées'],['cereales sucrees','céréales sucrées'],['caramel','caramel'],['confiture','confiture'],['sucre','sucre'],['dessert','dessert']];
+const SUGAR_OK=/z[eé]ro|light|sans sucre|diet|max|chocolat noir 8|chocolat noir 9|0 ?%/;
+const normTxt=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/['’-]/g,' ');
+function sugarHit(r,notes){const txt=normTxt([r.plat,...(r.ing||[]),r.bad,...(notes||[])].join(' | '));
+  for(const[k,lbl]of SUGAR){const re=new RegExp('(^|[^a-z])'+k+'(s|x)?([^a-z]|$)');if(re.test(txt)){
+    if(['soda','ice tea','limonade','canette','boisson énergisante','sucre'].includes(lbl)&&SUGAR_OK.test(txt))continue;
+    if(k==='sucre'&&/sans sucre|sucre ajoute 0|peu sucre/.test(txt))continue;return lbl}}
+  return null}
 const parseJSON=txt=>{const a=txt.indexOf('{'),b=txt.lastIndexOf('}');if(a<0)throw new Error('Réponse illisible. Reprends la photo.');return normAI(JSON.parse(txt.slice(a,b+1)))};
 async function aiVision(cv,prompt){
   if(SAMPLE&&SAMPLE_IMG){const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.72));return normAI(await SAMPLE.json(prompt,{images:blob,modelTier:'quick',cache:false}))}
@@ -934,6 +948,8 @@ async function analyzeMeal(){
   const M=MEAL;if(!M||!M.cv)return;stopVoice();M.state='busy';M.res=null;M.ms=0;M.hid=false;mealSheet();const tok=++mealTok;const t0=performance.now();
   const tick=setInterval(()=>{const el=$('#aiT');if(el)el.textContent=nf((performance.now()-t0)/1000,1)+' s'},100);
   try{const r=await aiVision(M.cv,mealPrompt());clearInterval(tick);M.ms=Math.round(performance.now()-t0);if(MEAL!==M||tok!==mealTok)return;
+    const hit=r.verdict==='interdit'?(r.bad||sugarHit(r,M.notes)||'sucre'):sugarHit(r,M.notes);
+    if(hit&&r.verdict!=='pas_un_plat'){r.verdict='interdit';r.bad=r.bad||hit;M.res=r;M.tries.push({verdict:'interdit',kcal:r.kcal,fix:[]});M.state='result';logE('repas','interdit : '+r.bad);mealSheet();return}
     if(r.verdict==='question'&&M.asks<2&&!M.skipped){M.asks++;M.askQ=r.question;M.askSug=(r.suggestions||[]).map(x=>String(x).slice(0,30)).slice(0,8);M.answer='';M.picks=[];M.askMode='voice';M.voiceErr='';M.state='ask';mealSheet();return}
     if(r.verdict==='question')r.verdict='a_corriger';
     M.res=r;M.tries.push({verdict:r.verdict,kcal:r.kcal,fix:r.fix});M.state='result';
@@ -1528,7 +1544,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.91';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.92';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
