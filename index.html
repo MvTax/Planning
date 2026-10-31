@@ -163,6 +163,13 @@ p{margin:0}
 @keyframes up{from{transform:translateY(40px);opacity:.4}}
 @keyframes fade{from{opacity:0}}
 
+/* micro réponse repas */
+.mic{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:20px;border-radius:20px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:17px}
+.mic .ico{width:26px;height:26px}
+.mic.on{background:var(--bad);color:var(--surface);animation:micp 1.4s ease-in-out infinite}
+@keyframes micp{50%{box-shadow:0 0 0 10px color-mix(in srgb,var(--bad) 22%,transparent)}}
+.describe{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:16px;border-radius:18px;border:2px solid var(--accent);color:var(--accent);font-weight:700;font-size:16px;background:var(--accent-soft)}
+textarea.ans{width:100%;min-height:84px;border:1.5px solid var(--line);background:var(--surface);border-radius:14px;padding:12px 14px;font:inherit;font-size:16px;color:var(--ink);resize:vertical}
 /* selfie */
 .vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
 .cam{display:grid;place-items:center;width:200px;height:200px;margin:6px auto;border-radius:50%;background:var(--surface);box-shadow:var(--shadow);border:3px dashed var(--line);position:relative;overflow:visible}
@@ -302,7 +309,7 @@ const P={
  repasT:'<path d="M5 3v8a2 2 0 0 0 2 2v8M9 3v8M7 3v8M17 21V3c-2.5 1.5-3 5-3 9h3"/>',
  cagnotte:'<path d="M19 9a7 6 0 1 0-1.5 5.5L19 18h-3l-1-1.6A8 8 0 0 1 12 17H9l-1 2H5l.5-3A6 6 0 0 1 4 11M16 8h.01"/>',
  cam:'<path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z"/><circle cx="12" cy="13" r="4"/>',
- check:'<path d="m5 12 5 5 9-10"/>', plus:'<path d="M12 5v14M5 12h14"/>', x:'<path d="M6 6l12 12M18 6 6 18"/>',
+ check:'<path d="m5 12 5 5 9-10"/>', mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>', pen:'<path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4"/>', plus:'<path d="M12 5v14M5 12h14"/>', x:'<path d="M6 6l12 12M18 6 6 18"/>',
  bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2ZM10 21h4"/>', gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>', play:'<path d="M7 4v16l13-8Z"/>', map:'<path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/>'
 };
@@ -809,7 +816,7 @@ function mealCard(){
    <button class="btn" data-act="meal">${ic('cam')} Photographier mon plat</button></section>`;
 }
 let MEAL=null,mealTok=0;
-function openMeal(){MEAL={slot:guessSlot(),tries:[],state:'idle'};mealSheet();if(aiReady())try{$('#mealCam').click()}catch(e){}}
+function openMeal(){MEAL={slot:guessSlot(),tries:[],state:'idle',notes:[],asks:0,answer:'',picks:[],askMode:'voice'};mealSheet();if(aiReady())try{$('#mealCam').click()}catch(e){}}
 function mealSheet(){
   const M=MEAL;if(!M)return;
   if(!aiReady()){openSheet(`<div class="grab"></div><h2>Activer l’analyse des plats</h2>${keySetup()}`,'meal');return}
@@ -818,6 +825,19 @@ function mealSheet(){
   let body='';const r=M.res;const n=M.tries.length;
   if(M.state==='busy')body=`${img}<div class="row" style="justify-content:center;padding:8px"><span class="spin"></span><span class="muted">Analyse du plat${n?' corrigé':''}…</span></div>`;
   else if(M.state==='error')body=`${img}<div class="banner bad"><span class="grow">${esc(M.err)}</span></div><label for="mealCam" class="btn">${ic('cam')} Reprendre la photo</label>`;
+  else if(M.state==='ask'){
+    const sug=[...new Set([...(M.askSug||[]),'Mayonnaise','Fromage','Sauce','Beurre'])].slice(0,10);
+    body=`${img}<section class="card" style="gap:12px"><span class="lbl">Question</span><h3 style="font-size:18px;text-wrap:balance">${esc(M.askQ||'Qu’est-ce qu’il y a dedans ?')}</h3>
+      ${M.askMode==='voice'?`<button class="mic ${M.listening?'on':''}" data-act="voice">${ic('mic')} ${M.listening?'Je t’écoute… touche pour arrêter':M.answer?'Reparler':'Répondre à la voix'}</button>
+        ${M.answer||M.listening?`<textarea id="ansIn" class="ans" placeholder="Ta réponse apparaît ici">${esc(M.answer)}</textarea>`:''}
+        <button class="describe" data-act="askText">${ic('pen')} Décrire les ingrédients</button>`:
+       `<div class="chips">${sug.map(x=>`<button class="chip ${M.picks.includes(x)?'on':''}" data-act="pickIng" data-v="${esc(x)}">${esc(x)}</button>`).join('')}</div>
+        <textarea id="ansIn" class="ans" placeholder="Ex. : poulet, crudités, sauce blanche, pain baguette">${esc(M.answer)}</textarea>
+        <button class="describe" data-act="askVoice">${ic('mic')} Répondre à la voix plutôt</button>`}
+      ${M.voiceErr?`<p class="muted" style="font-size:13px">${esc(M.voiceErr)}</p>`:''}
+      ${M.askMode==='text'||M.answer||M.picks.length?`<button class="btn" data-act="sendAns">${ic('arrow')} Envoyer et analyser</button>`:''}</section>
+      <button class="btn ghost" data-act="skipAns">Je ne sais pas · estime au mieux</button>`;
+  }
   else if(M.state==='result'&&r){
     const ok=r.verdict==='valide',np=r.verdict==='pas_un_plat';
     const li=(a,sign,c)=>(a||[]).filter(Boolean).map(x=>`<div class="row" style="gap:10px;align-items:flex-start"><b style="color:${c};width:14px;flex:none">${sign}</b><span>${esc(x)}</span></div>`).join('');
@@ -830,9 +850,9 @@ function mealSheet(){
      ${!ok?`<section class="card" style="gap:10px"><span class="lbl" style="color:var(--warn)">Avant de manger</span>${li(r.a_retirer,'−','var(--bad)')}${li(r.a_ajouter,'+','var(--money)')}${r.conseil?`<p class="muted" style="font-size:13.5px">${esc(r.conseil)}</p>`:''}</section>`:r.conseil?`<p class="muted" style="font-size:13.5px">${esc(r.conseil)}</p>`:''}
      ${r.confiance==='basse'?`<p class="muted" style="font-size:12.5px">Estimation incertaine : prends le plat bien à plat, en entier, avec de la lumière.</p>`:''}`}
      ${ok?`<div class="banner info">${ic('check')}<span class="grow">Repas pointé · +${MEAL_PTS} pts${n>1?' · validé au '+n+'e essai':''}</span></div><button class="btn" data-act="close">Bon appétit</button>`:
-      `<label for="mealCam" class="btn">${ic('cam')} ${np?'Reprendre la photo':'J’ai corrigé · reprendre la photo'} (essai ${n+1})</label><button class="btn ghost" data-act="close">Annuler ce repas</button>`}`;
+      `<label for="mealCam" class="btn">${ic('cam')} ${np?'Reprendre la photo':'J’ai corrigé · reprendre la photo'} (essai ${n+1})</label>${np?'':`<button class="describe" data-act="fixIng">${ic('pen')} Ce n’est pas ça · préciser les ingrédients</button>`}<button class="btn ghost" data-act="close">Annuler ce repas</button>`}`;
   }else body=`<div class="cam" style="border-radius:20px;width:100%;height:180px">${ic('repas')}</div><label for="mealCam" class="btn">${ic('cam')} Photographier mon plat</label><p class="muted" style="font-size:12.5px;text-align:center">Tout le plat dans le cadre, vu d’au-dessus, avec la boisson. L’IA estime les calories et te dit quoi ajuster.</p>`;
-  openSheet(`<div class="grab"></div><div class="stack" style="gap:8px"><span class="lbl">Pointage repas${n?' · essai '+(M.state==='busy'?n+1:n):''}</span><h2>${M.state==='result'&&r&&r.verdict==='valide'?'C’est validé':'Mon plat'}</h2>${M.state==='idle'||!n?`<div class="chips">${chips}</div>`:''}</div>${body}`,'meal');
+  openSheet(`<div class="grab"></div><div class="stack" style="gap:8px"><span class="lbl">Pointage repas${n?' · essai '+(M.state==='busy'?n+1:n):''}</span><h2>${M.state==='result'&&r&&r.verdict==='valide'?'C’est validé':M.state==='ask'?'Une précision':'Mon plat'}</h2>${(M.state==='idle'||!n)&&M.state!=='ask'?`<div class="chips">${chips}</div>`:''}</div>${body}`,'meal');
 }
 function keySetup(){const pv=aiProv(),k=apiKey(),m=aiModel();
   const seg=`<div class="seg"><button class="${pv==='gemini'?'on':''}" data-act="aiProv" data-v="gemini">Gemini · gratuit</button><button class="${pv==='claude'?'on':''}" data-act="aiProv" data-v="claude">Claude · payant</button></div>`;
@@ -855,17 +875,18 @@ function mealPrompt(){
   return`Tu es le coach nutrition de l’app Cadence. Tu analyses la photo d’un plat AVANT que l’utilisateur le mange.
 Profil : ${p.sex==='f'?'femme':'homme'}, ${age()} ans, ${p.height} cm, ${nf(curWeight(),1)} kg, objectif ${p.goal} kg : perdre du gras en gardant et construisant du muscle (musculation ${p.days.length}×/semaine). Régime : ${diet}.
 Cible du jour : ${tg.kcal} kcal, ${tg.prot} g de protéines. Déjà validé aujourd’hui : ${Math.round(ek)} kcal et ${Math.round(ep)} g de protéines sur ${ms.length} repas.
-Ce repas : ${SLOT_L[M.slot]}. Budget : environ ${bk} kcal (tolérance ±20 %) et idéalement au moins ${bp} g de protéines.${prev}
+Ce repas : ${SLOT_L[M.slot]}. Budget : environ ${bk} kcal (tolérance ±20 %) et idéalement au moins ${bp} g de protéines.${prev}${M.notes.length?`\nPrécisions données par l’utilisateur sur ce plat (à croire et à utiliser pour le calcul) : « ${M.notes.join(' » ; « ')} ».`:''}${M.skipped?'\nL’utilisateur ne connaît pas les ingrédients cachés : estime avec les ingrédients les plus probables, sans poser de question.':''}
 
 1. Identifie chaque aliment et boisson visibles, estime les quantités en grammes (repères : taille de l’assiette, couverts, mains) et calcule calories et macros.
 2. Décide :
 - "valide" si le plat convient à l’objectif : calories dans le budget (±20 %), protéines correctes ou proches, pas d’excès évident de gras, de sucre ou de friture.
 - "a_corriger" sinon. Donne alors des actions concrètes, chiffrées et faisables tout de suite sur ce plat : retirer ou mettre de côté une partie précise (ex. « la moitié des frites, environ 100 g »), ou ajouter un aliment simple (ex. « 150 g de skyr », « 2 œufs durs », « une poignée de légumes »). 1 à 3 actions maximum.
 - "pas_un_plat" si la photo ne montre pas de nourriture.
+- "question" si des ingrédients qui changent beaucoup les calories sont cachés ou ambigus (sandwich ou wrap fermé, burger, plat en sauce, gratin, boisson opaque…) et que tu ne peux pas estimer correctement. Mets alors une question courte et directe dans "question" (ex. « Qu’est-ce qu’il y a dans ton sandwich ? ») et 4 à 8 ingrédients probables, en mots courts, dans "suggestions".${M.notes.length||M.asks>=2?' Ici l’utilisateur a déjà répondu : NE pose PAS de question, décide valide ou a_corriger.':''}
 Sois pragmatique : pas de correction pour un écart de moins de 10 %. Ne commente jamais le physique de la personne.
 
 Réponds UNIQUEMENT avec ce JSON, en français, tutoiement :
-{"verdict":"valide|a_corriger|pas_un_plat","plat":"nom court","aliments":[{"nom":"","quantite_g":0,"kcal":0,"prot":0}],"kcal":0,"prot":0,"gluc":0,"lip":0,"resume":"une phrase","a_retirer":[],"a_ajouter":[],"conseil":"une phrase courte","confiance":"haute|moyenne|basse"}`;
+{"verdict":"valide|a_corriger|pas_un_plat|question","question":"","suggestions":[],"plat":"nom court","aliments":[{"nom":"","quantite_g":0,"kcal":0,"prot":0}],"kcal":0,"prot":0,"gluc":0,"lip":0,"resume":"une phrase","a_retirer":[],"a_ajouter":[],"conseil":"une phrase courte","confiance":"haute|moyenne|basse"}`;
 }
 async function aiVision(cv,prompt){
   if(SAMPLE&&SAMPLE_IMG){const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.82));return await SAMPLE.json(prompt,{images:blob,modelTier:'complex',cache:false})}
@@ -892,13 +913,32 @@ async function handleMealPhoto(file){
   if(Date.now()-(file.lastModified||Date.now())>5*6e4){M.state='error';M.err='Cette photo ne vient pas d’être prise. Utilise l’appareil photo, pas la galerie.';mealSheet();return}
   let im;try{im=await loadImg(file)}catch(e){M.state='error';M.err='Impossible de lire la photo.';mealSheet();return}
   const sc=Math.min(1,1024/Math.max(im.width,im.height));const cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
-  M.img=cv.toDataURL('image/jpeg',.7);M.state='busy';M.res=null;mealSheet();const tok=++mealTok;
-  try{const r=await aiVision(cv,mealPrompt());if(MEAL!==M||tok!==mealTok)return;
+  M.img=cv.toDataURL('image/jpeg',.7);M.cv=cv;return analyzeMeal();
+}
+async function analyzeMeal(){
+  const M=MEAL;if(!M||!M.cv)return;stopVoice();M.state='busy';M.res=null;mealSheet();const tok=++mealTok;
+  try{const r=await aiVision(M.cv,mealPrompt());if(MEAL!==M||tok!==mealTok)return;
+    if(r.verdict==='question'&&M.asks<2&&!M.skipped){M.asks++;M.askQ=r.question;M.askSug=(r.suggestions||[]).map(x=>String(x).slice(0,30)).slice(0,8);M.answer='';M.picks=[];M.askMode='voice';M.voiceErr='';M.state='ask';mealSheet();return}
+    if(r.verdict==='question')r.verdict='a_corriger';
     M.res=r;M.tries.push({verdict:r.verdict,kcal:r.kcal,a_retirer:r.a_retirer,a_ajouter:r.a_ajouter});M.state='result';
     if(r.verdict==='valide'){const ds=today();S.meals=S.meals||{};(S.meals[ds]=S.meals[ds]||[]).push({id:'m'+Date.now().toString(36),t:Date.now(),slot:M.slot,nom:String(r.plat||'Repas').slice(0,60),kcal:+r.kcal||0,prot:+r.prot||0,gluc:+r.gluc||0,lip:+r.lip||0,tries:M.tries.length});
       addPts(MEAL_PTS,'Repas validé · '+String(r.plat||SLOT_L[M.slot]).slice(0,40),'meal');checkPerfect(ds);save();render()}
   }catch(e){if(MEAL!==M)return;M.state='error';M.err=e&&e.message?e.message:'L’analyse a échoué. Réessaie.'}
   mealSheet();
+}
+/* dictée vocale (Safari : reconnaissance vocale d'Apple) */
+let REC=null;
+function stopVoice(){if(REC){try{REC.stop()}catch(e){}REC=null}if(MEAL)MEAL.listening=false}
+function toggleVoice(){
+  const M=MEAL;if(!M)return;if(M.listening){stopVoice();mealSheet();return}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){M.askMode='text';M.voiceErr='La dictée de l’app n’est pas disponible ici : touche le micro du clavier pour dicter.';mealSheet();setTimeout(()=>$('#ansIn')?.focus(),60);return}
+  const rec=new SR();REC=rec;rec.lang='fr-FR';rec.interimResults=true;rec.continuous=true;let fin=M.answer||'';
+  rec.onresult=e=>{let tmp='';for(let i=e.resultIndex;i<e.results.length;i++){const x=e.results[i];if(x.isFinal)fin=(fin+' '+x[0].transcript).trim();else tmp+=x[0].transcript}
+    M.answer=fin;const el=$('#ansIn');if(el)el.value=(fin+' '+tmp).trim();else if(fin||tmp){M.answer=(fin+' '+tmp).trim();mealSheet()}};
+  rec.onerror=e=>{if(REC!==rec)return;M.voiceErr=e.error==='not-allowed'||e.error==='service-not-allowed'?'Micro ou dictée refusés : autorise le micro pour ce site (aA → Réglages du site) et active Siri et Dictée dans Réglages.':e.error==='no-speech'?'Je n’ai rien entendu. Réessaie ou décris par écrit.':'La dictée a coupé. Réessaie ou décris par écrit.'};
+  rec.onend=()=>{if(REC===rec)REC=null;M.listening=false;if(MEAL===M&&M.state==='ask')mealSheet()};
+  try{rec.start();M.listening=true;M.voiceErr=''}catch(e){M.voiceErr='Impossible de démarrer la dictée.'}mealSheet();
 }
 
 /* ---------- ajout de tâche ---------- */
@@ -1382,7 +1422,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.6';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.7';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&REMOTE_V.v>APP_VERSION);
 function forceUpdate(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}toast('Mise à jour…');setTimeout(()=>location.replace(location.pathname+'?v='+Date.now()+location.hash),300)}
@@ -1469,7 +1509,7 @@ function obFinish(){
 let sheetName=null;
 function openSheet(html,name){sheetName=name||'x';const r=$('#sheetRoot');const was=r.querySelector('.sheet');const sc=was?was.scrollTop:0;
   r.innerHTML=`<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;if(was)r.querySelector('.sheet').scrollTop=sc}
-function closeSheet(){$('#sheetRoot').innerHTML='';sheetName=null;MEAL=null;pending=null;NT=null;WO=null;PLW=null;RW=null;WG=null;rstConfirm=false}
+function closeSheet(){stopVoice();$('#sheetRoot').innerHTML='';sheetName=null;MEAL=null;pending=null;NT=null;WO=null;PLW=null;RW=null;WG=null;rstConfirm=false}
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
 const CTX={get NS(){return NS},get OB(){return OB},get NT(){return NT},get WO(){return WO},get SL(){return SL},get RW(){return RW},get WG(){return WG}};
 function rerenderCtx(o){if(o==='NS')nightSheet();else if(o==='OB')render();else if(o==='NT')addTaskSheet();else if(o==='WO')dayEditSheet(WO.ds);else if(o==='SL')render();else if(o==='RW')rewardSheet();else if(o==='WG')drawWeigh()}
@@ -1553,6 +1593,13 @@ document.addEventListener('click',e=>{
    bkExport:()=>{try{const b=new Blob([JSON.stringify(S)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`cadence-sauvegarde-${today()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}catch(e){toast('Export impossible sur ce navigateur')}},
    meal:()=>openMeal(),
    mealSlot:()=>{MEAL.slot=v;mealSheet()},
+   voice:()=>toggleVoice(),
+   askText:()=>{stopVoice();MEAL.askMode='text';MEAL.voiceErr='';mealSheet();setTimeout(()=>$('#ansIn')?.focus(),60)},
+   askVoice:()=>{MEAL.askMode='voice';toggleVoice()},
+   pickIng:()=>{const a=MEAL.picks,i=a.indexOf(v);i>=0?a.splice(i,1):a.push(v);mealSheet()},
+   sendAns:()=>{const M=MEAL;stopVoice();const el=$('#ansIn');if(el)M.answer=el.value.trim();const ans=[M.picks.join(', '),M.answer].filter(Boolean).join(' · ');if(!ans){toast('Dis ou choisis au moins un ingrédient');return}M.notes.push(ans);analyzeMeal()},
+   skipAns:()=>{stopVoice();MEAL.skipped=true;analyzeMeal()},
+   fixIng:()=>{const M=MEAL,r=M.res||{};M.askQ='Qu’est-ce qui n’est pas juste ? Dis-moi ce qu’il y a vraiment dans ton plat.';M.askSug=(r.aliments||[]).map(a=>String(a.nom).slice(0,30)).slice(0,8);M.tries.pop();M.answer='';M.picks=[];M.askMode='voice';M.voiceErr='';M.state='ask';mealSheet()},
    keySave:()=>{const k=($('#apiKeyIn').value||'').trim(),g=aiProv()==='gemini';if(g?!/^(AIza|AQ\.)/.test(k):!/^sk-ant-/.test(k)){toast(g?'Une clé Gemini commence par AIza ou AQ.':'Une clé Claude commence par sk-ant-');return}try{localStorage.setItem(g?'cadence.gkey':'cadence.apikey',k)}catch(e){}toast('Clé enregistrée');if(sheetName==='meal'){mealSheet()}else settingsSheet()},
    aiProv:()=>{try{localStorage.setItem('cadence.ai',v)}catch(e){}sheetName==='meal'?mealSheet():settingsSheet()},
    keyDel:()=>{try{localStorage.removeItem(aiProv()==='gemini'?'cadence.gkey':'cadence.apikey')}catch(e){}toast('Clé supprimée');sheetName==='meal'?mealSheet():settingsSheet()},
@@ -1574,7 +1621,7 @@ document.addEventListener('change',async e=>{
   if(e.target.id==='bkIn'){const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;try{const r=JSON.parse(await f.text());if(!r||!r.profile)throw 0;S=Object.assign(defaultState(),r);S.profile=Object.assign(defaultState().profile,r.profile);S.settings=Object.assign(defaultState().settings,r.settings||{});save();closeSheet();render();toast('Sauvegarde importée')}catch(err){toast('Fichier de sauvegarde invalide')}}
   if(e.target.id==='icsIn'){const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;try{const txt=await f.text();const ev=parseICS(txt);S.ics=ev;save();render();settingsSheet();toast(`${ev.length} événements importés`)}catch(err){toast('Fichier .ics illisible')}}
 });
-document.addEventListener('input',e=>{if(e.target.id==='ntTitle'&&NT)NT.title=e.target.value;if(e.target.id==='rwLabel'&&RW)RW.label=e.target.value});
+document.addEventListener('input',e=>{if(e.target.id==='ansIn'&&MEAL)MEAL.answer=e.target.value;if(e.target.id==='ntTitle'&&NT)NT.title=e.target.value;if(e.target.id==='rwLabel'&&RW)RW.label=e.target.value});
 function parseICS(txt){
   const un=txt.replace(/\r?\n[ \t]/g,'');const blocks=un.split('BEGIN:VEVENT').slice(1);const out=[];const t0=addDays(new Date(),-1),t1=addDays(new Date(),60);
   const pd=s=>{const m=s.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?/);if(!m)return null;return m[7]?new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5])):new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5])};
