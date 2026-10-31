@@ -10,6 +10,8 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://generativelanguage.googleapis.com">
+<link rel="preconnect" href="https://api.anthropic.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=Fragment+Mono&display=swap">
 <style>
 /* Layout: une colonne de « cartes de pointage » (heure en chiffres mono à gauche, tampon d'état à droite), barre d'onglets fixe en bas. */
@@ -804,8 +806,8 @@ function guessSlot(){const h=nowMin(),four=S.profile.meals===4;return h<630?'b':
 const lsGet=(k,d)=>{try{return localStorage.getItem(k)||d}catch(e){return d}};
 const aiProv=()=>lsGet('cadence.ai','gemini');
 const apiKey=(pv)=>lsGet((pv||aiProv())==='claude'?'cadence.apikey':'cadence.gkey','');
-const aiModel=()=>lsGet('cadence.aimodel','claude-sonnet-5-5');
-const GEM_MODEL='gemini-flash-latest';
+const aiModel=()=>lsGet('cadence.aimodel','claude-haiku-5-5');
+let GEM_MODELS=['gemini-flash-lite-latest','gemini-flash-latest'],GEM_THINK=true;
 const aiReady=()=>!!(SAMPLE&&SAMPLE_IMG)||!!apiKey();
 function mealCard(){
   const p=S.profile,tg=targets(),ms=(S.meals||{})[today()]||[];const k=ms.reduce((a,m)=>a+m.kcal,0),pr=ms.reduce((a,m)=>a+m.prot,0);
@@ -816,14 +818,15 @@ function mealCard(){
    <button class="btn" data-act="meal">${ic('cam')} Photographier mon plat</button></section>`;
 }
 let MEAL=null,mealTok=0;
-function openMeal(){MEAL={slot:guessSlot(),tries:[],state:'idle',notes:[],asks:0,answer:'',picks:[],askMode:'voice'};mealSheet();if(aiReady())try{$('#mealCam').click()}catch(e){}}
+function warmAI(){try{fetch(aiProv()==='gemini'?'https://generativelanguage.googleapis.com/':'https://api.anthropic.com/',{mode:'no-cors',cache:'no-store'}).catch(()=>{})}catch(e){}}
+function openMeal(){warmAI();MEAL={slot:guessSlot(),tries:[],state:'idle',notes:[],asks:0,answer:'',picks:[],askMode:'voice'};mealSheet();if(aiReady())try{$('#mealCam').click()}catch(e){}}
 function mealSheet(){
   const M=MEAL;if(!M)return;
   if(!aiReady()){openSheet(`<div class="grab"></div><h2>Activer l’analyse des plats</h2>${keySetup()}`,'meal');return}
   const chips=Object.keys(slotShares()).map(k=>`<button class="chip sm ${M.slot===k?'on':''}" data-act="mealSlot" data-v="${k}">${SLOT_L[k]}</button>`).join('');
   const img=M.img?`<img src="${M.img}" alt="Ton plat" style="width:100%;max-height:260px;object-fit:cover;border-radius:16px">`:'';
   let body='';const r=M.res;const n=M.tries.length;
-  if(M.state==='busy')body=`${img}<div class="row" style="justify-content:center;padding:8px"><span class="spin"></span><span class="muted">Analyse du plat${n?' corrigé':''}…</span></div>`;
+  if(M.state==='busy')body=`${img}<div class="row" style="justify-content:center;padding:8px"><span class="spin"></span><span class="muted">Analyse${n?' du plat corrigé':''}… <span class="num" id="aiT">0,0 s</span></span></div>`;
   else if(M.state==='error')body=`${img}<div class="banner bad"><span class="grow">${esc(M.err)}</span></div><label for="mealCam" class="btn">${ic('cam')} Reprendre la photo</label>`;
   else if(M.state==='ask'){
     const sug=[...new Set([...(M.askSug||[]),'Mayonnaise','Fromage','Sauce','Beurre'])].slice(0,10);
@@ -840,15 +843,13 @@ function mealSheet(){
   }
   else if(M.state==='result'&&r){
     const ok=r.verdict==='valide',np=r.verdict==='pas_un_plat';
-    const li=(a,sign,c)=>(a||[]).filter(Boolean).map(x=>`<div class="row" style="gap:10px;align-items:flex-start"><b style="color:${c};width:14px;flex:none">${sign}</b><span>${esc(x)}</span></div>`).join('');
     body=`<div style="position:relative">${img}<span class="bigstamp" style="color:${ok?'var(--money)':np?'var(--muted)':'var(--warn)'};bottom:12px">${ok?'VALIDÉ':np?'PAS UN PLAT':'À CORRIGER'}</span></div>
      ${np?`<p>${esc(r.resume||'Je ne vois pas de repas sur cette photo.')}</p>`:`
-     <div class="row between" style="align-items:baseline"><h3>${esc(r.plat||'Ton plat')}</h3><span class="num" style="font-size:26px">${Math.round(r.kcal||0)}<small class="muted" style="font-size:13px"> kcal</small></span></div>
-     <div class="kv" style="grid-template-columns:repeat(3,1fr)"><div><span class="lbl">Protéines</span><b>${Math.round(r.prot||0)} g</b></div><div><span class="lbl">Glucides</span><b>${Math.round(r.gluc||0)} g</b></div><div><span class="lbl">Lipides</span><b>${Math.round(r.lip||0)} g</b></div></div>
-     <p style="font-size:14.5px">${esc(r.resume||'')}</p>
-     ${(r.aliments||[]).length?`<div class="flat" style="padding-block:4px">${r.aliments.map(a=>`<div class="ledger"><span>${esc(a.nom)} <span class="muted num">· ${Math.round(a.quantite_g||0)} g</span></span><span class="num">${Math.round(a.kcal||0)} kcal</span></div>`).join('')}</div>`:''}
-     ${!ok?`<section class="card" style="gap:10px"><span class="lbl" style="color:var(--warn)">Avant de manger</span>${li(r.a_retirer,'−','var(--bad)')}${li(r.a_ajouter,'+','var(--money)')}${r.conseil?`<p class="muted" style="font-size:13.5px">${esc(r.conseil)}</p>`:''}</section>`:r.conseil?`<p class="muted" style="font-size:13.5px">${esc(r.conseil)}</p>`:''}
-     ${r.confiance==='basse'?`<p class="muted" style="font-size:12.5px">Estimation incertaine : prends le plat bien à plat, en entier, avec de la lumière.</p>`:''}`}
+     <div class="row between" style="align-items:baseline;gap:12px"><h3 style="min-width:0">${esc(r.plat||'Ton plat')}</h3><span class="num" style="font-size:30px;white-space:nowrap">${Math.round(r.kcal||0)}<small class="muted" style="font-size:13px"> kcal</small></span></div>
+     <p class="num muted" style="font-size:13.5px">Protéines ${Math.round(r.prot||0)} g · Glucides ${Math.round(r.gluc||0)} g · Lipides ${Math.round(r.lip||0)} g</p>
+     ${r.resume?`<p style="font-size:15px">${esc(r.resume)}</p>`:''}
+     ${!ok&&(r.fix||[]).length?`<section class="card" style="gap:10px"><span class="lbl" style="color:var(--warn)">Avant de manger</span>${r.fix.map(x=>`<div class="row" style="gap:10px;align-items:flex-start"><b style="color:var(--warn);flex:none">→</b><span>${esc(x)}</span></div>`).join('')}</section>`:''}`}
+     ${M.ms?`<p class="muted num" style="font-size:12px;text-align:right">Analysé en ${nf(M.ms/1000,1)} s</p>`:''}
      ${ok?`<div class="banner info">${ic('check')}<span class="grow">Repas pointé · +${MEAL_PTS} pts${n>1?' · validé au '+n+'e essai':''}</span></div><button class="btn" data-act="close">Bon appétit</button>`:
       `<label for="mealCam" class="btn">${ic('cam')} ${np?'Reprendre la photo':'J’ai corrigé · reprendre la photo'} (essai ${n+1})</label>${np?'':`<button class="describe" data-act="fixIng">${ic('pen')} Ce n’est pas ça · préciser les ingrédients</button>`}<button class="btn ghost" data-act="close">Annuler ce repas</button>`}`;
   }else body=`<div class="cam" style="border-radius:20px;width:100%;height:180px">${ic('repas')}</div><label for="mealCam" class="btn">${ic('cam')} Photographier mon plat</label><p class="muted" style="font-size:12.5px;text-align:center">Tout le plat dans le cadre, vu d’au-dessus, avec la boisson. L’IA estime les calories et te dit quoi ajuster.</p>`;
@@ -862,68 +863,71 @@ function keySetup(){const pv=aiProv(),k=apiKey(),m=aiModel();
    <ol class="steps" style="font-size:14px"><li>Va sur <a class="link" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> → API Keys → Create Key.</li><li>Ajoute quelques euros de crédit (Billing).</li><li>Colle la clé ici (elle commence par sk-ant-).</li></ol>`;
   return`${seg}${help}
   <input id="apiKeyIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${k?'Clé enregistrée · colle une nouvelle clé pour la remplacer':pv==='gemini'?'AIza… ou AQ.…':'sk-ant-…'}" style="border:1.5px solid var(--line);background:var(--surface);border-radius:14px;padding:13px 14px;font-size:16px;width:100%">
-  ${pv==='claude'?`<div class="field"><span class="lbl">Modèle</span><div class="seg"><button class="${m.includes('sonnet')?'on':''}" data-act="aiModel" data-v="claude-sonnet-5-5">Précis (Sonnet)</button><button class="${m.includes('haiku')?'on':''}" data-act="aiModel" data-v="claude-haiku-5-5">Économique (Haiku)</button></div></div>`:''}
+  ${pv==='claude'?`<div class="field"><span class="lbl">Modèle</span><div class="seg"><button class="${m.includes('haiku')?'on':''}" data-act="aiModel" data-v="claude-haiku-5-5">Rapide (Haiku)</button><button class="${m.includes('sonnet')?'on':''}" data-act="aiModel" data-v="claude-sonnet-5-5">Précis (Sonnet, plus lent)</button></div></div>`:''}
   <button class="btn" data-act="keySave">Enregistrer la clé</button>${k?`<button class="btn ghost" data-act="keyDel">Supprimer la clé</button>`:''}
   <p class="muted" style="font-size:12.5px">La clé reste uniquement dans Safari sur ce téléphone : elle n’est jamais envoyée sur GitHub ni dans les sauvegardes.</p>`}
 function mealPrompt(){
   const M=MEAL,p=S.profile,tg=targets(),sh=slotShares();const ms=(S.meals||{})[today()]||[];
-  const ek=ms.reduce((a,m)=>a+m.kcal,0),ep=ms.reduce((a,m)=>a+m.prot,0);
+  const ek=ms.reduce((a,m)=>a+m.kcal,0);
   const left=Math.max(0,tg.kcal-ek),rem=Object.keys(sh).filter(k=>k===M.slot||!ms.some(m=>m.slot===k)).reduce((a,k)=>a+sh[k],0)||sh[M.slot];
   const bk=Math.round(Math.max(150,Math.min(tg.kcal*sh[M.slot]*1.15,left*sh[M.slot]/rem))/10)*10;const bp=Math.round(tg.prot*sh[M.slot]*.85);
-  const diet=(p.diet||[]).map(d=>({halal:'halal',sansporc:'sans porc',vegetarien:'végétarien',pescetarien:'pescétarien',sanslactose:'sans lactose'}[d])).join(', ')||'aucun';
-  const prev=M.tries.length?`\nC’est l’essai n°${M.tries.length+1} pour ce repas. Au dernier essai, tu avais trouvé ${Math.round(M.tries[M.tries.length-1].kcal||0)} kcal et demandé : ${[...(M.tries[M.tries.length-1].a_retirer||[]).map(x=>'retirer '+x),...(M.tries[M.tries.length-1].a_ajouter||[]).map(x=>'ajouter '+x)].join(' ; ')||'aucune correction précise'}. Vérifie si la correction est faite ; si c’est le cas et que le plat est dans le budget, valide.`:'';
-  return`Tu es le coach nutrition de l’app Cadence. Tu analyses la photo d’un plat AVANT que l’utilisateur le mange.
-Profil : ${p.sex==='f'?'femme':'homme'}, ${age()} ans, ${p.height} cm, ${nf(curWeight(),1)} kg, objectif ${p.goal} kg : perdre du gras en gardant et construisant du muscle (musculation ${p.days.length}×/semaine). Régime : ${diet}.
-Cible du jour : ${tg.kcal} kcal, ${tg.prot} g de protéines. Déjà validé aujourd’hui : ${Math.round(ek)} kcal et ${Math.round(ep)} g de protéines sur ${ms.length} repas.
-Ce repas : ${SLOT_L[M.slot]}. Budget : environ ${bk} kcal (tolérance ±20 %) et idéalement au moins ${bp} g de protéines.${prev}${M.notes.length?`\nPrécisions données par l’utilisateur sur ce plat (à croire et à utiliser pour le calcul) : « ${M.notes.join(' » ; « ')} ».`:''}${M.skipped?'\nL’utilisateur ne connaît pas les ingrédients cachés : estime avec les ingrédients les plus probables, sans poser de question.':''}
-
-1. Identifie chaque aliment et boisson visibles, estime les quantités en grammes (repères : taille de l’assiette, couverts, mains) et calcule calories et macros.
-2. Décide :
-- "valide" si le plat convient à l’objectif : calories dans le budget (±20 %), protéines correctes ou proches, pas d’excès évident de gras, de sucre ou de friture.
-- "a_corriger" sinon. Donne alors des actions concrètes, chiffrées et faisables tout de suite sur ce plat : retirer ou mettre de côté une partie précise (ex. « la moitié des frites, environ 100 g »), ou ajouter un aliment simple (ex. « 150 g de skyr », « 2 œufs durs », « une poignée de légumes »). 1 à 3 actions maximum.
-- "pas_un_plat" si la photo ne montre pas de nourriture.
-- "question" si des ingrédients qui changent beaucoup les calories sont cachés ou ambigus (sandwich ou wrap fermé, burger, plat en sauce, gratin, boisson opaque…) et que tu ne peux pas estimer correctement. Mets alors une question courte et directe dans "question" (ex. « Qu’est-ce qu’il y a dans ton sandwich ? ») et 4 à 8 ingrédients probables, en mots courts, dans "suggestions".${M.notes.length||M.asks>=2?' Ici l’utilisateur a déjà répondu : NE pose PAS de question, décide valide ou a_corriger.':''}
-Sois pragmatique : pas de correction pour un écart de moins de 10 %. Ne commente jamais le physique de la personne.
-
-Réponds UNIQUEMENT avec ce JSON, en français, tutoiement :
-{"verdict":"valide|a_corriger|pas_un_plat|question","question":"","suggestions":[],"plat":"nom court","aliments":[{"nom":"","quantite_g":0,"kcal":0,"prot":0}],"kcal":0,"prot":0,"gluc":0,"lip":0,"resume":"une phrase","a_retirer":[],"a_ajouter":[],"conseil":"une phrase courte","confiance":"haute|moyenne|basse"}`;
+  const diet=(p.diet||[]).map(d=>({halal:'halal',sansporc:'sans porc',vegetarien:'végétarien',pescetarien:'pescétarien',sanslactose:'sans lactose'}[d])).join(', ');
+  const last=M.tries[M.tries.length-1];const noQ=M.notes.length||M.asks>=2||M.skipped;
+  return`Coach nutrition. Photo d’un plat avant de le manger. Objectif : perte de gras, garder le muscle.${diet?' Régime '+diet+'.':''}
+Repas : ${SLOT_L[M.slot]}. Budget ${bk} kcal (±20 %), au moins ${bp} g de protéines.${last?` Essai précédent : ${Math.round(last.kcal||0)} kcal, demandé : ${(last.fix||[]).join(' ; ')||'rien'}. Si c’est corrigé et dans le budget, valide.`:''}${M.notes.length?` Ingrédients donnés par l’utilisateur (à utiliser) : ${M.notes.join(' ; ')}.`:''}${M.skipped?' Ingrédients cachés inconnus : prends les plus probables.':''}
+Estime les quantités et les calories. Verdict v :
+"ok" si dans le budget et protéines correctes ;
+"fix" sinon, avec 1 ou 2 actions courtes et chiffrées dans fix (ex. « Retire la moitié des frites (100 g) », « Ajoute 150 g de skyr ») ;
+"non" si ce n’est pas de la nourriture${noQ?'':` ;
+"q" si des ingrédients caloriques sont cachés (sandwich fermé, burger, sauce…) : q = question courte, sug = 4 à 6 ingrédients probables`}.
+Pas de correction pour moins de 10 % d’écart. msg = 1 phrase courte, tutoiement. ing = 3 à 5 ingrédients vus.
+JSON uniquement : {"v":"","plat":"","kcal":0,"p":0,"g":0,"l":0,"msg":"","fix":[],"ing":[]${noQ?'':',"q":"","sug":[]'}}`;
 }
+function normAI(o){const V={ok:'valide',fix:'a_corriger',non:'pas_un_plat',q:'question'};const L=a=>Array.isArray(a)?a.map(x=>String(x)).filter(Boolean):[];
+  return{verdict:V[o.v]||o.verdict||'a_corriger',plat:o.plat||'',kcal:+o.kcal||0,prot:+(o.p??o.prot)||0,gluc:+(o.g??o.gluc)||0,lip:+(o.l??o.lip)||0,resume:o.msg||o.resume||'',fix:L(o.fix).slice(0,3),ing:L(o.ing).slice(0,6),question:o.q||o.question||'',suggestions:L(o.sug||o.suggestions).slice(0,8)}}
+const parseJSON=txt=>{const a=txt.indexOf('{'),b=txt.lastIndexOf('}');if(a<0)throw new Error('Réponse illisible. Reprends la photo.');return normAI(JSON.parse(txt.slice(a,b+1)))};
 async function aiVision(cv,prompt){
-  if(SAMPLE&&SAMPLE_IMG){const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.82));return await SAMPLE.json(prompt,{images:blob,modelTier:'complex',cache:false})}
-  const data=cv.toDataURL('image/jpeg',.82).split(',')[1];let res;
+  if(SAMPLE&&SAMPLE_IMG){const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.72));return normAI(await SAMPLE.json(prompt,{images:blob,modelTier:'quick',cache:false}))}
+  const data=cv.toDataURL('image/jpeg',.72).split(',')[1];
+  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),20000);
+  const go=(u,o)=>fetch(u,Object.assign({method:'POST',signal:ctl.signal},o)).catch(e=>{throw new Error(e&&e.name==='AbortError'?'L’analyse a pris trop de temps. Réessaie (réseau lent ?).':'Pas de connexion internet. Réessaie dans un instant.')});
+  try{
   if(aiProv()==='gemini'){
-    try{res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEM_MODEL}:generateContent`,{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':apiKey()},
-      body:JSON.stringify({contents:[{role:'user',parts:[{inline_data:{mime_type:'image/jpeg',data}},{text:prompt}]}],generationConfig:{temperature:.2,responseMimeType:'application/json'}})})}
-    catch(e){throw new Error('Pas de connexion internet. Réessaie dans un instant.')}
-    if(!res.ok){let m='';try{m=(await res.json()).error?.message||''}catch(e){}
+    for(let tryN=0;tryN<3;tryN++){
+      const gc={temperature:.2,maxOutputTokens:400,responseMimeType:'application/json'};if(GEM_THINK)gc.thinkingConfig={thinkingBudget:0};
+      const res=await go(`https://generativelanguage.googleapis.com/v1beta/models/${GEM_MODELS[0]}:generateContent`,{headers:{'content-type':'application/json','x-goog-api-key':apiKey()},
+        body:JSON.stringify({contents:[{role:'user',parts:[{inline_data:{mime_type:'image/jpeg',data}},{text:prompt}]}],generationConfig:gc})});
+      if(res.ok){const j=await res.json();return parseJSON(((j.candidates||[])[0]?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join(''))}
+      let m='';try{m=(await res.json()).error?.message||''}catch(e){}
+      if(res.status===400&&/think/i.test(m)&&GEM_THINK){GEM_THINK=false;continue}
+      if(res.status===404&&GEM_MODELS.length>1){GEM_MODELS.shift();continue}
       throw new Error(res.status===400&&/key/i.test(m)||res.status===403?'Clé Gemini refusée. Vérifie-la dans Réglages → Analyse des repas.':res.status===429?'Quota gratuit atteint pour le moment. Réessaie dans une minute (ou demain).':res.status===503?'Gemini est surchargé. Réessaie dans une minute.':'Erreur de Gemini ('+res.status+'). '+m)}
-    const j=await res.json();const txt=((j.candidates||[])[0]?.content?.parts||[]).map(p=>p.text||'').join('');const a=txt.indexOf('{'),b=txt.lastIndexOf('}');
-    if(a<0)throw new Error('Réponse illisible. Reprends la photo.');return JSON.parse(txt.slice(a,b+1));
+    throw new Error('Gemini ne répond pas correctement. Réessaie.');
   }
-  try{res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':apiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:aiModel(),max_tokens:1500,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data}},{type:'text',text:prompt}]}]})})}
-  catch(e){throw new Error('Pas de connexion internet. Réessaie dans un instant.')}
+  const res=await go('https://api.anthropic.com/v1/messages',{headers:{'content-type':'application/json','x-api-key':apiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:aiModel(),max_tokens:400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data}},{type:'text',text:prompt}]}]})});
   if(!res.ok){let m='';try{m=(await res.json()).error?.message||''}catch(e){}
     throw new Error(res.status===401?'Clé API refusée. Vérifie-la dans Réglages → Analyse des repas.':res.status===400&&/credit/i.test(m)?'Plus de crédit sur ton compte Anthropic (Billing).':res.status===429||res.status===529?'Le service est surchargé. Réessaie dans une minute.':res.status===404?'Modèle indisponible : choisis l’autre modèle dans Réglages.':'Erreur de l’IA ('+res.status+'). '+m)}
-  const j=await res.json();const txt=(j.content||[]).map(c=>c.text||'').join('');const a=txt.indexOf('{'),b=txt.lastIndexOf('}');
-  if(a<0)throw new Error('Réponse illisible. Reprends la photo.');return JSON.parse(txt.slice(a,b+1));
+  const j=await res.json();return parseJSON((j.content||[]).map(c=>c.text||'').join(''));
+  }finally{clearTimeout(to)}
 }
 async function handleMealPhoto(file){
   const M=MEAL;if(!M||!file)return;
   if(Date.now()-(file.lastModified||Date.now())>5*6e4){M.state='error';M.err='Cette photo ne vient pas d’être prise. Utilise l’appareil photo, pas la galerie.';mealSheet();return}
   let im;try{im=await loadImg(file)}catch(e){M.state='error';M.err='Impossible de lire la photo.';mealSheet();return}
-  const sc=Math.min(1,1024/Math.max(im.width,im.height));const cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
+  const sc=Math.min(1,640/Math.max(im.width,im.height));const cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
   M.img=cv.toDataURL('image/jpeg',.7);M.cv=cv;return analyzeMeal();
 }
 async function analyzeMeal(){
-  const M=MEAL;if(!M||!M.cv)return;stopVoice();M.state='busy';M.res=null;mealSheet();const tok=++mealTok;
-  try{const r=await aiVision(M.cv,mealPrompt());if(MEAL!==M||tok!==mealTok)return;
+  const M=MEAL;if(!M||!M.cv)return;stopVoice();M.state='busy';M.res=null;M.ms=0;mealSheet();const tok=++mealTok;const t0=performance.now();
+  const tick=setInterval(()=>{const el=$('#aiT');if(el)el.textContent=nf((performance.now()-t0)/1000,1)+' s'},100);
+  try{const r=await aiVision(M.cv,mealPrompt());clearInterval(tick);M.ms=Math.round(performance.now()-t0);if(MEAL!==M||tok!==mealTok)return;
     if(r.verdict==='question'&&M.asks<2&&!M.skipped){M.asks++;M.askQ=r.question;M.askSug=(r.suggestions||[]).map(x=>String(x).slice(0,30)).slice(0,8);M.answer='';M.picks=[];M.askMode='voice';M.voiceErr='';M.state='ask';mealSheet();return}
     if(r.verdict==='question')r.verdict='a_corriger';
-    M.res=r;M.tries.push({verdict:r.verdict,kcal:r.kcal,a_retirer:r.a_retirer,a_ajouter:r.a_ajouter});M.state='result';
+    M.res=r;M.tries.push({verdict:r.verdict,kcal:r.kcal,fix:r.fix});M.state='result';
     if(r.verdict==='valide'){const ds=today();S.meals=S.meals||{};(S.meals[ds]=S.meals[ds]||[]).push({id:'m'+Date.now().toString(36),t:Date.now(),slot:M.slot,nom:String(r.plat||'Repas').slice(0,60),kcal:+r.kcal||0,prot:+r.prot||0,gluc:+r.gluc||0,lip:+r.lip||0,tries:M.tries.length});
       addPts(MEAL_PTS,'Repas validé · '+String(r.plat||SLOT_L[M.slot]).slice(0,40),'meal');checkPerfect(ds);save();render()}
-  }catch(e){if(MEAL!==M)return;M.state='error';M.err=e&&e.message?e.message:'L’analyse a échoué. Réessaie.'}
+  }catch(e){clearInterval(tick);if(MEAL!==M)return;M.state='error';M.err=e&&e.message?e.message:'L’analyse a échoué. Réessaie.'}
   mealSheet();
 }
 /* dictée vocale (Safari : reconnaissance vocale d'Apple) */
@@ -1422,7 +1426,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.7';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.8';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&REMOTE_V.v>APP_VERSION);
 function forceUpdate(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}toast('Mise à jour…');setTimeout(()=>location.replace(location.pathname+'?v='+Date.now()+location.hash),300)}
@@ -1599,7 +1603,7 @@ document.addEventListener('click',e=>{
    pickIng:()=>{const a=MEAL.picks,i=a.indexOf(v);i>=0?a.splice(i,1):a.push(v);mealSheet()},
    sendAns:()=>{const M=MEAL;stopVoice();const el=$('#ansIn');if(el)M.answer=el.value.trim();const ans=[M.picks.join(', '),M.answer].filter(Boolean).join(' · ');if(!ans){toast('Dis ou choisis au moins un ingrédient');return}M.notes.push(ans);analyzeMeal()},
    skipAns:()=>{stopVoice();MEAL.skipped=true;analyzeMeal()},
-   fixIng:()=>{const M=MEAL,r=M.res||{};M.askQ='Qu’est-ce qui n’est pas juste ? Dis-moi ce qu’il y a vraiment dans ton plat.';M.askSug=(r.aliments||[]).map(a=>String(a.nom).slice(0,30)).slice(0,8);M.tries.pop();M.answer='';M.picks=[];M.askMode='voice';M.voiceErr='';M.state='ask';mealSheet()},
+   fixIng:()=>{const M=MEAL,r=M.res||{};M.askQ='Qu’est-ce qui n’est pas juste ? Dis-moi ce qu’il y a vraiment dans ton plat.';M.askSug=(r.ing||[]).map(a=>String(a).slice(0,30)).slice(0,8);M.tries.pop();M.answer='';M.picks=[];M.askMode='voice';M.voiceErr='';M.state='ask';mealSheet()},
    keySave:()=>{const k=($('#apiKeyIn').value||'').trim(),g=aiProv()==='gemini';if(g?!/^(AIza|AQ\.)/.test(k):!/^sk-ant-/.test(k)){toast(g?'Une clé Gemini commence par AIza ou AQ.':'Une clé Claude commence par sk-ant-');return}try{localStorage.setItem(g?'cadence.gkey':'cadence.apikey',k)}catch(e){}toast('Clé enregistrée');if(sheetName==='meal'){mealSheet()}else settingsSheet()},
    aiProv:()=>{try{localStorage.setItem('cadence.ai',v)}catch(e){}sheetName==='meal'?mealSheet():settingsSheet()},
    keyDel:()=>{try{localStorage.removeItem(aiProv()==='gemini'?'cadence.gkey':'cadence.apikey')}catch(e){}toast('Clé supprimée');sheetName==='meal'?mealSheet():settingsSheet()},
