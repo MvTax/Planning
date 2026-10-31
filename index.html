@@ -62,6 +62,8 @@ input{font:inherit;color:inherit}
 .sec{display:flex;flex-direction:column;gap:12px}
 .sec-h{display:flex;align-items:center;gap:10px}
 .sec-h h2{flex:1;min-width:0}
+.iconbtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--surface);box-shadow:var(--shadow);color:var(--ink);flex:none}
+.iconbtn .ico{width:19px;height:19px;stroke-width:2}
 .sec-h .aside{font-size:13px;color:var(--muted);font-family:var(--f-num)}
 .pill{font-size:12px;font-weight:700;border-radius:999px;padding:6px 11px;white-space:nowrap;background:color-mix(in srgb,var(--pc,var(--muted)) 15%,var(--surface));color:var(--pc,var(--muted))}
 .p-done{--pc:var(--money)} .p-due,.p-run{--pc:var(--warn)} .p-miss{--pc:var(--bad)} .p-up,.p-soon,.p-iup,.p-idone{--pc:var(--muted)} .p-irun{--pc:var(--c-work)}
@@ -707,7 +709,7 @@ function render(){
 function greeting(){const h=new Date().getHours();return h<5?'Bonne nuit':h<12?'Bonjour':h<18?'Bon après-midi':'Bonsoir'}
 const KIND=t=>({travail:'work',sport:'sport',cardio:'sport',repas:'meal',courses:'meal',batch:'meal',agenda:'free',rdv:'free',etude:'perso',maison:'perso',perso:'perso'}[t]||'perso');
 function renderJour(){
-  const t=today(),ds=V.date,isToday=ds===t,T=dayTasks(ds),p=S.profile;
+  V.date=today();const t=today(),ds=V.date,isToday=ds===t,T=dayTasks(ds),p=S.profile;
   const mon=mondayOf(ds);const w=weekOf(ds);
   const strip=Array.from({length:7},(_,i)=>{const d=addDs(mon,i);const dot=d<=t?(S.perfect[d]?'full':dayPts(d)>0?'part':''):'';
     return`<button class="wd ${d===ds?'on':''}" data-act="date" data-v="${d}">${DAYS[i]}<b>${parseYmd(d).getDate()}</b><i class="dot ${dot}"></i></button>`}).join('');
@@ -726,13 +728,14 @@ function renderJour(){
   const bar=(v,tot,c)=>`<i style="width:${tot?v/tot*100:0}%;background:${c}"></i>`;
   const n0=nowMin(),wl=isToday?workBlocks(ds).blocks.reduce((a,b)=>a+Math.max(0,b.e-Math.max(b.s,n0)),0):0,tb=isToday?Math.max(0,st.bed-n0):0;
   const seg=(v,k)=>v>0?`<i class="k-${k}" style="width:${st.awake?v/st.awake*100:0}%"></i>`:'';
-  const statsCard=`<section class="sec"><div class="sec-h"><span class="badge k-work">${ic('jour')}</span><h2>${isToday?'Ma journée':fmtShort(parseYmd(ds))}</h2><span class="aside">${hm(st.wake)} → ${hm(st.bed)}</span></div>
+  V.statsHTML=`<span class="lbl">${isToday?'Aujourd’hui':fmtShort(parseYmd(ds))} · éveillé de ${hm(st.wake)} à ${hm(st.bed)}</span><h2>Ma journée en chiffres</h2><p class="muted" style="font-size:13.5px">Le temps de ta journée, calculé à partir de ton planning de travail, de tes trajets et de ton heure de coucher.</p>
    <div class="card">
     ${isToday?`<span class="lbl">Il reste aujourd’hui</span><div class="tiles"><div class="tile tint k-work"><span class="lbl">Travail</span><b>${wl?durTxt(wl):'fini'}</b></div><div class="tile tint k-pts"><span class="lbl">Avant dodo</span><b>${durTxt(tb)}</b></div><div class="tile tint k-free"><span class="lbl">Libre</span><b>${durTxt(Math.max(0,tb-wl))}</b></div></div>`:''}
     <span class="lbl" style="${isToday?'padding-top:4px':''}">Répartition de la journée · ${durTxt(st.awake)} éveillé</span>
     <div class="segbar">${seg(st.work,'work')}${seg(st.trips,'trip')}${seg(st.free,'free')}</div>
     <div class="legend"><span class="k-work"><i></i>Travail <b class="num" style="color:var(--ink)">${st.work?durTxt(st.work):'0'}</b></span><span class="k-trip"><i></i>Trajets <b class="num" style="color:var(--ink)">${st.trips?durTxt(st.trips):'0'}</b></span><span class="k-free"><i></i>Libre <b class="num" style="color:var(--ink)">${durTxt(st.free)}</b></span></div>
-    <p class="muted" style="font-size:12.5px;border-top:1px solid var(--line);padding-top:10px">Cette semaine : ${durTxt(wWork)} de travail · ${durTxt(Math.round(wFree/7))} de temps libre par jour en moyenne.</p></div></section>`;
+    <p class="muted" style="font-size:12.5px;border-top:1px solid var(--line);padding-top:10px">Cette semaine : ${durTxt(wWork)} de travail · ${durTxt(Math.round(wFree/7))} de temps libre par jour en moyenne.</p></div>`;
+  const statsCard=`<button class="card row between" data-act="dayStats" style="width:100%;text-align:left;padding:14px 16px;gap:12px;flex-direction:row;align-items:center"><span class="badge sm k-free">${ic('hourglass')}</span><span style="flex:1;min-width:0"><b style="font-size:15px">${isToday?(wl?`Encore ${durTxt(wl)} de travail`:'Travail fini pour aujourd’hui'):`${durTxt(st.work)} de travail`}</b><br><span class="muted" style="font-size:13px">${isToday?`${durTxt(Math.max(0,tb-wl))} de temps libre avant de dormir`:`${durTxt(st.free)} de temps libre`}</span></span><span class="muted">${ic('arrow')}</span></button>`;
   const row=x=>{const s2=status(x);const pu=S.punches[x.key]||{};const[,l]=STAMP[s2];const k=KIND(x.type);
     const earned=x.info?0:S.ledger.filter(e=>e.key===x.key).reduce((a,e)=>a+e.pts,0);
     const lbl=x.info?(l||durTxt(x.dur)):x.meal?MEAL_LBL[s2]:s2==='done'?(pu.how==='ok'?'Validé':HOW[pu.how]||'Validé'):l;
@@ -745,7 +748,7 @@ function renderJour(){
       <span class="pill p-${s2}">${lbl}</span></button>`};
   const isPast=x=>{const s2=status(x);return x.info?s2==='idone':(s2==='done'||s2==='miss')};
   const rem=isToday?T.filter(x=>!isPast(x)):T,doneL=isToday?T.filter(isPast):[];
-  const list=rem.map(row).join('')+(doneL.length?`<button class="chip sm" data-act="showDone" style="align-self:flex-start">${V.showDone?'Masquer':'Voir'} les ${doneL.length} élément${doneL.length>1?'s':''} terminé${doneL.length>1?'s':''}</button>${V.showDone?doneL.map(row).join(''):''}`:'');
+  const list=rem.map(row).join('')+(doneL.length?`<button class="link" data-act="showDone" style="align-self:flex-start;font-size:13.5px;padding:2px 4px">${V.showDone?'Masquer':'Voir'} les ${doneL.length} élément${doneL.length>1?'s':''} terminé${doneL.length>1?'s':''}</button>${V.showDone?doneL.map(row).join(''):''}`:'');
   const wkLabel=w?`Semaine ${w} · ${PHASES[phaseOf(w)].n}`:`${PHASES[0].n} · programme le ${fmtShort(parseYmd(S.programStart||t))}`;
   const mN=((S.meals||{})[t]||[]).length;
   return`<header class="top"><div class="stack" style="gap:4px;min-width:0"><span class="lbl">${fmtDate(new Date())}</span><h1>${greeting()}${p.name?', '+esc(p.name):''}</h1><span class="muted" style="font-size:13px">${wkLabel}</span></div>
@@ -758,11 +761,11 @@ function renderJour(){
   ${hasUpdate()?`<button class="banner info" data-act="forceUpdate" style="width:100%;text-align:left">${ic('arrow')}<span class="grow">Nouvelle version disponible${REMOTE_V.notes?' : '+esc(REMOTE_V.notes):''}. Touche pour mettre à jour.</span></button>`:''}
   ${hero}
   ${isToday?mealCard():''}
-  <section class="sec"><div class="sec-h"><span class="badge k-sport">${ic('agenda')}</span><h2>${isToday?'Ce qui reste':fmtDate(parseYmd(ds))}</h2><button class="chip sm" data-act="workday" data-v="${ds}">Planning</button><button class="chip sm on" data-act="addtask" aria-label="Ajouter une tâche">${ic('plus')}</button></div>
-  <div class="card" style="padding:10px"><div class="week">${strip}</div></div>
+  <section class="sec"><div class="sec-h"><h2>${isToday?'Ce qui reste':fmtDate(parseYmd(ds))}</h2><button class="iconbtn" data-act="workday" data-v="${ds}" aria-label="Planning de la semaine">${ic('agenda')}</button><button class="iconbtn" data-act="addtask" aria-label="Ajouter une tâche">${ic('plus')}</button></div>
   <div class="tl">${rem.length?'':`<div class="empty">${T.length?'Tout est fait pour aujourd’hui.':'Jour off : pas de travail ni de séance prévus.'}</div>`}${list}</div></section>
   ${statsCard}`;
 }
+function dayStatsSheet(){render();openSheet(`<div class="grab"></div>${V.statsHTML||''}<button class="btn ghost" data-act="workday" data-v="${V.date}">Voir le planning de la semaine</button>`,'stats')}
 
 /* ---------- détail tâche ---------- */
 function taskSheet(key){
@@ -1602,7 +1605,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.992';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.993';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
@@ -1777,6 +1780,7 @@ document.addEventListener('click',e=>{
    forceUpdate:()=>forceUpdate(),
    bkExport:()=>{try{const b=new Blob([JSON.stringify(S)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`cadence-sauvegarde-${today()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}catch(e){toast('Export impossible sur ce navigateur')}},
    meal:()=>openMeal(),
+   dayStats:()=>dayStatsSheet(),
    omad:()=>{S.profile.omad=v==='1';save();render();settingsSheet()},
    omadWin:()=>{S.profile.omadWin=Number(v);save();render();settingsSheet()},
    mealRetry:()=>{if(MEAL){MEAL.bgRetry=0;analyzeMeal()}},
