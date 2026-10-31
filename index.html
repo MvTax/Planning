@@ -808,6 +808,13 @@ const aiProv=()=>lsGet('cadence.ai','gemini');
 const apiKey=(pv)=>lsGet((pv||aiProv())==='claude'?'cadence.apikey':'cadence.gkey','');
 const aiModel=()=>lsGet('cadence.aimodel','claude-haiku-5-5');
 let GEM_MODELS=['gemini-flash-lite-latest','gemini-flash-latest'],GEM_THINK=true;
+try{const gm=localStorage.getItem('cadence.gmodel');if(gm)GEM_MODELS=[gm,...GEM_MODELS.filter(x=>x!==gm)];if(localStorage.getItem('cadence.gthink')==='0')GEM_THINK=false}catch(e){}
+/* journal technique (pour le test de l'app) */
+let LOGS=[];try{LOGS=JSON.parse(localStorage.getItem('cadence.log')||'[]')}catch(e){}
+function logE(type,msg){const d=new Date();LOGS.push(`${ymd(d)} ${clock(+d)}:${pad(d.getSeconds())} [${type}] ${String(msg).slice(0,300)}`);LOGS=LOGS.slice(-60);try{localStorage.setItem('cadence.log',JSON.stringify(LOGS))}catch(e){}}
+window.addEventListener('error',e=>logE('js',`${e.message} @${(e.filename||'').split('/').pop()}:${e.lineno}`));
+window.addEventListener('unhandledrejection',e=>logE('promise',e.reason&&(e.reason.message||e.reason)));
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(MEAL&&MEAL.state==='busy'){MEAL.hid=true;logE('vis','app en arrière-plan pendant une analyse')}}else if(MEAL&&MEAL.state==='retry'){logE('vis','retour au premier plan : relance de l’analyse');analyzeMeal()}});
 const aiReady=()=>!!(SAMPLE&&SAMPLE_IMG)||!!apiKey();
 function mealCard(){
   const p=S.profile,tg=targets(),ms=(S.meals||{})[today()]||[];const k=ms.reduce((a,m)=>a+m.kcal,0),pr=ms.reduce((a,m)=>a+m.prot,0);
@@ -826,8 +833,9 @@ function mealSheet(){
   const chips=Object.keys(slotShares()).map(k=>`<button class="chip sm ${M.slot===k?'on':''}" data-act="mealSlot" data-v="${k}">${SLOT_L[k]}</button>`).join('');
   const img=M.img?`<img src="${M.img}" alt="Ton plat" style="width:100%;max-height:260px;object-fit:cover;border-radius:16px">`:'';
   let body='';const r=M.res;const n=M.tries.length;
-  if(M.state==='busy')body=`${img}<div class="row" style="justify-content:center;padding:8px"><span class="spin"></span><span class="muted">Analyse${n?' du plat corrigé':''}… <span class="num" id="aiT">0,0 s</span></span></div>`;
-  else if(M.state==='error')body=`${img}<div class="banner bad"><span class="grow">${esc(M.err)}</span></div><label for="mealCam" class="btn">${ic('cam')} Reprendre la photo</label>`;
+  if(M.state==='busy')body=`${img}<div class="row" style="justify-content:center;padding:8px"><span class="spin"></span><span class="muted">Analyse${n?' du plat corrigé':''}… <span class="num" id="aiT">0,0 s</span></span></div><p class="muted" style="font-size:12.5px;text-align:center">Garde l’app ouverte pendant l’analyse.</p>`;
+  else if(M.state==='retry')body=`${img}<div class="banner info"><span class="grow">Analyse interrompue quand l’app est passée en arrière-plan. Elle repart toute seule maintenant.</span></div>`;
+  else if(M.state==='error')body=`${img}<div class="banner bad"><span class="grow">${esc(M.err)}</span></div>${M.cv?`<button class="btn" data-act="mealRetry">Réessayer avec la même photo</button>`:''}<label for="mealCam" class="btn ghost">${ic('cam')} Reprendre la photo</label>`;
   else if(M.state==='ask'){
     const sug=[...new Set([...(M.askSug||[]),'Mayonnaise','Fromage','Sauce','Beurre'])].slice(0,10);
     body=`${img}<section class="card" style="gap:12px"><span class="lbl">Question</span><h3 style="font-size:18px;text-wrap:balance">${esc(M.askQ||'Qu’est-ce qu’il y a dedans ?')}</h3>
@@ -890,7 +898,10 @@ async function aiVision(cv,prompt){
   if(SAMPLE&&SAMPLE_IMG){const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.72));return normAI(await SAMPLE.json(prompt,{images:blob,modelTier:'quick',cache:false}))}
   const data=cv.toDataURL('image/jpeg',.72).split(',')[1];
   const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),20000);
-  const go=(u,o)=>fetch(u,Object.assign({method:'POST',signal:ctl.signal},o)).catch(e=>{throw new Error(e&&e.name==='AbortError'?'L’analyse a pris trop de temps. Réessaie (réseau lent ?).':'Pas de connexion internet. Réessaie dans un instant.')});
+  const go=async(u,o)=>{const t0=performance.now(),hid0=document.hidden,host=u.split('/')[2],mdl=(u.match(/models\/([^:]+)/)||[])[1]||aiModel();
+    try{const r=await fetch(u,Object.assign({method:'POST',signal:ctl.signal},o));logE('ai',`${host} ${mdl} → HTTP ${r.status} en ${Math.round(performance.now()-t0)} ms · image ${Math.round(data.length*.75/1024)} Ko`);return r}
+    catch(e){const ms=Math.round(performance.now()-t0),bg=hid0||document.hidden||(MEAL&&MEAL.hid);logE('ai',`${host} ${mdl} → ÉCHEC ${e&&e.name}: ${e&&e.message} après ${ms} ms${bg?' (app en arrière-plan)':''} · en ligne=${navigator.onLine}`);
+      const err=new Error(e&&e.name==='AbortError'?'L’analyse a pris trop de temps (plus de 20 s). Lance « Tester l’application » dans Réglages.':bg?'Analyse interrompue : l’app est passée en arrière-plan.':!navigator.onLine?'Pas de connexion internet. Réessaie dans un instant.':'La requête vers l’IA a échoué ('+(e&&e.message||'réseau')+'). Lance « Tester l’application » dans Réglages.');err.bg=bg;throw err}};
   try{
   if(aiProv()==='gemini'){
     for(let tryN=0;tryN<3;tryN++){
@@ -899,7 +910,8 @@ async function aiVision(cv,prompt){
         body:JSON.stringify({contents:[{role:'user',parts:[{inline_data:{mime_type:'image/jpeg',data}},{text:prompt}]}],generationConfig:gc})});
       if(res.ok){const j=await res.json();return parseJSON(((j.candidates||[])[0]?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join(''))}
       let m='';try{m=(await res.json()).error?.message||''}catch(e){}
-      if(res.status===400&&/think/i.test(m)&&GEM_THINK){GEM_THINK=false;continue}
+      logE('ai',`détail ${res.status} : ${m}`);
+      if(res.status===400&&/think/i.test(m)&&GEM_THINK){GEM_THINK=false;try{localStorage.setItem('cadence.gthink','0')}catch(e){}continue}
       if(res.status===404&&GEM_MODELS.length>1){GEM_MODELS.shift();continue}
       throw new Error(res.status===400&&/key/i.test(m)||res.status===403?'Clé Gemini refusée. Vérifie-la dans Réglages → Analyse des repas.':res.status===429?'Quota gratuit atteint pour le moment. Réessaie dans une minute (ou demain).':res.status===503?'Gemini est surchargé. Réessaie dans une minute.':'Erreur de Gemini ('+res.status+'). '+m)}
     throw new Error('Gemini ne répond pas correctement. Réessaie.');
@@ -919,7 +931,7 @@ async function handleMealPhoto(file){
   M.img=cv.toDataURL('image/jpeg',.7);M.cv=cv;return analyzeMeal();
 }
 async function analyzeMeal(){
-  const M=MEAL;if(!M||!M.cv)return;stopVoice();M.state='busy';M.res=null;M.ms=0;mealSheet();const tok=++mealTok;const t0=performance.now();
+  const M=MEAL;if(!M||!M.cv)return;stopVoice();M.state='busy';M.res=null;M.ms=0;M.hid=false;mealSheet();const tok=++mealTok;const t0=performance.now();
   const tick=setInterval(()=>{const el=$('#aiT');if(el)el.textContent=nf((performance.now()-t0)/1000,1)+' s'},100);
   try{const r=await aiVision(M.cv,mealPrompt());clearInterval(tick);M.ms=Math.round(performance.now()-t0);if(MEAL!==M||tok!==mealTok)return;
     if(r.verdict==='question'&&M.asks<2&&!M.skipped){M.asks++;M.askQ=r.question;M.askSug=(r.suggestions||[]).map(x=>String(x).slice(0,30)).slice(0,8);M.answer='';M.picks=[];M.askMode='voice';M.voiceErr='';M.state='ask';mealSheet();return}
@@ -927,7 +939,9 @@ async function analyzeMeal(){
     M.res=r;M.tries.push({verdict:r.verdict,kcal:r.kcal,fix:r.fix});M.state='result';
     if(r.verdict==='valide'){const ds=today();S.meals=S.meals||{};(S.meals[ds]=S.meals[ds]||[]).push({id:'m'+Date.now().toString(36),t:Date.now(),slot:M.slot,nom:String(r.plat||'Repas').slice(0,60),kcal:+r.kcal||0,prot:+r.prot||0,gluc:+r.gluc||0,lip:+r.lip||0,tries:M.tries.length});
       addPts(MEAL_PTS,'Repas validé · '+String(r.plat||SLOT_L[M.slot]).slice(0,40),'meal');checkPerfect(ds);save();render()}
-  }catch(e){clearInterval(tick);if(MEAL!==M)return;M.state='error';M.err=e&&e.message?e.message:'L’analyse a échoué. Réessaie.'}
+  }catch(e){clearInterval(tick);if(MEAL!==M)return;
+    if(e&&e.bg&&(M.bgRetry||0)<2){M.bgRetry=(M.bgRetry||0)+1;M.hid=false;if(document.hidden){M.state='retry';mealSheet();return}logE('ai','relance automatique après arrière-plan');return analyzeMeal()}
+    M.state='error';M.err=e&&e.message?e.message:'L’analyse a échoué. Réessaie.'}
   mealSheet();
 }
 /* dictée vocale (Safari : reconnaissance vocale d'Apple) */
@@ -943,6 +957,94 @@ function toggleVoice(){
   rec.onerror=e=>{if(REC!==rec)return;M.voiceErr=e.error==='not-allowed'||e.error==='service-not-allowed'?'Micro ou dictée refusés : autorise le micro pour ce site (aA → Réglages du site) et active Siri et Dictée dans Réglages.':e.error==='no-speech'?'Je n’ai rien entendu. Réessaie ou décris par écrit.':'La dictée a coupé. Réessaie ou décris par écrit.'};
   rec.onend=()=>{if(REC===rec)REC=null;M.listening=false;if(MEAL===M&&M.state==='ask')mealSheet()};
   try{rec.start();M.listening=true;M.voiceErr=''}catch(e){M.voiceErr='Impossible de démarrer la dictée.'}mealSheet();
+}
+
+
+/* ---------- test complet de l'application ---------- */
+let DIAG=null;
+function diagSheet(){const D=DIAG;
+  const lines=D.lines.map(l=>`<div class="ledger" style="font-size:13px"><span style="min-width:0">${esc(l.n)}${l.d?`<br><span class="muted" style="font-size:12px">${esc(l.d)}</span>`:''}</span><span class="stamp ${l.s==='OK'?'st-done':l.s==='KO'?'st-miss':l.s==='…'?'st-run':'st-due'}">${l.s==='…'?'en cours':l.s}</span></div>`).join('');
+  openSheet(`<div class="grab"></div><span class="lbl">Diagnostic · ${D.done?'terminé en '+nf(D.ms/1000,1)+' s':'en cours…'}</span><h2>Test de l’application</h2>
+   ${D.done?`<div class="kv" style="grid-template-columns:repeat(3,1fr)"><div><span class="lbl">OK</span><b style="color:var(--money)">${D.lines.filter(l=>l.s==='OK').length}</b></div><div><span class="lbl">À voir</span><b style="color:var(--warn)">${D.lines.filter(l=>l.s==='!!').length}</b></div><div><span class="lbl">Échecs</span><b style="color:var(--bad)">${D.lines.filter(l=>l.s==='KO').length}</b></div></div>
+   <button class="btn" data-act="diagCopy">${ic('check')} Copier le rapport</button>`:`<div class="row" style="justify-content:center"><span class="spin"></span><span class="muted">${esc(D.cur||'')}</span></div><p class="muted" style="font-size:12.5px;text-align:center">Garde l’app ouverte jusqu’à la fin (environ 20 à 40 s).</p>`}
+   <section class="card" style="gap:0;padding-block:8px">${lines}</section>
+   ${D.done?`<textarea id="diagOut" class="ans" readonly style="min-height:160px;font-family:var(--f-num);font-size:11.5px">${esc(D.report)}</textarea><button class="btn" data-act="diagCopy">${ic('check')} Copier le rapport</button><button class="btn ghost" data-act="close">Fermer</button>`:''}`,'diag');
+}
+async function runDiag(){
+  if(DIAG&&!DIAG.done)return;const D=DIAG={lines:[],done:false,t0:performance.now()};let hidden=false;
+  const onVis=()=>{if(document.hidden)hidden=true};document.addEventListener('visibilitychange',onVis);
+  const add=(n,st,d)=>{D.lines.push({n,s:st,d:d||''});if(sheetName==='diag')diagSheet()};
+  const step=async(n,fn)=>{D.cur=n;const L={n,s:'…',d:''};D.lines.push(L);if(sheetName==='diag')diagSheet();const t=performance.now();
+    try{const r=await Promise.race([fn(),new Promise((_,j)=>setTimeout(()=>j(new Error('délai dépassé (25 s)')),25000))]);L.s=r&&r.s||'OK';L.d=r&&r.d&&/ms$/.test(r.d)?r.d:(r&&r.d?r.d+' · ':'')+`${Math.round(performance.now()-t)} ms`}
+    catch(e){L.s='KO';L.d=`${e&&e.name&&e.name!=='Error'?e.name+': ':''}${e&&e.message||e} · ${Math.round(performance.now()-t)} ms`}
+    if(sheetName==='diag')diagSheet();return L};
+  const timed=async(u,o,ms=20000)=>{const c=new AbortController();const to=setTimeout(()=>c.abort(),ms);const t=performance.now();try{const r=await fetch(u,Object.assign({signal:c.signal,cache:'no-store'},o||{}));let body='';try{body=await r.text()}catch(e){}return{r,body,ms:Math.round(performance.now()-t)}}finally{clearTimeout(to)}};
+  diagSheet();
+  // 1. environnement
+  const ua=navigator.userAgent,ios=(ua.match(/OS (\d+)_(\d+)/)||[]).slice(1).join('.');
+  add('Version de l’app','OK',`${APP_VERSION} · iOS ${ios||'?'} · ${window.navigator.standalone?'écran d’accueil':'Safari'} · ${innerWidth}×${innerHeight} · ${Intl.DateTimeFormat().resolvedOptions().timeZone}`);
+  add('Connexion','' + (navigator.onLine?'OK':'KO'),navigator.onLine?'en ligne':'hors ligne');
+  let lsOK=false;try{localStorage.setItem('cadence.t','1');lsOK=localStorage.getItem('cadence.t')==='1';localStorage.removeItem('cadence.t')}catch(e){}
+  const size=(()=>{try{return Math.round((localStorage.getItem(LS)||'').length/1024)}catch(e){return-1}})();
+  add('Stockage local',lsOK?'OK':'KO',`données ${size} Ko${size>3000?' (gros, pense à exporter)':''}`);
+  let hasK=false;try{hasK=!!localStorage.getItem('cadence.key')}catch(e){}
+  add('Clé de déchiffrement (lien #k=)',hasK?'OK':'KO',hasK?'présente':'absente : rouvre le lien complet');
+  // 2. fichiers GitHub
+  await step('GitHub · version publiée',async()=>{const x=await timed('version.json?t='+Date.now());if(!x.r.ok)throw new Error('HTTP '+x.r.status);const v=JSON.parse(x.body).v;return{s:v>APP_VERSION?'!!':'OK',d:`en ligne ${v} · installée ${APP_VERSION}${v>APP_VERSION?' → force la mise à jour':''} · ${x.ms} ms`}});
+  for(const f of ['agenda.enc.json','state.enc.json','secrets.enc.json'])await step('Fichier chiffré · '+f,async()=>{const o=await decFile(f);return{d:f==='agenda.enc.json'?`planning jusqu’au ${o.to}, ${o.shifts.length} services`:f==='secrets.enc.json'?`clé IA ${o.gkey?'présente':'absente'}`:`profil ${o.profile&&o.profile.name?'ok':'?'}`}});
+  // 3. IA
+  const pv=aiProv(),k=apiKey();
+  add('Fournisseur IA',k?'OK':'KO',`${pv} · clé ${k?k.slice(0,4)+'… ('+k.length+' caractères)':'absente'}${SAMPLE&&SAMPLE_IMG?' · IA Claude de l’app disponible':''}`);
+  const tiny={contents:[{role:'user',parts:[{text:'Réponds uniquement {"ok":1}'}]}]};
+  let best=null;
+  if(pv==='gemini'&&k){
+    const G='https://generativelanguage.googleapis.com/v1beta/models';
+    let flash=[];
+    await step('Gemini · liste des modèles (clé dans l’en-tête)',async()=>{const x=await timed(G+'?pageSize=200',{headers:{'x-goog-api-key':k}});
+      if(!x.r.ok)throw new Error('HTTP '+x.r.status+' '+x.body.slice(0,180));const ms=(JSON.parse(x.body).models||[]).map(m=>m.name.replace('models/','')).filter(n=>/flash/.test(n)&&!/(tts|image|audio|live|embed|native)/.test(n));
+      flash=ms;return{d:`${ms.length} modèles Flash : ${ms.slice(-8).join(', ')} · ${x.ms} ms`}});
+    if(D.lines[D.lines.length-1].s==='KO')await step('Gemini · liste des modèles (clé dans l’URL)',async()=>{const x=await timed(G+'?pageSize=50&key='+encodeURIComponent(k));if(!x.r.ok)throw new Error('HTTP '+x.r.status+' '+x.body.slice(0,180));return{s:'!!',d:'marche seulement avec la clé dans l’URL'}});
+    const cands=[...new Set(['gemini-flash-lite-latest','gemini-flash-latest',...flash.filter(n=>!/preview|exp/.test(n)).slice(-3)])].slice(0,5);
+    for(const m of cands)for(const think of [true,false]){
+      const L=await step(`Gemini · texte · ${m}${think?' · sans réflexion':''}`,async()=>{const body=JSON.parse(JSON.stringify(tiny));body.generationConfig={maxOutputTokens:30,temperature:0};if(think)body.generationConfig.thinkingConfig={thinkingBudget:0};
+        const x=await timed(`${G}/${m}:generateContent`,{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':k},body:JSON.stringify(body)});
+        if(!x.r.ok)throw new Error('HTTP '+x.r.status+' '+x.body.slice(0,200));return{s:x.ms>3000?'!!':'OK',d:`${x.ms} ms`,ms:x.ms}});
+      if(L.s!=='KO'){const ms=+(L.d.match(/(\d+) ms/)||[])[1];if(!best||ms<best.ms)best={m,think,ms}}
+      if(L.s!=='KO')break;
+    }
+    if(best){
+      let data='';try{const cv=document.createElement('canvas');cv.width=640;cv.height=480;const x=cv.getContext('2d');x.fillStyle='#e8e2d6';x.fillRect(0,0,640,480);x.fillStyle='#fff';x.beginPath();x.arc(320,240,200,0,7);x.fill();x.fillStyle='#c8963c';x.fillRect(200,170,140,90);x.fillStyle='#3a8a3a';x.beginPath();x.arc(400,280,60,0,7);x.fill();x.fillStyle='#f0e0b0';x.beginPath();x.arc(300,320,55,0,7);x.fill();
+      data=cv.toDataURL('image/jpeg',.72).split(',')[1]}catch(e){add('Génération de la photo test','KO',e.message)}
+      if(data)for(let i=0;i<2;i++)await step(`Gemini · photo test ${i+1}/2 (${Math.round(data.length*.75/1024)} Ko) · ${best.m}`,async()=>{const gc={temperature:.2,maxOutputTokens:400,responseMimeType:'application/json'};if(best.think)gc.thinkingConfig={thinkingBudget:0};
+        const t=performance.now();const r=await timed(`${G}/${best.m}:generateContent`,{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':k},body:JSON.stringify({contents:[{role:'user',parts:[{inline_data:{mime_type:'image/jpeg',data}},{text:'Décris ce plat. JSON {"plat":"","kcal":0}'}]}],generationConfig:gc})});
+        if(!r.r.ok)throw new Error('HTTP '+r.r.status+' '+r.body.slice(0,200));let txt='';try{txt=(JSON.parse(r.body).candidates[0].content.parts||[]).map(p=>p.text||'').join('')}catch(e){}
+        return{s:r.ms>5000?'!!':'OK',d:`${r.ms} ms · réponse : ${txt.replace(/\s+/g,' ').slice(0,80)}`}});
+      try{localStorage.setItem('cadence.gmodel',best.m);localStorage.setItem('cadence.gthink',best.think?'1':'0')}catch(e){}
+      GEM_MODELS=[best.m,...GEM_MODELS.filter(x=>x!==best.m)];GEM_THINK=best.think;
+      add('Modèle retenu pour tes repas','OK',`${best.m}${best.think?' sans réflexion':''} (le plus rapide)`);
+    }else add('Modèle Gemini utilisable','KO','aucun modèle n’a répondu');
+  }
+  if(pv==='claude'&&k)await step('Claude · texte · '+aiModel(),async()=>{const x=await timed('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:aiModel(),max_tokens:20,messages:[{role:'user',content:'Réponds OK'}]})});if(!x.r.ok)throw new Error('HTTP '+x.r.status+' '+x.body.slice(0,200));return{s:x.ms>3000?'!!':'OK',d:x.ms+' ms'}});
+  // 4. fonctions de l'iPhone
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  add('Dictée vocale',SR?'OK':'!!',SR?'disponible':'indisponible (le micro du clavier reste possible)');
+  add('Appareil photo (prise de photo)','OK','champ photo natif');
+  add('Micro (mode chevet)',navigator.mediaDevices&&navigator.mediaDevices.getUserMedia?'OK':'!!',navigator.mediaDevices?'disponible':'indisponible');
+  add('Écran toujours allumé',navigator.wakeLock?'OK':'!!',navigator.wakeLock?'disponible':'indisponible');
+  add('Son (alarmes)',(window.AudioContext||window.webkitAudioContext)?'OK':'KO','');
+  add('Chiffrement',crypto&&crypto.subtle?'OK':'KO','');
+  // 5. logique de l'app
+  await step('Calculs de la journée',async()=>{const T=dayTasks(today()),st=dayStats(today()),tg=targets();return{d:`${T.length} éléments · travail ${durTxt(st.work)} · libre ${durTxt(st.free)} · cible ${tg.kcal} kcal / ${tg.prot} g prot.`}});
+  await step('Planning de travail',async()=>{const W=workBlocks(today());const A=S.agenda;return{s:A&&A.to<today()?'!!':'OK',d:`source ${W.src}${A?' · agenda jusqu’au '+A.to:' · pas d’agenda'}`}});
+  await step('Programme sport',async()=>{const w=weekOf(today());const nd=nextSessionDate(today());return{d:`semaine ${w} · prochaine séance ${nd||'?'}`}});
+  add('Données',"OK",`${Object.values(S.meals||{}).reduce((a,x)=>a+x.length,0)} repas · ${S.ledger.length} lignes de points · ${(S.nights||[]).length} nuits · ${S.custom.length} tâches perso`);
+  add('Arrière-plan pendant le test',hidden?'!!':'OK',hidden?'l’app est passée en arrière-plan : certains tests ont pu échouer':'non');
+  document.removeEventListener('visibilitychange',onVis);
+  D.ms=performance.now()-D.t0;D.done=true;
+  const st=l=>l.s==='OK'?'[OK]':l.s==='KO'?'[ÉCHEC]':'[À VOIR]';
+  D.report=[`RAPPORT CADENCE · ${fmtDate(new Date())} ${clock(Date.now())} · durée ${nf(D.ms/1000,1)} s`,`UA: ${ua}`,'',...D.lines.map(l=>`${st(l)} ${l.n}${l.d?' — '+l.d:''}`),'','JOURNAL (dernières entrées) :',...LOGS.slice(-25)].join('\n');
+  logE('test',`diagnostic terminé : ${D.lines.filter(l=>l.s==='KO').length} échec(s)`);
+  if(sheetName==='diag')diagSheet();
 }
 
 /* ---------- ajout de tâche ---------- */
@@ -1426,7 +1528,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.8';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.9';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&REMOTE_V.v>APP_VERSION);
 function forceUpdate(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}toast('Mise à jour…');setTimeout(()=>location.replace(location.pathname+'?v='+Date.now()+location.hash),300)}
@@ -1441,7 +1543,7 @@ function settingsSheet(checked){if(!checked&&!upChecking){upChecking=true;checkU
   <div class="field"><span class="lbl">Sauvegarde</span><div class="row" style="gap:8px"><button class="btn ghost sm" style="flex:1" data-act="bkExport">Exporter</button><label for="bkIn" class="btn ghost sm" style="flex:1">Importer</label></div><p class="muted" style="font-size:12.5px">Tes données vivent sur ce téléphone, dans Safari. Exporte une sauvegarde de temps en temps (elle va dans l’app Fichiers).</p></div>
   <div class="field"><span class="lbl">Application</span><div class="flat row between"><span>Version <span class="num">${APP_VERSION}</span></span>${hasUpdate()?`<span class="stamp st-done">Nouvelle : ${esc(REMOTE_V.v)}</span>`:REMOTE_V?'<span class="stamp st-up">À jour</span>':''}</div>
    ${hasUpdate()&&REMOTE_V.notes?`<p style="font-size:13.5px">${esc(REMOTE_V.notes)}</p>`:''}
-   <button class="btn ${hasUpdate()?'':'ghost'}" data-act="forceUpdate">Forcer la mise à jour</button><p class="muted" style="font-size:12.5px">Recharge la dernière version publiée sur GitHub. Tes données restent sur le téléphone.</p></div>
+   <button class="btn ${hasUpdate()?'':'ghost'}" data-act="forceUpdate">Forcer la mise à jour</button><button class="btn" data-act="diag">Tester l’application</button><p class="muted" style="font-size:12.5px">Recharge la dernière version publiée sur GitHub. Tes données restent sur le téléphone.</p></div>
   <button class="btn ghost" data-act="reonboard">Modifier mon profil et mon programme</button>
   <section class="flat"><p style="font-size:13px">${UID?'Tes données sont synchronisées dans ton espace privé Claude : retrouvées sur tous tes appareils.':'Données gardées sur cet appareil.'} Les selfies ne sont jamais enregistrés.</p></section>
   ${rstConfirm?`<div class="row"><button class="btn danger" data-act="resetDo">Tout effacer</button><button class="btn ghost" data-act="resetCancel">Annuler</button></div>`:`<button class="btn danger" data-act="reset">Réinitialiser l’application</button>`}`,'settings')}
@@ -1513,7 +1615,7 @@ function obFinish(){
 let sheetName=null;
 function openSheet(html,name){sheetName=name||'x';const r=$('#sheetRoot');const was=r.querySelector('.sheet');const sc=was?was.scrollTop:0;
   r.innerHTML=`<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;if(was)r.querySelector('.sheet').scrollTop=sc}
-function closeSheet(){stopVoice();$('#sheetRoot').innerHTML='';sheetName=null;MEAL=null;pending=null;NT=null;WO=null;PLW=null;RW=null;WG=null;rstConfirm=false}
+function closeSheet(){if(sheetName==='diag'&&DIAG&&!DIAG.done)return;stopVoice();$('#sheetRoot').innerHTML='';sheetName=null;MEAL=null;pending=null;NT=null;WO=null;PLW=null;RW=null;WG=null;rstConfirm=false}
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
 const CTX={get NS(){return NS},get OB(){return OB},get NT(){return NT},get WO(){return WO},get SL(){return SL},get RW(){return RW},get WG(){return WG}};
 function rerenderCtx(o){if(o==='NS')nightSheet();else if(o==='OB')render();else if(o==='NT')addTaskSheet();else if(o==='WO')dayEditSheet(WO.ds);else if(o==='SL')render();else if(o==='RW')rewardSheet();else if(o==='WG')drawWeigh()}
@@ -1596,6 +1698,10 @@ document.addEventListener('click',e=>{
    forceUpdate:()=>forceUpdate(),
    bkExport:()=>{try{const b=new Blob([JSON.stringify(S)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`cadence-sauvegarde-${today()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}catch(e){toast('Export impossible sur ce navigateur')}},
    meal:()=>openMeal(),
+   mealRetry:()=>{if(MEAL){MEAL.bgRetry=0;analyzeMeal()}},
+   diag:()=>{if(!DIAG||DIAG.done)runDiag();else diagSheet()},
+   diagCopy:()=>{const t=DIAG&&DIAG.report||'';const ok=()=>toast('Rapport copié : colle-le dans ta conversation avec Claude');
+     try{navigator.clipboard.writeText(t).then(ok,()=>{const a=$('#diagOut');if(a){a.focus();a.select();a.setSelectionRange(0,t.length)}toast('Sélectionné : touche Copier')})}catch(e){const a=$('#diagOut');if(a){a.focus();a.select()}}},
    mealSlot:()=>{MEAL.slot=v;mealSheet()},
    voice:()=>toggleVoice(),
    askText:()=>{stopVoice();MEAL.askMode='text';MEAL.voiceErr='';mealSheet();setTimeout(()=>$('#ansIn')?.focus(),60)},
