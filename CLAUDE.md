@@ -1,6 +1,6 @@
 # Cadence — guide pour les agents
 
-Cadence est l'app personnelle de pointage de Massi : planning de travail, sport, repas (OMAD), sommeil et cagnotte en euros.
+Cadence est l'app personnelle de pointage de l'utilisateur : planning de travail, sport, repas (OMAD), sommeil et cagnotte en euros.
 Site statique hébergé sur GitHub Pages (`https://mvtax.github.io/Planning/`), sans build : HTML + CSS + JavaScript « classique ».
 L'utilisateur l'ouvre en signet sur iPhone (Safari, écran d'accueil). Tout le texte de l'app est en **français, tutoiement**.
 
