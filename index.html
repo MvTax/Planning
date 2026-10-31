@@ -385,7 +385,7 @@ async function loadAgendaFile(manual){
     if(!S.agenda||(a.updatedAt||0)>(S.agenda.updatedAt||0)){S.agenda=a;save();render();if(sheetName==='plan')planSheet();if(manual)toast(`Planning mis à jour jusqu’au ${fmtShort(parseYmd(a.to))}`)}
     else if(manual)toast('Planning déjà à jour');return true}
   catch(e){if(manual)agendaHelp(e&&e.code==='nokey'?'nokey':'err');return false}}
-async function loadSeed(){if(S.onboarded)return;try{const r=await decFile('state.enc.json');if(r&&r.onboarded&&!S.onboarded){S=Object.assign(defaultState(),r);if(!S.reset4)resetCounters();if(!S.omadInit){S.profile.omad=true;S.omadInit=1}if(!S.sleep2){S.profile.wake=480;S.profile.cycles=4;S.sleep2=1}if(!S.omadEve){S.profile.omadTime=1260;S.profile.omadWin=120;S.omadEve=1}S.profile=Object.assign(defaultState().profile,r.profile||{});S.settings=Object.assign(defaultState().settings,r.settings||{});save();render();toast('Ton profil a été récupéré')}}catch(e){}}
+async function loadSeed(){if(S.onboarded)return;try{const r=await decFile('state.enc.json');if(r&&r.onboarded&&!S.onboarded){S=Object.assign(defaultState(),r);if(!S.reset4)resetCounters();if(!S.omadInit){S.profile.omad=true;S.omadInit=1}if(!S.sleep2){S.profile.wake=480;S.profile.cycles=4;S.sleep2=1}if(!S.reset5)startFresh();if(!S.omadEve){S.profile.omadTime=1260;S.profile.omadWin=120;S.omadEve=1}S.profile=Object.assign(defaultState().profile,r.profile||{});S.settings=Object.assign(defaultState().settings,r.settings||{});save();render();toast('Ton profil a été récupéré')}}catch(e){}}
 /* détection de visage sur l'appareil (MediaPipe) */
 let FL=null,FLload=null;const MPV='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 function faceModel(){if(FL)return Promise.resolve(FL);if(!FLload)FLload=(async()=>{const v=await import(MPV+'/vision_bundle.mjs');const fs=await v.FilesetResolver.forVisionTasks(MPV+'/wasm');
@@ -644,6 +644,7 @@ const HOW={ok:'à l’heure',late:'en retard',forgot:'oubli de pointage',miss:'p
 const howPts=(t,h)=>h==='ok'?t.pts:h==='miss'?-t.pts:Math.round(t.pts/2);
 /* boutons de validation selon le moment */
 function valBtns(t,hero){
+  if(!started())return`<p class="${hero?'meta':'muted'}" style="font-size:13px">Les pointages commencent le dimanche 1er novembre.</p>`;
   if(t.meal)return t.ds===today()?`<button class="btn ${hero?'go':'btn-meal'}" data-act="meal">${ic('cam')} Photographier mon plat</button>`:'';
   const now=Date.now(),s=at(t.ds,t.start),late=now>s+15*6e4,past=t.ds<today(),photo=t.type==='sport';
   const B=(how,lbl,cls)=>`<button class="btn ${cls}" data-act="val" data-k="${t.key}" data-v="${how}">${lbl} <span class="num" style="opacity:.8;font-weight:500">${M$(howPts(t,how))}</span></button>`;
@@ -685,6 +686,9 @@ function checkPerfect(ds){
   const okT=T.filter(t=>!t.meal).every(t=>{const pu=S.punches[t.key];return pu&&pu.in&&pu.how!=='miss'});
   if(okT&&((S.meals||{})[ds]||[]).length>=mealsN()){S.perfect[ds]=1;addPts(30,'Journée parfaite')}
 }
+const START_DAY='2026-11-01';
+const started=()=>today()>=START_DAY;
+function startFresh(){resetCounters();const t0=at(START_DAY,0);S.since=t0;S.periodStart=t0;S.programStart=START_DAY;S.wakeOv={};S.bedOv={};S.shifts={};S.skips={};S.shopChecked={};S.reset5=1;try{localStorage.removeItem('cadence.log');LOGS=[]}catch(e){}}
 function resetCounters(){Object.assign(S,{ledger:[],punches:{},missed:{},perfect:{},streakBonus:{},payouts:[],spent:[],setsDone:{},shifts:{},skips:{},lifts:{},nights:[],nightLive:null,meals:{},
   periodStart:Date.now(),since:Date.now(),weights:[{d:today(),kg:curWeight()}],reset4:1})}
 function sweepMissed(){
@@ -759,6 +763,7 @@ function renderJour(){
     return`<div class="stats" style="grid-template-columns:1fr 1.35fr"><div class="stat k-money" data-act="tab" data-v="cagnotte"><span class="lbl">${ic('cagnotte')} Cagnotte</span><b>${eur(periodEur())}</b><span class="muted num" style="font-size:12px">${M$(dayPts(t))} aujourd’hui</span></div>
     ${nx?`<button class="stat k-${KIND(nx.type)}" data-act="task" data-k="${nx.key}" style="text-align:left;${s3==='run'||s3==='due'?'outline:2px solid var(--warn);outline-offset:-2px':''}"><span class="lbl">${ic(nx.type)} Prochaine tâche</span><b style="font-family:var(--f-ui);font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nx.title)}</b><span class="row" style="gap:6px;justify-content:space-between"><span class="muted num" style="font-size:12px">${nd===t?'':fmtShort(parseYmd(nd))+' · '}${hm(nx.start)}</span><span class="pill p-${s3}" style="padding:3px 8px;font-size:11px">${l3}</span></span></button>`:
       `<div class="stat k-free"><span class="lbl">${ic('check')} Prochaine tâche</span><b style="font-family:var(--f-ui);font-size:15px">Rien de prévu</b></div>`}</div>`})()}
+  ${!started()?`<section class="card tint k-work" style="gap:6px"><span class="lbl">Tout est prêt</span><h2>Ton programme commence le dimanche 1er novembre</h2><p class="muted" style="font-size:13.5px">Cagnotte, pointages, repas et sport sont remis à zéro. Rendez-vous demain matin.</p></section>`:''}
   ${hasUpdate()?`<button class="banner info" data-act="forceUpdate" style="width:100%;text-align:left">${ic('arrow')}<span class="grow">Nouvelle version disponible${REMOTE_V.notes?' : '+esc(REMOTE_V.notes):''}. Touche pour mettre à jour.</span></button>`:''}
   ${hero}
   ${isToday?mealCard():''}
@@ -882,6 +887,7 @@ function mealCard(){
 let MEAL=null,mealTok=0;
 function warmAI(){try{fetch(aiProv()==='gemini'?'https://generativelanguage.googleapis.com/':'https://api.anthropic.com/',{mode:'no-cors',cache:'no-store'}).catch(()=>{})}catch(e){}}
 function openMeal(){
+  if(!started()){openSheet(`<div class="grab"></div><span class="lbl">Bientôt</span><h2>Ça commence demain</h2><p class="muted">Les pointages de repas démarrent le dimanche 1er novembre.</p><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}
   if(S.profile.omad){const o=omadInfo(today()),n=nowMin();
     if(o&&n<o.start-30){openSheet(`<div class="grab"></div><span class="lbl">OMAD</span><h2>Pas encore</h2><section class="card" style="border:2px solid var(--bad);gap:8px"><span class="lbl" style="color:var(--bad)">Hors de ta fenêtre</span><p style="font-size:15px">Ton repas du jour est à <b>${hm(o.start)}</b> (dans ${durTxt(o.start-n)}). D’ici là : eau, café ou thé sans sucre.</p></section><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}
     if(o&&o.done&&n>o.end+30){openSheet(`<div class="grab"></div><span class="lbl">OMAD</span><h2>Repas déjà pris</h2><section class="card" style="border:2px solid var(--bad);gap:8px"><span class="lbl" style="color:var(--bad)">Hors de ta fenêtre</span><p style="font-size:15px">Tu as mangé à ${clock(o.first.t)}. Prochain repas demain vers ${hm(o.start)}. Eau, café ou thé sans sucre sont OK.</p></section><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}}
@@ -1600,7 +1606,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.997';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.998';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
@@ -1833,6 +1839,7 @@ function tick(){
   if(!sheetName&&!NIGHT&&V.tab==='jour'&&document.activeElement.tagName!=='INPUT')render();
 }
 if(S.onboarded&&!S.reset4){resetCounters();save()}
+if(S.onboarded&&!S.reset5){startFresh();save()}
 if(S.onboarded&&!S.sleep2){S.profile.wake=480;S.profile.cycles=4;S.wakeOv={};S.bedOv={};S.sleep2=1;save()}
 if(S.onboarded&&!S.omadEve){S.profile.omadTime=1260;S.profile.omadWin=120;S.omadEve=1;save()}
 if(S.onboarded&&!S.omadInit){S.profile.omad=true;S.profile.omadTime=S.profile.omadTime||1260;S.profile.omadWin=S.profile.omadWin||120;S.omadInit=1;save()}
