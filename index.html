@@ -20,6 +20,7 @@
   --accent:#2443D6; --accent-ink:#FFFFFF; --accent-soft:#E5EAFC;
   --money:#0E7A54; --money-soft:#DDF0E6; --warn:#A35F00; --warn-soft:#FBEED9; --bad:#BC392F; --bad-soft:#F8E2DF;
   --night:#0B0D12; --night-ink:#E9ECF2;
+  --c-work:#2F62E8; --c-sport:#7446E0; --c-meal:#E8690F; --c-free:#0E9AA7; --c-trip:#C98A00; --c-perso:#D63E74; --c-pts:#4B4FD8; --c-money:#12935F;
   --shadow:0 1px 2px rgba(20,24,30,.05),0 10px 30px rgba(20,24,30,.06);
   --f-ui:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-num:"Fragment Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
@@ -29,12 +30,14 @@
   --bg:#0C0E12; --surface:#151920; --surface-2:#1B2028; --ink:#ECEEF2; --muted:#8C939E; --line:#262C35;
   --accent:#8AA2FF; --accent-ink:#0C0E12; --accent-soft:#1C2444;
   --money:#4FCB98; --money-soft:#11281F; --warn:#F2AE4B; --warn-soft:#2C2214; --bad:#FF8075; --bad-soft:#2F1816;
-  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.25); color-scheme:dark } }
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.25); color-scheme:dark;
+  --c-work:#7FA2FF; --c-sport:#AE8CFF; --c-meal:#FF9A4D; --c-free:#4FD3DD; --c-trip:#F2C14E; --c-perso:#FF7FA8; --c-pts:#9EA2FF; --c-money:#4FCB98; } }
 :root[data-theme="dark"]{
   --bg:#0C0E12; --surface:#151920; --surface-2:#1B2028; --ink:#ECEEF2; --muted:#8C939E; --line:#262C35;
   --accent:#8AA2FF; --accent-ink:#0C0E12; --accent-soft:#1C2444;
   --money:#4FCB98; --money-soft:#11281F; --warn:#F2AE4B; --warn-soft:#2C2214; --bad:#FF8075; --bad-soft:#2F1816;
-  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.25); color-scheme:dark }
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.25); color-scheme:dark;
+  --c-work:#7FA2FF; --c-sport:#AE8CFF; --c-meal:#FF9A4D; --c-free:#4FD3DD; --c-trip:#F2C14E; --c-perso:#FF7FA8; --c-pts:#9EA2FF; --c-money:#4FCB98; }
 
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px)}
 html{-webkit-text-size-adjust:100%}
@@ -49,7 +52,35 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
 input{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
-.app{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:18px;padding-top:14px}
+.app{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:22px;padding-top:14px}
+/* couleurs par thème */
+.k-work{--c:var(--c-work)} .k-sport{--c:var(--c-sport)} .k-meal{--c:var(--c-meal)} .k-free{--c:var(--c-free)} .k-trip{--c:var(--c-trip)} .k-perso{--c:var(--c-perso)} .k-pts{--c:var(--c-pts)} .k-money{--c:var(--c-money)}
+.tint{background:color-mix(in srgb,var(--c) 11%,var(--surface))}
+.badge{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--c);color:var(--surface);flex:none}
+.badge .ico{width:20px;height:20px;stroke-width:2}
+.badge.sm{width:32px;height:32px;border-radius:10px}.badge.sm .ico{width:17px;height:17px}
+.sec{display:flex;flex-direction:column;gap:12px}
+.sec-h{display:flex;align-items:center;gap:10px}
+.sec-h h2{flex:1;min-width:0}
+.sec-h .aside{font-size:13px;color:var(--muted);font-family:var(--f-num)}
+.pill{font-size:12px;font-weight:700;border-radius:999px;padding:6px 11px;white-space:nowrap;background:color-mix(in srgb,var(--pc,var(--muted)) 15%,var(--surface));color:var(--pc,var(--muted))}
+.p-done{--pc:var(--money)} .p-due,.p-run{--pc:var(--warn)} .p-miss{--pc:var(--bad)} .p-up,.p-soon,.p-iup,.p-idone{--pc:var(--muted)} .p-irun{--pc:var(--c-work)}
+.big-n{font-family:var(--f-num);font-size:30px;letter-spacing:-.03em;line-height:1.05}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tile .lbl{color:var(--c)}
+.tile b{font-family:var(--f-num);font-size:19px;font-weight:400;color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--c);margin-right:6px;vertical-align:0}
+.segbar{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--surface-2);gap:2px}
+.segbar i{display:block;height:100%;background:var(--c)}
+.btn.btn-meal{background:var(--c-meal);color:var(--surface);display:inline-flex;grid-template-columns:none}
+.hero.col{background:linear-gradient(140deg,var(--hc),color-mix(in srgb,var(--hc) 72%,#000));color:#fff}
+.hero.col .lbl,.hero.col .meta{color:rgba(255,255,255,.82)}
+.hero.col .btn.go{background:#fff;color:var(--hc)}
+.hero.col .btn{background:rgba(255,255,255,.17);color:#fff}
+.hero.col .btn.danger{background:rgba(0,0,0,.18);color:#fff}
+.hero.col .pts{color:#fff;background:rgba(255,255,255,.18);padding:4px 9px;border-radius:99px}
 .num{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .muted{color:var(--muted)}
 .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -67,8 +98,10 @@ p{margin:0}
 .top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .avatar{width:42px;height:42px;border-radius:50%;background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center;font-weight:700;flex:none}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.stat{background:var(--surface);border-radius:16px;padding:12px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:2px;min-width:0}
-.stat b{font-family:var(--f-num);font-size:20px;font-weight:400;letter-spacing:-.02em}
+.stat{background:color-mix(in srgb,var(--c,var(--ink)) 10%,var(--surface));border-radius:16px;padding:12px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat b{font-family:var(--f-num);font-size:20px;font-weight:400;letter-spacing:-.02em;color:var(--c,var(--ink))}
+.stat .lbl{display:flex;align-items:center;gap:5px;color:color-mix(in srgb,var(--c,var(--muted)) 80%,var(--ink))}
+.stat .lbl .ico{width:14px;height:14px;stroke-width:2.2}
 .stat.money b{color:var(--money)}
 
 /* chips */
@@ -104,7 +137,8 @@ p{margin:0}
 .wd b{font-family:var(--f-num);font-size:16px;color:var(--ink);font-weight:400}
 .wd.on{background:var(--ink);color:var(--bg)} .wd.on b{color:var(--bg)}
 .wd .dot{width:5px;height:5px;border-radius:50%;background:transparent}
-.wd .dot.full{background:var(--money)} .wd .dot.part{background:var(--warn)}
+.wd .dot{width:6px;height:6px}.wd .dot.full{background:var(--money)} .wd .dot.part{background:var(--c-meal)}
+.wd.on{background:var(--accent)!important;color:var(--accent-ink)!important}.wd.on b{color:var(--accent-ink)!important}
 .wd.on .dot.full{background:var(--money)}
 
 /* hero */
@@ -117,8 +151,8 @@ p{margin:0}
 
 /* timeline (cartes de pointage) */
 .tl{display:flex;flex-direction:column;gap:8px}
-.tc{display:grid;grid-template-columns:54px 1fr auto;align-items:center;gap:12px;background:var(--surface);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow);text-align:left;width:100%}
-.tc .t{font-family:var(--f-num);font-size:15px}
+.tc{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;background:var(--surface);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow);text-align:left;width:100%}
+.tc .t{font-family:var(--f-num);font-size:15px;min-width:46px}
 .tc .t small{display:block;font-size:11px;color:var(--muted)}
 .tc .ti{min-width:0;display:flex;flex-direction:column;gap:2px}
 .tc .ti b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -154,7 +188,8 @@ p{margin:0}
 .tabs nav{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
 .tabs button{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--muted);padding:6px 0}
 .tabs button .ico{width:22px;height:22px}
-.tabs button.on{color:var(--ink)}
+.tabs button.on{color:var(--accent)}
+.tabs button.on .ico{background:var(--accent-soft);border-radius:10px;width:44px;padding:3px 10px;box-sizing:content-box;margin:0 -10px}
 
 /* sheet */
 .scrim{position:fixed;inset:0;background:rgba(8,10,14,.45);z-index:40;display:flex;align-items:flex-end;justify-content:center;animation:fade .2s}
@@ -288,7 +323,7 @@ const eur=n=>(Math.round(n*100)/100).toLocaleString('fr-FR',{style:'currency',cu
 const nf=(n,d=0)=>Number(n).toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const mondayOf=ds=>{const d=parseYmd(ds);return ymd(addDays(d,-dow(d)))};
-const durTxt=m=>m>=60?`${Math.floor(m/60)} h${m%60?pad(m%60):''}`:`${m} min`;
+const durTxt=m=>{m=Math.round(m);return m>=60?`${Math.floor(m/60)} h${m%60?' '+pad(m%60):''}`:`${m} min`};
 
 /* ============ icônes ============ */
 const P={
@@ -311,7 +346,7 @@ const P={
  repasT:'<path d="M5 3v8a2 2 0 0 0 2 2v8M9 3v8M7 3v8M17 21V3c-2.5 1.5-3 5-3 9h3"/>',
  cagnotte:'<path d="M19 9a7 6 0 1 0-1.5 5.5L19 18h-3l-1-1.6A8 8 0 0 1 12 17H9l-1 2H5l.5-3A6 6 0 0 1 4 11M16 8h.01"/>',
  cam:'<path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z"/><circle cx="12" cy="13" r="4"/>',
- check:'<path d="m5 12 5 5 9-10"/>', mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>', pen:'<path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4"/>', plus:'<path d="M12 5v14M5 12h14"/>', x:'<path d="M6 6l12 12M18 6 6 18"/>',
+ check:'<path d="m5 12 5 5 9-10"/>', star:'<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/>', hourglass:'<path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9"/>', mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>', pen:'<path d="M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4"/>', plus:'<path d="M12 5v14M5 12h14"/>', x:'<path d="M6 6l12 12M18 6 6 18"/>',
  bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2ZM10 21h4"/>', gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>', play:'<path d="M7 4v16l13-8Z"/>', map:'<path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/>'
 };
@@ -559,7 +594,7 @@ function workBlocks(ds){
   if(A&&ds>A.to)for(let k=1;k<=4;k++){const r=addDs(ds,-7*k);if(r>=A.from&&r<=A.to)return{src:'estime',blocks:A.shifts.filter(x=>x.d===r).map(x=>({s:x.s,e:x.e,t:x.t,loc:x.loc})).sort((a,b)=>a.s-b.s)}}
   const p=S.profile;return{src:'habituel',blocks:p.workDays.includes(dow(parseYmd(ds)))?[{s:p.workStart,e:p.workEnd}]:[]};
 }
-function wakeFor(ds){if(S.wakeOv[ds]!=null)return S.wakeOv[ds];const p=S.profile,b=workBlocks(ds).blocks;let w=p.wake;if(b.length)w=Math.min(w,b[0].s-(p.commute||0)-75);return Math.max(300,w)}
+function wakeFor(ds){const p=S.profile,b=workBlocks(ds).blocks;const ov=S.wakeOv[ds];if(ov!=null&&ov>=240&&ov<=780&&(!b.length||ov<=b[0].s-15))return ov;let w=p.wake;if(b.length)w=Math.min(w,b[0].s-(p.commute||0)-75);return Math.max(300,w)}
 function busySpans(blocks,cm){const sp=[];for(const b of blocks){const s=b.s-cm,e=b.e+cm,l=sp[sp.length-1];if(l&&s<=l.e){l.e=Math.max(l.e,e);l.parts.push(b)}else sp.push({s,e,parts:[b]})}return sp}
 function planner(lo,hi,spans){const taken=spans.map(b=>[b.s,b.e]);
   const free=(t,d)=>t>=lo&&t+d<=hi&&taken.every(([a,b])=>t+d<=a||t>=b);
@@ -661,6 +696,7 @@ function render(){
 
 /* ---------- JOUR ---------- */
 function greeting(){const h=new Date().getHours();return h<5?'Bonne nuit':h<12?'Bonjour':h<18?'Bon après-midi':'Bonsoir'}
+const KIND=t=>({travail:'work',sport:'sport',cardio:'sport',repas:'meal',courses:'meal',batch:'meal',agenda:'free',rdv:'free',etude:'perso',maison:'perso',perso:'perso'}[t]||'perso');
 function renderJour(){
   const t=today(),ds=V.date,isToday=ds===t,T=dayTasks(ds),p=S.profile;
   const mon=mondayOf(ds);const w=weekOf(ds);
@@ -671,30 +707,33 @@ function renderJour(){
     const cur=T.find(x=>!x.info&&['run','due'].includes(status(x)))||T.find(x=>!x.info&&status(x)==='soon');
     if(cur){const s2=status(cur);const s=at(ds,cur.start),e=at(ds,cur.start+cur.dur);const mins=Math.round((s-Date.now())/6e4);
       const when=s2==='run'?`Commencé à ${hm(cur.start)} · reste ${durTxt(Math.max(1,Math.round((e-Date.now())/6e4)))}`:mins>0?`Dans ${mins>=60?Math.floor(mins/60)+' h '+pad(mins%60):mins+' min'} · ${durTxt(cur.dur)}`:`Prévu à ${hm(cur.start)} · ${durTxt(-mins)} de retard`;
-      hero=`<section class="hero"><div class="row between"><span class="lbl" style="${s2==='run'||s2==='due'?'color:var(--warn)':''}">${s2==='run'?'En cours · pas encore pointé':s2==='due'?'À valider':'Bientôt'}</span><span class="pts">+${cur.pts} pts</span></div>
+      const hc=s2==='run'||s2==='due'?'#E2700B':cur.type==='sport'?'#6A3FD6':'#2F5BEA';
+      hero=`<section class="hero col" style="--hc:${hc}"><div class="row between"><span class="lbl">${s2==='run'?'En cours · pas encore pointé':s2==='due'?'À valider':'Bientôt'}</span><span class="pts">+${cur.pts} pts</span></div>
         <div class="row" style="gap:14px;align-items:flex-end"><span class="big">${hm(cur.start)}</span><div style="min-width:0"><h2>${esc(cur.title)}</h2><p class="meta">${when}</p></div></div>${s2==='soon'?'':valBtns(cur,true)}</section>`;
     }
   }
   const st=dayStats(ds);
   const wk=Array.from({length:7},(_,i)=>dayStats(addDs(mon,i)));const wWork=wk.reduce((a,x)=>a+x.work,0),wFree=wk.reduce((a,x)=>a+x.free,0);
   const bar=(v,tot,c)=>`<i style="width:${tot?v/tot*100:0}%;background:${c}"></i>`;
-  const statsCard=`<section class="card"><div class="row between"><span class="lbl">${isToday?'Ta journée':fmtShort(parseYmd(ds))} · ${hm(st.wake)} → ${hm(st.bed)}</span><span class="num muted" style="font-size:13px">${durTxt(st.awake)} éveillé</span></div>
-    <div class="bar" style="display:flex;height:12px">${bar(st.work,st.awake,'var(--accent)')}${bar(st.trips,st.awake,'var(--warn)')}${bar(st.free,st.awake,'var(--money)')}</div>
-    <div class="kv" style="grid-template-columns:repeat(3,1fr)"><div><span class="lbl">Travail</span><b style="color:var(--accent)">${st.work?durTxt(st.work):'—'}</b></div><div><span class="lbl">Trajets</span><b style="color:var(--warn)">${st.trips?durTxt(st.trips):'—'}</b></div><div><span class="lbl">Temps libre</span><b style="color:var(--money)">${durTxt(st.free)}</b></div></div>
-    ${isToday?(()=>{const n=nowMin();const wl=workBlocks(ds).blocks.reduce((a,b)=>a+Math.max(0,b.e-Math.max(b.s,n)),0);const tb=Math.max(0,st.bed-n);return`<p style="font-size:14px"><b>Il reste</b> ${wl?durTxt(wl)+' de travail · ':''}${durTxt(tb)} avant le coucher${tb?' · '+durTxt(Math.max(0,tb-wl))+' libres':''}</p>`})():''}
-    <p class="muted" style="font-size:12.5px">Semaine : ${durTxt(wWork)} de travail · ${durTxt(wFree)} de temps libre (${durTxt(Math.round(wFree/7))} par jour en moyenne).</p></section>`;
-  const row=x=>{const s2=status(x);const pu=S.punches[x.key]||{};const[c,l]=STAMP[s2];
-    if(x.info)return`<button class="tc ${s2==='idone'?'past':''}" data-act="task" data-k="${x.key}">
-      <span class="t">${hm(x.start)}<small>${hm(x.start+x.dur)}</small></span>
-      <span class="ti"><b>${esc(x.title)}</b><span>${ic(x.type)}${durTxt(x.dur)}</span></span>
-      <span class="stamp ${c}">${l||durTxt(x.dur)}</span></button>`;
-    const earned=S.ledger.filter(e=>e.key===x.key).reduce((a,e)=>a+e.pts,0);
-    const lbl=s2==='done'?(pu.how==='ok'?'Validé':HOW[pu.how]||'Validé'):s2==='run'&&isToday?'En cours':l;
-    const rest=s2==='run'&&isToday?` · reste ${durTxt(Math.max(1,Math.round((at(ds,x.start+x.dur)-Date.now())/6e4)))}`:'';
-    return`<button class="tc ${s2==='done'||s2==='miss'?'past':''} ${isToday&&(s2==='due'||s2==='run')?'now':''}" data-act="task" data-k="${x.key}" style="${isToday&&(s2==='due'||s2==='run')?'outline-color:var(--warn)':''}">
-      <span class="t">${hm(x.start)}${x.dur?`<small>${hm(x.start+x.dur)}</small>`:''}</span>
-      <span class="ti"><b>${esc(x.title)}</b><span>${ic(x.type)}${x.loc?esc(x.loc):x.moved?'Placé autour du travail':TYPE[x.type]?TYPE[x.type][0]:''}${x.dur?' · '+durTxt(x.dur):''}${rest}${earned?` · <span class="pts" style="${earned<0?'color:var(--bad)':''}">${earned>0?'+':''}${earned} pts</span>`:` · ${x.pts} pts`}</span></span>
-      <span class="stamp ${c}">${lbl}</span></button>`};
+  const n0=nowMin(),wl=isToday?workBlocks(ds).blocks.reduce((a,b)=>a+Math.max(0,b.e-Math.max(b.s,n0)),0):0,tb=isToday?Math.max(0,st.bed-n0):0;
+  const seg=(v,k)=>v>0?`<i class="k-${k}" style="width:${st.awake?v/st.awake*100:0}%"></i>`:'';
+  const statsCard=`<section class="sec"><div class="sec-h"><span class="badge k-work">${ic('jour')}</span><h2>${isToday?'Ma journée':fmtShort(parseYmd(ds))}</h2><span class="aside">${hm(st.wake)} → ${hm(st.bed)}</span></div>
+   <div class="card">
+    ${isToday?`<span class="lbl">Il reste aujourd’hui</span><div class="tiles"><div class="tile tint k-work"><span class="lbl">Travail</span><b>${wl?durTxt(wl):'fini'}</b></div><div class="tile tint k-pts"><span class="lbl">Avant dodo</span><b>${durTxt(tb)}</b></div><div class="tile tint k-free"><span class="lbl">Libre</span><b>${durTxt(Math.max(0,tb-wl))}</b></div></div>`:''}
+    <span class="lbl" style="${isToday?'padding-top:4px':''}">Répartition de la journée · ${durTxt(st.awake)} éveillé</span>
+    <div class="segbar">${seg(st.work,'work')}${seg(st.trips,'trip')}${seg(st.free,'free')}</div>
+    <div class="legend"><span class="k-work"><i></i>Travail <b class="num" style="color:var(--ink)">${st.work?durTxt(st.work):'0'}</b></span><span class="k-trip"><i></i>Trajets <b class="num" style="color:var(--ink)">${st.trips?durTxt(st.trips):'0'}</b></span><span class="k-free"><i></i>Libre <b class="num" style="color:var(--ink)">${durTxt(st.free)}</b></span></div>
+    <p class="muted" style="font-size:12.5px;border-top:1px solid var(--line);padding-top:10px">Cette semaine : ${durTxt(wWork)} de travail · ${durTxt(Math.round(wFree/7))} de temps libre par jour en moyenne.</p></div></section>`;
+  const row=x=>{const s2=status(x);const pu=S.punches[x.key]||{};const[,l]=STAMP[s2];const k=KIND(x.type);
+    const earned=x.info?0:S.ledger.filter(e=>e.key===x.key).reduce((a,e)=>a+e.pts,0);
+    const lbl=x.info?(l||durTxt(x.dur)):s2==='done'?(pu.how==='ok'?'Validé':HOW[pu.how]||'Validé'):l;
+    const rest=(s2==='run'||s2==='irun')&&isToday?` · reste ${durTxt(Math.max(1,Math.round((at(ds,x.start+x.dur)-Date.now())/6e4)))}`:'';
+    const hot=isToday&&(s2==='due'||s2==='run');
+    return`<button class="tc ${s2==='done'||s2==='miss'||s2==='idone'?'past':''}" data-act="task" data-k="${x.key}" style="${hot?'outline:2px solid var(--warn);outline-offset:-2px':''}">
+      <span class="badge sm k-${k}">${ic(x.type)}</span>
+      <span class="ti"><b>${esc(x.title)}</b><span class="num">${hm(x.start)}${x.dur?' → '+hm(x.start+x.dur):''}${rest}${x.loc?' · '+esc(x.loc):''}</span>
+      ${x.info?'':`<span style="font-size:12px;font-weight:600;color:${earned<0?'var(--bad)':earned>0?'var(--money)':'var(--muted)'}">${earned?(earned>0?'+':'')+earned+' pts':x.pts+' pts possibles'}</span>`}</span>
+      <span class="pill p-${s2}">${lbl}</span></button>`};
   const isPast=x=>{const s2=status(x);return x.info?s2==='idone':(s2==='done'||s2==='miss')};
   const rem=isToday?T.filter(x=>!isPast(x)):T,doneL=isToday?T.filter(isPast):[];
   const list=rem.map(row).join('')+(doneL.length?`<button class="chip sm" data-act="showDone" style="align-self:flex-start">${V.showDone?'Masquer':'Voir'} les ${doneL.length} élément${doneL.length>1?'s':''} terminé${doneL.length>1?'s':''}</button>${V.showDone?doneL.map(row).join(''):''}`:'');
@@ -702,14 +741,14 @@ function renderJour(){
   const mN=((S.meals||{})[t]||[]).length;
   return`<header class="top"><div class="stack" style="gap:4px;min-width:0"><span class="lbl">${fmtDate(new Date())}</span><h1>${greeting()}${p.name?', '+esc(p.name):''}</h1><span class="muted" style="font-size:13px">${wkLabel}</span></div>
     <button class="avatar" data-act="settings" aria-label="Réglages">${p.name?esc(p.name[0].toUpperCase()):ic('gear')}</button></header>
-  <div class="stats"><div class="stat"><span class="lbl">Aujourd’hui</span><b>${dayPts(t)} pts</b></div><div class="stat money"><span class="lbl">Cagnotte</span><b>${eur(periodEur())}</b></div><div class="stat"><span class="lbl">Repas validés</span><b>${mN}/${p.meals}</b></div></div>
+  <div class="stats"><div class="stat k-pts"><span class="lbl">${ic('star')} Points</span><b>${dayPts(t)}</b></div><div class="stat k-money" data-act="tab" data-v="cagnotte"><span class="lbl">${ic('cagnotte')} Cagnotte</span><b>${eur(periodEur())}</b></div><div class="stat k-meal"><span class="lbl">${ic('repas')} Repas</span><b>${mN}/${p.meals}</b></div></div>
   ${hasUpdate()?`<button class="banner info" data-act="forceUpdate" style="width:100%;text-align:left">${ic('arrow')}<span class="grow">Nouvelle version disponible${REMOTE_V.notes?' : '+esc(REMOTE_V.notes):''}. Touche pour mettre à jour.</span></button>`:''}
   ${hero}
   ${isToday?mealCard():''}
-  <div class="week">${strip}</div>
-  ${statsCard}
-  <section class="stack" style="gap:10px"><div class="row between"><h2>${isToday?'Ce qui reste':fmtDate(parseYmd(ds))}</h2><div class="row" style="gap:6px"><button class="chip sm" data-act="workday" data-v="${ds}">Modifier</button><button class="chip sm on" data-act="addtask">${ic('plus')} Tâche</button></div></div>
-  <div class="tl">${rem.length?'':`<div class="empty">${T.length?'Tout est fait pour aujourd’hui.':'Jour off : pas de travail ni de séance prévus.'}</div>`}${list}</div></section>`;
+  <section class="sec"><div class="sec-h"><span class="badge k-sport">${ic('agenda')}</span><h2>${isToday?'Ce qui reste':fmtDate(parseYmd(ds))}</h2><button class="chip sm" data-act="workday" data-v="${ds}">Planning</button><button class="chip sm on" data-act="addtask" aria-label="Ajouter une tâche">${ic('plus')}</button></div>
+  <div class="card" style="padding:10px"><div class="week">${strip}</div></div>
+  <div class="tl">${rem.length?'':`<div class="empty">${T.length?'Tout est fait pour aujourd’hui.':'Jour off : pas de travail ni de séance prévus.'}</div>`}${list}</div></section>
+  ${statsCard}`;
 }
 
 /* ---------- détail tâche ---------- */
@@ -805,11 +844,12 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){if(MEAL&&M
 const aiReady=()=>!!(SAMPLE&&SAMPLE_IMG)||!!apiKey();
 function mealCard(){
   const p=S.profile,tg=targets(),ms=(S.meals||{})[today()]||[];const k=ms.reduce((a,m)=>a+m.kcal,0),pr=ms.reduce((a,m)=>a+m.prot,0);
-  return`<section class="card"><div class="row between"><span class="lbl">Repas du jour · ${ms.length}/${p.meals} validés</span><span class="num muted" style="font-size:13px">${Math.round(k)} / ${tg.kcal} kcal</span></div>
-   <div class="bar ${k>tg.kcal*1.05?'b':'m'}"><i style="width:${clamp(k/tg.kcal,0,1)*100}%"></i></div>
-   <div class="macro"><span class="muted">Protéines</span><div class="bar m"><i style="width:${clamp(pr/tg.prot,0,1)*100}%"></i></div><span class="num">${Math.round(pr)}/${tg.prot} g</span></div>
-   ${ms.map(m=>`<div class="ledger"><span style="min-width:0">${SLOT_L[m.slot]||'Repas'} · ${esc(m.nom)}<br><span class="muted num" style="font-size:12px">${clock(m.t)}${m.tries>1?' · validé au '+m.tries+'e essai':''}</span></span><span class="num">${Math.round(m.kcal)} kcal · ${Math.round(m.prot)} g</span></div>`).join('')}
-   <button class="btn" data-act="meal">${ic('cam')} Photographier mon plat</button></section>`;
+  return`<section class="sec"><div class="sec-h"><span class="badge k-meal">${ic('repas')}</span><h2>Repas du jour</h2><span class="pill k-meal" style="--pc:var(--c-meal)">${ms.length}/${p.meals} validés</span></div>
+   <div class="card tint k-meal" style="gap:14px">
+   <div class="row between" style="align-items:flex-end"><div><span class="big-n" style="color:var(--c-meal)">${Math.round(k)}</span><span class="muted"> / ${tg.kcal} kcal</span></div><div style="text-align:right"><span class="big-n" style="font-size:22px;color:var(--c-money)">${Math.round(pr)}</span><span class="muted"> / ${tg.prot} g prot.</span></div></div>
+   <div class="stack" style="gap:6px"><div class="bar" style="height:10px"><i style="width:${clamp(k/tg.kcal,0,1)*100}%;background:${k>tg.kcal*1.05?'var(--bad)':'var(--c-meal)'}"></i></div><div class="bar" style="height:10px"><i style="width:${clamp(pr/tg.prot,0,1)*100}%;background:var(--c-money)"></i></div></div>
+   ${ms.length?`<div class="stack" style="gap:0;background:var(--surface);border-radius:14px;padding:4px 12px">${ms.map(m=>`<div class="ledger"><span style="min-width:0"><b>${SLOT_L[m.slot]||'Repas'}</b> · ${esc(m.nom)}<br><span class="muted num" style="font-size:12px">${clock(m.t)}${m.tries>1?' · validé au '+m.tries+'e essai':''}</span></span><span class="num">${Math.round(m.kcal)} kcal</span></div>`).join('')}</div>`:''}
+   <button class="btn btn-meal" data-act="meal">${ic('cam')} Photographier mon plat</button></div></section>`;
 }
 let MEAL=null,mealTok=0;
 function warmAI(){try{fetch(aiProv()==='gemini'?'https://generativelanguage.googleapis.com/':'https://api.anthropic.com/',{mode:'no-cors',cache:'no-store'}).catch(()=>{})}catch(e){}}
@@ -1531,7 +1571,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.93';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.94';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
