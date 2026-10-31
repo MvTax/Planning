@@ -361,7 +361,7 @@ const LS='cadence.v1';
 function defaultState(){return{
   v:1,updatedAt:0,onboarded:false,since:0,
   profile:{name:'',sex:'h',birth:'1996-01-01',height:175,weight:80,waist:0,goal:90,pace:'standard',activity:'bureau',
-    workDays:[0,1,2,3,4],workStart:540,workEnd:1050,wake:420,exp:'debutant',place:'salle',days:[0,2,4],sessionTime:1110,sessionMin:60,
+    workDays:[0,1,2,3,4],workStart:540,workEnd:1050,wake:480,cycles:5,exp:'debutant',place:'salle',days:[0,2,4],sessionTime:1110,sessionMin:60,
     injuries:[],diet:[],meals:4,omad:false,omadTime:1260,omadWin:120,commute:30,budget:80,store:'lidl',shopDay:6,rate:0.02,payout:'hebdo',firstReward:'vetements',firstPrice:60},
   programStart:null,custom:[],punches:{},ledger:[],payouts:[],spent:[],periodStart:0,rewards:[],weights:[],
   shifts:{},skips:{},missed:{},perfect:{},streakBonus:{},wakeOv:{},bedOv:{},workOv:{},lifts:{},setsDone:{},shopChecked:{},ics:[],agenda:null,agendaCal:'',meals:{},nights:[],nightLive:null,
@@ -385,7 +385,7 @@ async function loadAgendaFile(manual){
     if(!S.agenda||(a.updatedAt||0)>(S.agenda.updatedAt||0)){S.agenda=a;save();render();if(sheetName==='plan')planSheet();if(manual)toast(`Planning mis à jour jusqu’au ${fmtShort(parseYmd(a.to))}`)}
     else if(manual)toast('Planning déjà à jour');return true}
   catch(e){if(manual)agendaHelp(e&&e.code==='nokey'?'nokey':'err');return false}}
-async function loadSeed(){if(S.onboarded)return;try{const r=await decFile('state.enc.json');if(r&&r.onboarded&&!S.onboarded){S=Object.assign(defaultState(),r);if(!S.reset4)resetCounters();if(!S.omadInit){S.profile.omad=true;S.omadInit=1}if(!S.omadEve){S.profile.omadTime=1260;S.profile.omadWin=120;S.omadEve=1}S.profile=Object.assign(defaultState().profile,r.profile||{});S.settings=Object.assign(defaultState().settings,r.settings||{});save();render();toast('Ton profil a été récupéré')}}catch(e){}}
+async function loadSeed(){if(S.onboarded)return;try{const r=await decFile('state.enc.json');if(r&&r.onboarded&&!S.onboarded){S=Object.assign(defaultState(),r);if(!S.reset4)resetCounters();if(!S.omadInit){S.profile.omad=true;S.omadInit=1}if(!S.sleep2){S.profile.wake=480;S.profile.cycles=4;S.sleep2=1}if(!S.omadEve){S.profile.omadTime=1260;S.profile.omadWin=120;S.omadEve=1}S.profile=Object.assign(defaultState().profile,r.profile||{});S.settings=Object.assign(defaultState().settings,r.settings||{});save();render();toast('Ton profil a été récupéré')}}catch(e){}}
 /* détection de visage sur l'appareil (MediaPipe) */
 let FL=null,FLload=null;const MPV='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 function faceModel(){if(FL)return Promise.resolve(FL);if(!FLload)FLload=(async()=>{const v=await import(MPV+'/vision_bundle.mjs');const fs=await v.FilesetResolver.forVisionTasks(MPV+'/wasm');
@@ -598,6 +598,7 @@ function workBlocks(ds){
   if(A&&ds>A.to)for(let k=1;k<=4;k++){const r=addDs(ds,-7*k);if(r>=A.from&&r<=A.to)return{src:'estime',blocks:A.shifts.filter(x=>x.d===r).map(x=>({s:x.s,e:x.e,t:x.t,loc:x.loc})).sort((a,b)=>a.s-b.s)}}
   const p=S.profile;return{src:'habituel',blocks:p.workDays.includes(dow(parseYmd(ds)))?[{s:p.workStart,e:p.workEnd}]:[]};
 }
+const sleepNeed=()=>(S.profile.cycles||5)*90+15;
 function wakeFor(ds){const p=S.profile,b=workBlocks(ds).blocks;const ov=S.wakeOv[ds];if(ov!=null&&ov>=240&&ov<=780&&(!b.length||ov<=b[0].s-15))return ov;let w=p.wake;if(b.length)w=Math.min(w,b[0].s-(p.commute||0)-75);return Math.max(300,w)}
 function busySpans(blocks,cm){const sp=[];for(const b of blocks){const s=b.s-cm,e=b.e+cm,l=sp[sp.length-1];if(l&&s<=l.e){l.e=Math.max(l.e,e);l.parts.push(b)}else sp.push({s,e,parts:[b]})}return sp}
 function planner(lo,hi,spans){const taken=spans.map(b=>[b.s,b.e]);
@@ -606,7 +607,7 @@ function planner(lo,hi,spans){const taken=spans.map(b=>[b.s,b.e]);
     find(pref,d,range){pref=Math.round(pref/5)*5;for(let k=0;k<=range;k+=15)for(const t of k?[pref+k,pref-k]:[pref])if(free(t,Math.max(d,10)))return t;return null}}}
 function dayTasks(ds){
   const p=S.profile,d=parseYmd(ds),wd=dow(d);const T=[];const cm=p.commute||0;
-  const wake=wakeFor(ds),bed=S.bedOv[ds]??(wakeFor(addDs(ds,1))+1440-465);
+  const wake=wakeFor(ds),bed=S.bedOv[ds]??(wakeFor(addDs(ds,1))+1440-sleepNeed());
   const W=workBlocks(ds),spans=busySpans(W.blocks,cm);
   const pl=planner(wake+20,bed-40,spans);
   W.blocks.forEach((b,i)=>T.push({id:'travail'+i,type:'travail',title:b.t?'Travail · '+b.t:'Travail',start:b.s,dur:Math.max(15,b.e-b.s),pts:10,loc:b.loc||'',src:W.src}));
@@ -621,9 +622,9 @@ function dayTasks(ds){
   return T.filter(t=>!S.skips[ds+':'+t.id]).map(t=>{const k=ds+':'+t.id;const sh=S.shifts[k]||0;return Object.assign(t,{key:k,ds,start:t.start+sh})}).sort((a,b)=>a.start-b.start);
 }
 function dayStats(ds){
-  const p=S.profile,cm=p.commute||0;const wake=wakeFor(ds),bed=S.bedOv[ds]??(wakeFor(addDs(ds,1))+1440-465);
+  const p=S.profile,cm=p.commute||0;const wake=wakeFor(ds),bed=S.bedOv[ds]??(wakeFor(addDs(ds,1))+1440-sleepNeed());
   const bl=workBlocks(ds).blocks;const work=bl.reduce((a,b)=>a+b.e-b.s,0);const trips=bl.length?busySpans(bl,cm).length*2*cm:0;
-  let b=bed;const bad=b<wake+360||b>wake+1320;if(bad)b=wakeFor(addDs(ds,1))+1440-465;
+  let b=bed;const bad=b<wake+360||b>wake+1320;if(bad)b=wakeFor(addDs(ds,1))+1440-sleepNeed();
   const awake=Math.max(0,b-wake);return{wake,bed:b,work,trips,awake,free:Math.max(0,awake-work-trips),n:bl.length,fixed:bad};
 }
 
@@ -1214,11 +1215,11 @@ function renderSommeil(){
   if(SL.mode==='now'){for(const n of [6,5,4]){const w=now+LAT+n*90;opts.push({n,bed:now,wake:w,h:n*1.5})}}
   else{for(const n of [6,5,4]){const b=SL.wakeAt-LAT-n*90;opts.push({n,bed:b,wake:SL.wakeAt,h:n*1.5})}}
   const wb=workBlocks(tm).blocks;const work=wb.length?wb[0].s-(p.commute||0):null;
-  const o5=opts.find(o=>o.n===5);const recN=(SL.mode==='now'&&work!=null&&(o5.wake%1440)<work&&(o5.wake%1440)>work-45)?4:5;
+  const myC=p.cycles||5;const recN=[6,5,4].includes(myC)?myC:5;
   const optHtml=opts.map(o=>`<button class="opt ${o.n===recN?'rec':''}" data-act="slPick" data-bed="${o.bed}" data-wake="${o.wake}">
     <span class="stack" style="gap:0"><span class="lbl">${SL.mode==='now'?'Réveil':'Coucher'}</span><span class="big">${hm(SL.mode==='now'?o.wake:o.bed)}</span></span>
-    <span class="stack" style="gap:2px;min-width:0"><b>${o.n} cycles · ${nf(o.h,1)} h</b><span class="muted" style="font-size:13px">${o.n===6?'Idéal pour récupérer du sport':o.n===5?'Le bon compromis':'Minimum, à éviter'}</span></span>
-    ${o.n===recN?'<span class="stamp st-run">Conseillé</span>':''}</button>`).join('');
+    <span class="stack" style="gap:2px;min-width:0"><b>${o.n} cycles · ${nf(o.h,1)} h</b><span class="muted" style="font-size:13px">${o.n===myC?'Ton rythme':o.n===6?'Idéal pour récupérer du sport':o.n===5?'Le bon compromis':'Nuit courte'}</span></span>
+    ${o.n===recN?'<span class="pill p-done">Ton rythme</span>':''}</button>`).join('');
   const rec=opts.find(o=>o.n===recN);const bedT=rec.bed,wakeT=rec.wake;
   const cyc=`<div class="cycles" aria-hidden="true"><i class="lat"></i>${Array.from({length:recN},()=>'<i></i>').join('')}</div><div class="row between num muted" style="font-size:12px"><span>${hm(bedT)}</span><span>endormi ${hm(bedT+LAT)}</span><span>${hm(wakeT)}</span></div>`;
   // historique
@@ -1226,6 +1227,11 @@ function renderSommeil(){
   const plannedBed=dayTasks(t).find(x=>x.id==='coucher');
   const bmi=targets().bmi;
   return`<header class="top"><div class="stack" style="gap:4px"><span class="lbl">Cycles de 90 min · 15 min pour s’endormir</span><h1>Sommeil</h1></div></header>
+  <section class="card tint k-work" style="gap:12px"><span class="lbl">Mon rythme</span>
+   <div class="tiles"><div class="tile" style="background:var(--surface)"><span class="lbl">Au lit</span><b>${hm(p.wake-sleepNeed())}</b></div><div class="tile" style="background:var(--surface)"><span class="lbl">Endormi</span><b>${hm(p.wake-myC*90)}</b></div><div class="tile" style="background:var(--surface)"><span class="lbl">Réveil</span><b>${hm(p.wake)}</b></div></div>
+   <div class="chips">${[4,5,6].map(c=>`<button class="chip sm ${myC===c?'on':''}" data-act="cyc" data-v="${c}">${c} cycles · ${nf(c*1.5,1)} h</button>`).join('')}</div>
+   ${stepper('PF','wake',15,300,720,'time')}
+   <p class="muted" style="font-size:12.5px">Les jours où tu commences tôt, le réveil s’avance tout seul. ${myC<5?'6 h de sommeil, c’est court pour récupérer de la musculation : si tu te sens fatigué, passe à 5 cycles.':''}</p></section>
   <div class="seg"><button class="${SL.mode==='now'?'on':''}" data-act="slMode" data-v="now">Je me couche maintenant</button><button class="${SL.mode==='wake'?'on':''}" data-act="slMode" data-v="wake">Je dois me lever à…</button></div>
   ${SL.mode==='wake'?stepper('SL','wakeAt',15,240,720,'time','big'):`<div class="flat row between"><span class="muted">Il est</span><span class="num" style="font-size:22px">${hm(now)}</span></div>`}
   <section class="stack" style="gap:8px">${optHtml}</section>
@@ -1605,7 +1611,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.993';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.994';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
@@ -1674,7 +1680,7 @@ function renderOnboarding(){
     body=`<h1>Ton plan est prêt</h1>
     <section class="card"><span class="lbl">Alimentation</span><div class="kv"><div><span class="lbl">Calories</span><b>${tg.kcal}</b></div><div><span class="lbl">Protéines</span><b>${tg.prot} g</b></div><div><span class="lbl">Perte visée</span><b>${nf(tg.lossWk,1)} kg/sem</b></div><div><span class="lbl">Objectif</span><b>${tg.weeks} sem.</b></div></div></section>
     <section class="card"><span class="lbl">Sport</span><p>${o.days.length} séances par semaine (${o.days.map(d=>DAYS[d].toLowerCase()).join(', ')}) à ${hm(o.sessionTime)}, programme de 12 semaines en 3 phases, ${o.place==='salle'?'en salle':'à la maison'}. Marche active les autres jours.</p></section>
-    <section class="card"><span class="lbl">Sommeil</span><p>Réveil ${hm(o.wake)}, coucher conseillé ${hm(o.wake+1440-465)} (5 cycles).</p></section>
+    <section class="card"><span class="lbl">Sommeil</span><p>Réveil ${hm(o.wake)}, coucher conseillé ${hm(o.wake+1440-(o.cycles||5)*90-15)} (${o.cycles||5} cycles).</p></section>
     <section class="card"><span class="lbl">Cagnotte</span><p>Séance ${eur(50*o.rate)}, repas ${eur(15*o.rate)}, virement ${o.payout==='hebdo'?'chaque semaine':'tous les 15 jours'}.</p></section>`}
   return`<div class="ob-prog" aria-hidden="true">${OB_STEPS.map((_,i)=>`<i class="${i<=s?'on':''}"></i>`).join('')}</div><span class="lbl">Étape ${s+1} sur ${OB_STEPS.length} · ${OB_STEPS[s]}</span>${body}
   <div class="ob-nav">${s>0?`<button class="btn ghost" style="width:auto" data-act="obPrev">Retour</button>`:'<span></span>'}<button class="btn" data-act="obNext">${s===OB_STEPS.length-1?'Commencer':'Continuer'}</button></div>`;
@@ -1698,7 +1704,7 @@ function openSheet(html,name){sheetName=name||'x';const r=$('#sheetRoot');const 
 function closeSheet(){if(sheetName==='diag'&&DIAG&&!DIAG.done)return;stopVoice();$('#sheetRoot').innerHTML='';sheetName=null;MEAL=null;pending=null;NT=null;WO=null;PLW=null;RW=null;WG=null;rstConfirm=false}
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
 const CTX={get PF(){return S.profile},get NS(){return NS},get OB(){return OB},get NT(){return NT},get WO(){return WO},get SL(){return SL},get RW(){return RW},get WG(){return WG}};
-function rerenderCtx(o){if(o==='PF'){save();render();settingsSheet()}else if(o==='NS')nightSheet();else if(o==='OB')render();else if(o==='NT')addTaskSheet();else if(o==='WO')dayEditSheet(WO.ds);else if(o==='SL')render();else if(o==='RW')rewardSheet();else if(o==='WG')drawWeigh()}
+function rerenderCtx(o){if(o==='PF'){save();render();if(sheetName==='settings')settingsSheet()}else if(o==='NS')nightSheet();else if(o==='OB')render();else if(o==='NT')addTaskSheet();else if(o==='WO')dayEditSheet(WO.ds);else if(o==='SL')render();else if(o==='RW')rewardSheet();else if(o==='WG')drawWeigh()}
 
 /* ============ événements ============ */
 document.addEventListener('pointerdown',unlockAudio,{passive:true});
@@ -1780,6 +1786,7 @@ document.addEventListener('click',e=>{
    forceUpdate:()=>forceUpdate(),
    bkExport:()=>{try{const b=new Blob([JSON.stringify(S)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`cadence-sauvegarde-${today()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}catch(e){toast('Export impossible sur ce navigateur')}},
    meal:()=>openMeal(),
+   cyc:()=>{S.profile.cycles=Number(v);save();render()},
    dayStats:()=>dayStatsSheet(),
    omad:()=>{S.profile.omad=v==='1';save();render();settingsSheet()},
    omadWin:()=>{S.profile.omadWin=Number(v);save();render();settingsSheet()},
@@ -1836,6 +1843,7 @@ function tick(){
   if(!sheetName&&!NIGHT&&V.tab==='jour'&&document.activeElement.tagName!=='INPUT')render();
 }
 if(S.onboarded&&!S.reset4){resetCounters();save()}
+if(S.onboarded&&!S.sleep2){S.profile.wake=480;S.profile.cycles=4;S.wakeOv={};S.bedOv={};S.sleep2=1;save()}
 if(S.onboarded&&!S.omadEve){S.profile.omadTime=1260;S.profile.omadWin=120;S.omadEve=1;save()}
 if(S.onboarded&&!S.omadInit){S.profile.omad=true;S.profile.omadTime=S.profile.omadTime||1260;S.profile.omadWin=S.profile.omadWin||120;S.omadInit=1;save()}
 try{if(S.nightLive&&S.nightLive.bins){const L=S.nightLive;const r=analyzeNight(L,L.start+Math.max(1,L.bins.length)*6e4);S.nights=[r,...(S.nights||[])].slice(0,30);S.nightLive=null;save()}}catch(e){}
