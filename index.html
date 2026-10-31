@@ -360,7 +360,7 @@ function defaultState(){return{
   v:1,updatedAt:0,onboarded:false,since:0,
   profile:{name:'',sex:'h',birth:'1996-01-01',height:175,weight:80,waist:0,goal:90,pace:'standard',activity:'bureau',
     workDays:[0,1,2,3,4],workStart:540,workEnd:1050,wake:420,exp:'debutant',place:'salle',days:[0,2,4],sessionTime:1110,sessionMin:60,
-    injuries:[],diet:[],meals:4,commute:30,budget:80,store:'lidl',shopDay:6,rate:0.02,payout:'hebdo',firstReward:'vetements',firstPrice:60},
+    injuries:[],diet:[],meals:4,omad:false,omadTime:810,omadWin:60,commute:30,budget:80,store:'lidl',shopDay:6,rate:0.02,payout:'hebdo',firstReward:'vetements',firstPrice:60},
   programStart:null,custom:[],punches:{},ledger:[],payouts:[],spent:[],periodStart:0,rewards:[],weights:[],
   shifts:{},skips:{},missed:{},perfect:{},streakBonus:{},wakeOv:{},bedOv:{},workOv:{},lifts:{},setsDone:{},shopChecked:{},ics:[],agenda:null,agendaCal:'',meals:{},nights:[],nightLive:null,
   settings:{theme:'auto',sound:true,selfieOut:false,ai:true,malus:true}
@@ -566,7 +566,7 @@ function targets(){
   const def=(PACE[p.pace]||PACE.standard)[0];
   let kcal=Math.round(tdee*(1-def)/10)*10;kcal=Math.max(kcal,p.sex==='f'?1400:1700);
   const goal=Math.min(p.goal,w);
-  const prot=Math.round(Math.min(2*goal,1.7*w));
+  let prot=Math.round(Math.min(2*goal,1.7*w));if(p.omad)prot=Math.round(Math.min(prot,1.5*goal));
   const fat=Math.round(.8*goal);
   const carb=Math.max(80,Math.round((kcal-prot*4-fat*9)/4));
   const lossWk=(tdee-kcal)*7/7700;
@@ -611,6 +611,7 @@ function dayTasks(ds){
   const sess=sessionFor(ds);
   if(sess){let t=null;for(const pf of [p.sessionTime,wake+120,wake+180]){t=pl.find(pf,p.sessionMin+15,60);if(t!=null)break}if(t==null)t=pl.find(p.sessionTime,p.sessionMin+15,720);
     if(t!=null){pl.take(t,p.sessionMin+15);T.push({id:'sport',type:'sport',title:sess.name,start:t,dur:p.sessionMin,pts:sess.key==='CARDIO'?35:50,moved:t!==p.sessionTime})}}
+  if(p.omad){const wl=p.omadWin||60;let t=pl.find(p.omadTime,wl,480);if(t==null)t=p.omadTime;pl.take(t,wl);T.push({id:'omad',type:'repas',title:'Repas unique (OMAD)',start:t,dur:wl,pts:OMAD_PTS,meal:1,moved:t!==p.omadTime})}
   S.ics.forEach((e,i)=>{if(e.d===ds)T.push({id:'ics'+i,type:'agenda',title:e.t,start:e.s,dur:Math.max(15,e.e-e.s),pts:0,info:1})});
   for(const c of S.custom){let ok=false;
     if(c.repeat==='once')ok=c.date===ds;else if(c.repeat==='daily')ok=ds>=c.date;else if(c.repeat==='weekdays')ok=ds>=c.date&&wd<5;else if(c.repeat==='weekly')ok=ds>=c.date&&dow(parseYmd(c.date))===wd;
@@ -627,6 +628,7 @@ function dayStats(ds){
 function status(t){
   const pu=S.punches[t.key]||{};const now=Date.now(),s=at(t.ds,t.start),e=at(t.ds,t.start+t.dur);
   if(t.info)return now<s?'iup':now<e?'irun':'idone';
+  if(t.meal){if(((S.meals||{})[t.ds]||[]).length)return'done';if(t.ds<today())return'miss';return now<s-30*6e4?'up':now<s?'soon':now<e?'run':'due'}
   if(pu.how==='miss'||S.missed[t.key])return'miss';
   if(pu.in)return'done';
   if(now<s-30*6e4)return'up';
@@ -634,10 +636,12 @@ function status(t){
   return now<s?'soon':'due';
 }
 const STAMP={iup:['st-up',''],irun:['st-run','En cours'],idone:['st-up','Fini'],done:['st-done','Validé'],run:['st-due','En cours'],due:['st-due','À valider'],soon:['st-up','Bientôt'],up:['st-up','À venir'],miss:['st-miss','Pas fait']};
+const MEAL_LBL={done:'Mangé',run:'Fenêtre ouverte',due:'À manger',miss:'Pas mangé',soon:'Bientôt',up:'À venir'};
 const HOW={ok:'à l’heure',late:'en retard',forgot:'oubli de pointage',miss:'pas fait'};
 const howPts=(t,h)=>h==='ok'?t.pts:h==='miss'?-t.pts:Math.round(t.pts/2);
 /* boutons de validation selon le moment */
 function valBtns(t,hero){
+  if(t.meal)return t.ds===today()?`<button class="btn ${hero?'go':'btn-meal'}" data-act="meal">${ic('cam')} Photographier mon plat</button>`:'';
   const now=Date.now(),s=at(t.ds,t.start),late=now>s+15*6e4,past=t.ds<today(),photo=t.type==='sport';
   const B=(how,lbl,cls)=>`<button class="btn ${cls}" data-act="val" data-k="${t.key}" data-v="${how}">${lbl} <span class="num" style="opacity:.8;font-weight:500">${M$(howPts(t,how))}</span></button>`;
   const P=hero?'go':'';const G=hero?'':'ghost';let h='';
@@ -670,18 +674,20 @@ function timeFactor(t,ts){const L=(ts-at(t.ds,t.start))/6e4;
   if(t.type==='reveil')return L<=5?1:L<=15?.5:.2;
   if(t.type==='coucher'){const a=Math.abs(L);return L<=15?1:a<=45?.6:.3}
   return L<=10?1:L<=30?.6:.3}
-const MEAL_PTS=15;
+const MEAL_PTS=15,OMAD_PTS=40;
+const mealsN=()=>S.profile.omad?1:S.profile.meals;
+function omadInfo(ds){const t=dayTasks(ds).find(x=>x.meal);if(!t)return null;const ms=(S.meals||{})[ds]||[];return{t,start:t.start,end:t.start+t.dur,done:ms.length>0,first:ms[0]}}
 function checkPerfect(ds){
   if(S.perfect[ds])return;const T=dayTasks(ds).filter(t=>!t.info);
-  const okT=T.every(t=>{const pu=S.punches[t.key];return pu&&pu.in&&pu.how!=='miss'});
-  if(okT&&((S.meals||{})[ds]||[]).length>=S.profile.meals){S.perfect[ds]=1;addPts(30,'Journée parfaite')}
+  const okT=T.filter(t=>!t.meal).every(t=>{const pu=S.punches[t.key];return pu&&pu.in&&pu.how!=='miss'});
+  if(okT&&((S.meals||{})[ds]||[]).length>=mealsN()){S.perfect[ds]=1;addPts(30,'Journée parfaite')}
 }
 function resetCounters(){Object.assign(S,{ledger:[],punches:{},missed:{},perfect:{},streakBonus:{},payouts:[],spent:[],setsDone:{},shifts:{},skips:{},lifts:{},nights:[],nightLive:null,meals:{},
   periodStart:Date.now(),since:Date.now(),weights:[{d:today(),kg:curWeight()}],reset4:1})}
 function sweepMissed(){
   if(!S.onboarded)return false;let ch=false;const t=today();
   for(let i=1;i<=3;i++){const ds=addDs(t,-i);for(const task of dayTasks(ds)){
-    if(task.info||at(ds,task.start)<S.since)continue;
+    if(task.info||task.meal||at(ds,task.start)<S.since)continue;
     if(S.missed[task.key]||(S.punches[task.key]||{}).how)continue;
     S.missed[task.key]=1;ch=true;if(S.settings.malus)addPts(-task.pts,'Non validé · '+task.title,task.key);
   }}
@@ -711,7 +717,7 @@ function renderJour(){
     if(cur){const s2=status(cur);const s=at(ds,cur.start),e=at(ds,cur.start+cur.dur);const mins=Math.round((s-Date.now())/6e4);
       const when=s2==='run'?`Commencé à ${hm(cur.start)} · reste ${durTxt(Math.max(1,Math.round((e-Date.now())/6e4)))}`:mins>0?`Dans ${mins>=60?Math.floor(mins/60)+' h '+pad(mins%60):mins+' min'} · ${durTxt(cur.dur)}`:`Prévu à ${hm(cur.start)} · ${durTxt(-mins)} de retard`;
       const hc=s2==='run'||s2==='due'?'#E2700B':cur.type==='sport'?'#6A3FD6':'#2F5BEA';
-      hero=`<section class="hero col" style="--hc:${hc}"><div class="row between"><span class="lbl">${s2==='run'?'En cours · pas encore pointé':s2==='due'?'À valider':'Bientôt'}</span><span class="pts">${M$(cur.pts)}</span></div>
+      hero=`<section class="hero col" style="--hc:${cur.meal?'#E2700B':hc}"><div class="row between"><span class="lbl">${cur.meal?(s2==='run'?'Fenêtre de repas ouverte':s2==='due'?'Tu n’as pas encore mangé':'Repas bientôt'):s2==='run'?'En cours · pas encore pointé':s2==='due'?'À valider':'Bientôt'}</span><span class="pts">${M$(cur.pts)}</span></div>
         <div class="row" style="gap:14px;align-items:flex-end"><span class="big">${hm(cur.start)}</span><div style="min-width:0"><h2>${esc(cur.title)}</h2><p class="meta">${when}</p></div></div>${s2==='soon'?'':valBtns(cur,true)}</section>`;
     }
   }
@@ -729,7 +735,7 @@ function renderJour(){
     <p class="muted" style="font-size:12.5px;border-top:1px solid var(--line);padding-top:10px">Cette semaine : ${durTxt(wWork)} de travail · ${durTxt(Math.round(wFree/7))} de temps libre par jour en moyenne.</p></div></section>`;
   const row=x=>{const s2=status(x);const pu=S.punches[x.key]||{};const[,l]=STAMP[s2];const k=KIND(x.type);
     const earned=x.info?0:S.ledger.filter(e=>e.key===x.key).reduce((a,e)=>a+e.pts,0);
-    const lbl=x.info?(l||durTxt(x.dur)):s2==='done'?(pu.how==='ok'?'Validé':HOW[pu.how]||'Validé'):l;
+    const lbl=x.info?(l||durTxt(x.dur)):x.meal?MEAL_LBL[s2]:s2==='done'?(pu.how==='ok'?'Validé':HOW[pu.how]||'Validé'):l;
     const rest=(s2==='run'||s2==='irun')&&isToday?` · reste ${durTxt(Math.max(1,Math.round((at(ds,x.start+x.dur)-Date.now())/6e4)))}`:'';
     const hot=isToday&&(s2==='due'||s2==='run');
     return`<button class="tc ${s2==='done'||s2==='miss'||s2==='idone'?'past':''}" data-act="task" data-k="${x.key}" style="${hot?'outline:2px solid var(--warn);outline-offset:-2px':''}">
@@ -745,7 +751,7 @@ function renderJour(){
   return`<header class="top"><div class="stack" style="gap:4px;min-width:0"><span class="lbl">${fmtDate(new Date())}</span><h1>${greeting()}${p.name?', '+esc(p.name):''}</h1><span class="muted" style="font-size:13px">${wkLabel}</span></div>
     <button class="avatar" data-act="settings" aria-label="Réglages">${p.name?esc(p.name[0].toUpperCase()):ic('gear')}</button></header>
   ${(()=>{let nx=null,nd=t;for(let k=0;k<7&&!nx;k++){nd=addDs(t,k);nx=dayTasks(nd).find(x=>!x.info&&['run','due','soon','up'].includes(status(x)))}
-    const s3=nx?status(nx):'';const[,l3]=nx?STAMP[s3]:[];
+    const s3=nx?status(nx):'';const l3=nx?(nx.meal?MEAL_LBL[s3]:STAMP[s3][1]):'';
     return`<div class="stats" style="grid-template-columns:1fr 1.35fr"><div class="stat k-money" data-act="tab" data-v="cagnotte"><span class="lbl">${ic('cagnotte')} Cagnotte</span><b>${eur(periodEur())}</b><span class="muted num" style="font-size:12px">${M$(dayPts(t))} aujourd’hui</span></div>
     ${nx?`<button class="stat k-${KIND(nx.type)}" data-act="task" data-k="${nx.key}" style="text-align:left;${s3==='run'||s3==='due'?'outline:2px solid var(--warn);outline-offset:-2px':''}"><span class="lbl">${ic(nx.type)} Prochaine tâche</span><b style="font-family:var(--f-ui);font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nx.title)}</b><span class="row" style="gap:6px;justify-content:space-between"><span class="muted num" style="font-size:12px">${nd===t?'':fmtShort(parseYmd(nd))+' · '}${hm(nx.start)}</span><span class="pill p-${s3}" style="padding:3px 8px;font-size:11px">${l3}</span></span></button>`:
       `<div class="stat k-free"><span class="lbl">${ic('check')} Prochaine tâche</span><b style="font-family:var(--f-ui);font-size:15px">Rien de prévu</b></div>`}</div>`})()}
@@ -833,9 +839,10 @@ function valAct(key,how){
 }
 
 /* ---------- repas : photo du plat analysée par l'IA ---------- */
-const SLOT_L={b:'Petit-déjeuner',l:'Déjeuner',s:'Collation',d:'Dîner'};
-const slotShares=()=>S.profile.meals===4?{b:.25,l:.32,s:.12,d:.31}:{b:.28,l:.38,d:.34};
-function guessSlot(){const h=nowMin(),four=S.profile.meals===4;return h<630?'b':h<930?'l':(four&&h<1110)?'s':'d'}
+const SLOT_L={b:'Petit-déjeuner',l:'Déjeuner',s:'Collation',d:'Dîner',o:'Repas unique',o1:'Plat principal',o2:'Complément',o3:'Dessert protéiné'};
+const SLOT_END={b:630,l:930,s:1110,d:1380};
+const slotShares=()=>S.profile.omad?{o:1}:S.profile.meals===4?{b:.25,l:.32,s:.12,d:.31}:{b:.28,l:.38,d:.34};
+function guessSlot(){if(S.profile.omad)return'o';const h=nowMin(),four=S.profile.meals===4;return h<630?'b':h<930?'l':(four&&h<1110)?'s':'d'}
 const lsGet=(k,d)=>{try{return localStorage.getItem(k)||d}catch(e){return d}};
 const aiProv=()=>lsGet('cadence.ai','gemini');
 const apiKey=(pv)=>lsGet((pv||aiProv())==='claude'?'cadence.apikey':'cadence.gkey','');
@@ -850,17 +857,31 @@ window.addEventListener('unhandledrejection',e=>logE('promise',e.reason&&(e.reas
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(MEAL&&MEAL.state==='busy'){MEAL.hid=true;logE('vis','app en arrière-plan pendant une analyse')}}else if(MEAL&&MEAL.state==='retry'){logE('vis','retour au premier plan : relance de l’analyse');analyzeMeal()}});
 const aiReady=()=>!!(SAMPLE&&SAMPLE_IMG)||!!apiKey();
 function mealCard(){
-  const p=S.profile,tg=targets(),ms=(S.meals||{})[today()]||[];const k=ms.reduce((a,m)=>a+m.kcal,0),pr=ms.reduce((a,m)=>a+m.prot,0);
-  return`<section class="sec"><div class="sec-h"><span class="badge k-meal">${ic('repas')}</span><h2>Repas du jour</h2><span class="pill k-meal" style="--pc:var(--c-meal)">${ms.length}/${p.meals} validés</span></div>
+  const p=S.profile,tg=targets(),t=today(),ms=(S.meals||{})[t]||[];const k=ms.reduce((a,m)=>a+m.kcal,0),pr=ms.reduce((a,m)=>a+m.prot,0);const n=nowMin();
+  let info='',canEat=true;
+  if(p.omad){const o=omadInfo(t),y=omadInfo(addDs(t,-1));
+    if(o){const st=o.done?'done':n<o.start-30?'before':n<=o.end+30?'open':'late';canEat=st!=='before'&&!(st==='late'&&o.done);
+      info=`<div class="row between" style="background:var(--surface);border-radius:14px;padding:10px 12px;gap:10px"><span><b>Fenêtre ${hm(o.start)} → ${hm(o.end)}</b>${o.t.moved?'<br><span class="muted" style="font-size:12px">décalée autour de ton travail</span>':''}</span><span class="pill p-${o.done?'done':st==='open'?'run':st==='late'?'due':'up'}">${o.done?'Repas pris à '+clock(o.first.t):st==='open'?'Ouverte':st==='late'?'Pas encore mangé':'Dans '+durTxt(o.start-n)}</span></div>
+      ${!o.done&&st==='late'?`<div class="banner"><span class="grow">Ta fenêtre est passée et tu n’as pas mangé. Ne saute pas ton seul repas : prends-le maintenant (${M$(OMAD_PTS/2,false)} au lieu de ${M$(OMAD_PTS,false)}).</span></div>`:''}
+      ${!o.done&&y&&!y.done&&y.t.ds>=ymd(new Date(S.since))?`<p class="muted" style="font-size:13px">Hier tu n’as pas mangé : fais un repas complet aujourd’hui, sans doubler les portions.</p>`:''}
+      ${st==='before'?`<p class="muted" style="font-size:13px">En attendant : eau, café ou thé sans sucre.</p>`:''}`}}
+  else{const skip=Object.keys(slotShares()).filter(s=>n>SLOT_END[s]&&!ms.some(m=>m.slot===s));
+    if(skip.length)info=`<p class="muted" style="font-size:13px">${skip.map(s=>SLOT_L[s]).join(', ')} : pas pointé, donc pas mangé. Les calories sont reportées sur tes prochains repas.</p>`}
+  return`<section class="sec"><div class="sec-h"><span class="badge k-meal">${ic('repas')}</span><h2>${p.omad?'Repas unique · OMAD':'Repas du jour'}</h2><span class="pill k-meal" style="--pc:var(--c-meal)">${ms.length}/${mealsN()} ${p.omad?'repas':'validés'}</span></div>
    <div class="card tint k-meal" style="gap:14px">
    <div class="row between" style="align-items:flex-end"><div><span class="big-n" style="color:var(--c-meal)">${Math.round(k)}</span><span class="muted"> / ${tg.kcal} kcal</span></div><div style="text-align:right"><span class="big-n" style="font-size:22px;color:var(--c-money)">${Math.round(pr)}</span><span class="muted"> / ${tg.prot} g prot.</span></div></div>
    <div class="stack" style="gap:6px"><div class="bar" style="height:10px"><i style="width:${clamp(k/tg.kcal,0,1)*100}%;background:${k>tg.kcal*1.05?'var(--bad)':'var(--c-meal)'}"></i></div><div class="bar" style="height:10px"><i style="width:${clamp(pr/tg.prot,0,1)*100}%;background:var(--c-money)"></i></div></div>
+   ${info}
    ${ms.length?`<div class="stack" style="gap:0;background:var(--surface);border-radius:14px;padding:4px 12px">${ms.map(m=>`<div class="ledger"><span style="min-width:0"><b>${SLOT_L[m.slot]||'Repas'}</b> · ${esc(m.nom)}<br><span class="muted num" style="font-size:12px">${clock(m.t)}${m.tries>1?' · validé au '+m.tries+'e essai':''}</span></span><span class="num">${Math.round(m.kcal)} kcal</span></div>`).join('')}</div>`:''}
-   <button class="btn btn-meal" data-act="meal">${ic('cam')} Photographier mon plat</button></div></section>`;
+   ${canEat?`<button class="btn btn-meal" data-act="meal">${ic('cam')} Photographier mon plat</button>`:''}</div></section>`;
 }
 let MEAL=null,mealTok=0;
 function warmAI(){try{fetch(aiProv()==='gemini'?'https://generativelanguage.googleapis.com/':'https://api.anthropic.com/',{mode:'no-cors',cache:'no-store'}).catch(()=>{})}catch(e){}}
-function openMeal(){warmAI();MEAL={slot:guessSlot(),tries:[],state:'idle',notes:[],asks:0,answer:'',picks:[],askMode:'voice'};mealSheet();if(aiReady())try{$('#mealCam').click()}catch(e){}}
+function openMeal(){
+  if(S.profile.omad){const o=omadInfo(today()),n=nowMin();
+    if(o&&n<o.start-30){openSheet(`<div class="grab"></div><span class="lbl">OMAD</span><h2>Pas encore</h2><section class="card" style="border:2px solid var(--bad);gap:8px"><span class="lbl" style="color:var(--bad)">Hors de ta fenêtre</span><p style="font-size:15px">Ton repas du jour est à <b>${hm(o.start)}</b> (dans ${durTxt(o.start-n)}). D’ici là : eau, café ou thé sans sucre.</p></section><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}
+    if(o&&o.done&&n>o.end+30){openSheet(`<div class="grab"></div><span class="lbl">OMAD</span><h2>Repas déjà pris</h2><section class="card" style="border:2px solid var(--bad);gap:8px"><span class="lbl" style="color:var(--bad)">Hors de ta fenêtre</span><p style="font-size:15px">Tu as mangé à ${clock(o.first.t)}. Prochain repas demain vers ${hm(o.start)}. Eau, café ou thé sans sucre sont OK.</p></section><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}}
+  warmAI();MEAL={slot:guessSlot(),tries:[],state:'idle',notes:[],asks:0,answer:'',picks:[],askMode:'voice'};mealSheet();if(aiReady())try{$('#mealCam').click()}catch(e){}}
 function mealSheet(){
   const M=MEAL;if(!M)return;
   if(!aiReady()){openSheet(`<div class="grab"></div><h2>Activer l’analyse des plats</h2>${keySetup()}`,'meal');return}
@@ -896,7 +917,7 @@ function mealSheet(){
      ${r.resume?`<p style="font-size:15px">${esc(r.resume)}</p>`:''}
      ${!ok&&(r.fix||[]).length?`<section class="card" style="gap:10px"><span class="lbl" style="color:var(--warn)">Avant de manger</span>${r.fix.map(x=>`<div class="row" style="gap:10px;align-items:flex-start"><b style="color:var(--warn);flex:none">→</b><span>${esc(x)}</span></div>`).join('')}</section>`:''}`}
      ${M.ms?`<p class="muted num" style="font-size:12px;text-align:right">Analysé en ${nf(M.ms/1000,1)} s</p>`:''}
-     ${ok?`<div class="banner info">${ic('check')}<span class="grow">Repas pointé · ${M$(MEAL_PTS)} dans la cagnotte${n>1?' · validé au '+n+'e essai':''}</span></div><button class="btn" data-act="close">Bon appétit</button>`:
+     ${ok?`<div class="banner info">${ic('check')}<span class="grow">Repas pointé${M.gain?' · '+M$(M.gain)+' dans la cagnotte':' · complément ajouté'}${n>1?' · validé au '+n+'e essai':''}</span></div><button class="btn" data-act="close">Bon appétit</button>`:
       `<label for="mealCam" class="btn">${ic('cam')} ${np?'Reprendre la photo':'J’ai corrigé · reprendre la photo'} (essai ${n+1})</label>${np?'':`<button class="describe" data-act="fixIng">${ic('pen')} Ce n’est pas ça · préciser les ingrédients</button>`}<button class="btn ghost" data-act="close">Annuler ce repas</button>`}`;
   }else body=`<div class="cam" style="border-radius:20px;width:100%;height:180px">${ic('repas')}</div><label for="mealCam" class="btn">${ic('cam')} Photographier mon plat</label><p class="muted" style="font-size:12.5px;text-align:center">Tout le plat dans le cadre, vu d’au-dessus, avec la boisson. L’IA estime les calories et te dit quoi ajuster.</p>`;
   openSheet(`<div class="grab"></div><div class="stack" style="gap:8px"><span class="lbl">Pointage repas${n?' · essai '+(M.state==='busy'?n+1:n):''}</span><h2>${M.state==='result'&&r&&r.verdict==='valide'?'C’est validé':M.state==='ask'?'Une précision':'Mon plat'}</h2>${(M.state==='idle'||!n)&&M.state!=='ask'?`<div class="chips">${chips}</div>`:''}</div>${body}`,'meal');
@@ -915,12 +936,13 @@ function keySetup(){const pv=aiProv(),k=apiKey(),m=aiModel();
 function mealPrompt(){
   const M=MEAL,p=S.profile,tg=targets(),sh=slotShares();const ms=(S.meals||{})[today()]||[];
   const ek=ms.reduce((a,m)=>a+m.kcal,0);
-  const left=Math.max(0,tg.kcal-ek),rem=Object.keys(sh).filter(k=>k===M.slot||!ms.some(m=>m.slot===k)).reduce((a,k)=>a+sh[k],0)||sh[M.slot];
-  const bk=Math.round(Math.max(150,Math.min(tg.kcal*sh[M.slot]*1.15,left*sh[M.slot]/rem))/10)*10;const bp=Math.round(tg.prot*sh[M.slot]*.85);
+  const n=nowMin(),left=Math.max(0,tg.kcal-ek),rem=Object.keys(sh).filter(k=>k===M.slot||(!ms.some(m=>m.slot===k)&&n<(SLOT_END[k]||1440))).reduce((a,k)=>a+sh[k],0)||sh[M.slot];
+  const ep=ms.reduce((a,m)=>a+m.prot,0),omad=p.omad;
+  const bk=omad?Math.round(Math.max(300,left)/10)*10:Math.round(Math.max(150,Math.min(tg.kcal*sh[M.slot]*1.6,left*sh[M.slot]/rem))/10)*10;const bp=omad?Math.max(25,Math.round((tg.prot-ep)*.8)):Math.round(tg.prot*sh[M.slot]/rem*.85);
   const diet=(p.diet||[]).map(d=>({halal:'halal',sansporc:'sans porc',vegetarien:'végétarien',pescetarien:'pescétarien',sanslactose:'sans lactose'}[d])).join(', ');
   const last=M.tries[M.tries.length-1];const noQ=M.notes.length||M.asks>=2||M.skipped;
   return`Coach nutrition. Photo d’un plat avant de le manger. Objectif : perte de gras, garder le muscle.${diet?' Régime '+diet+'.':''}
-Repas : ${SLOT_L[M.slot]}. Budget ${bk} kcal (±20 %), au moins ${bp} g de protéines.${last?` Essai précédent : ${Math.round(last.kcal||0)} kcal, demandé : ${(last.fix||[]).join(' ; ')||'rien'}. Si c’est corrigé et dans le budget, valide.`:''}${M.notes.length?` Ingrédients donnés par l’utilisateur (à utiliser) : ${M.notes.join(' ; ')}.`:''}${M.skipped?' Ingrédients cachés inconnus : prends les plus probables.':''}
+${omad?`Mode OMAD : c’est le SEUL repas de la journée${ms.length?' (complément du repas déjà validé)':''}. Il doit être copieux et complet : protéines, légumes, féculents. Budget ${bk} kcal : valide entre 75 % et 115 % du budget ; s’il en manque beaucoup, demande d’ajouter (fix). Au moins ${bp} g de protéines.`:`Repas : ${SLOT_L[M.slot]}. Budget ${bk} kcal (±20 %), au moins ${bp} g de protéines.`}${last?` Essai précédent : ${Math.round(last.kcal||0)} kcal, demandé : ${(last.fix||[]).join(' ; ')||'rien'}. Si c’est corrigé et dans le budget, valide.`:''}${M.notes.length?` Ingrédients donnés par l’utilisateur (à utiliser) : ${M.notes.join(' ; ')}.`:''}${M.skipped?' Ingrédients cachés inconnus : prends les plus probables.':''}
 Estime les quantités et les calories. Verdict v :
 "interdit" EN PRIORITÉ si tu vois un aliment ou une boisson très sucré, même en petite quantité : crêpe, gaufre, donut, muffin, cookie, brownie, gâteau, pâtisserie, viennoiserie sucrée, bonbons, chocolat, glace, chantilly, pâte à tartiner, céréales sucrées, soda ou canette sucrée, jus de fruits, ice tea, limonade, sirop, boisson énergisante, milkshake, frappé, café ou thé sucré aromatisé, bubble tea. Mets l’élément dans bad. Les boissons zéro sucre sont autorisées ;
 "ok" si dans le budget et protéines correctes ;
@@ -988,7 +1010,8 @@ async function analyzeMeal(){
     if(r.verdict==='question')r.verdict='a_corriger';
     M.res=r;M.tries.push({verdict:r.verdict,kcal:r.kcal,fix:r.fix});M.state='result';
     if(r.verdict==='valide'){const ds=today();S.meals=S.meals||{};(S.meals[ds]=S.meals[ds]||[]).push({id:'m'+Date.now().toString(36),t:Date.now(),slot:M.slot,nom:String(r.plat||'Repas').slice(0,60),kcal:+r.kcal||0,prot:+r.prot||0,gluc:+r.gluc||0,lip:+r.lip||0,tries:M.tries.length});
-      addPts(MEAL_PTS,'Repas validé · '+String(r.plat||SLOT_L[M.slot]).slice(0,40),'meal');checkPerfect(ds);save();render()}
+      const nm=nowMin(),o=S.profile.omad?omadInfo(ds):null;const first=S.meals[ds].length===1;M.gain=o?(first?(nm<=o.end+30?OMAD_PTS:Math.round(OMAD_PTS/2)):0):MEAL_PTS;
+      if(M.gain)addPts(M.gain,(o&&nm>o.end+30?'Repas en retard · ':'Repas validé · ')+String(r.plat||SLOT_L[M.slot]).slice(0,40),'meal');checkPerfect(ds);save();render()}
   }catch(e){clearInterval(tick);if(MEAL!==M)return;
     if(e&&e.bg&&(M.bgRetry||0)<2){M.bgRetry=(M.bgRetry||0)+1;M.hid=false;if(document.hidden){M.state='retry';mealSheet();return}logE('ai','relance automatique après arrière-plan');return analyzeMeal()}
     M.state='error';M.err=e&&e.message?e.message:'L’analyse a échoué. Réessaie.'}
@@ -1448,11 +1471,12 @@ function mealsFor(ds){
   const M=R.filter(r=>r.slot==='m'&&dietOK(r)),B=R.filter(r=>r.slot==='b'),SN=R.filter(r=>r.slot==='s');
   const off=(w*4+cycleOf(ds)*3)%M.length;const Lp=[0,0,1,1,2,2,3],Dp=[1,2,2,3,3,0,0];
   const L=M[(Lp[wd]+off)%M.length];let D=M[(Dp[wd]+off)%M.length];if(D===L)D=M[(Dp[wd]+off+1)%M.length];
-  const sh=p.meals===4?{b:.25,l:.32,s:.12,d:.31}:{b:.28,l:.38,d:.34};
-  const out=[{slot:'b',label:'Petit-déjeuner',r:B[(wd+w)%B.length]},{slot:'l',label:'Déjeuner',r:L}];
+  let sh,out;
+  if(p.omad){sh={o1:.6,o2:.25,o3:.15};out=[{slot:'o1',label:'Plat principal',r:D},{slot:'o2',label:'Complément',r:B[(wd+w)%B.length]},{slot:'o3',label:'Dessert protéiné',r:SN[(wd+w)%SN.length]}]}
+  else{sh=p.meals===4?{b:.25,l:.32,s:.12,d:.31}:{b:.28,l:.38,d:.34};out=[{slot:'b',label:'Petit-déjeuner',r:B[(wd+w)%B.length]},{slot:'l',label:'Déjeuner',r:L}];
   if(p.meals===4)out.push({slot:'s',label:'Collation',r:SN[(wd+w)%SN.length]});
-  out.push({slot:'d',label:'Dîner',r:D});
-  for(const m of out){const base=macros(m.r.ing).k;m.f=Math.round(clamp(tg.kcal*sh[m.slot]/base,.6,1.8)*20)/20;m.mac=macros(m.r.ing,m.f)}
+  out.push({slot:'d',label:'Dîner',r:D})}
+  for(const m of out){const base=macros(m.r.ing).k;m.f=Math.round(clamp(tg.kcal*sh[m.slot]/base,.6,p.omad?2.6:1.8)*20)/20;m.mac=macros(m.r.ing,m.f)}
   return out;
 }
 const ingName=id=>{const d=S.profile.diet||[];let n=I[id][0];if(d.includes('halal')&&MEAT.includes(id))n+=' (halal)';if(d.includes('sanslactose')&&DAIRY.includes(id))n+=' sans lactose';return n};
@@ -1578,7 +1602,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.98';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.99';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
@@ -1589,6 +1613,8 @@ function settingsSheet(checked){if(!checked&&!upChecking){upChecking=true;checkU
   openSheet(`<div class="grab"></div><h2>Réglages</h2>
   <div class="field"><span class="lbl">Apparence</span><div class="seg">${[['auto','Auto'],['light','Jour'],['dark','Nuit']].map(([k,l])=>`<button class="${s.theme===k?'on':''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div></div>
   <section class="card" style="gap:0">${tog('sound','Son d’alarme','Sonne dans l’app quand un pointage est dû (app ouverte).')}${tog('ai','Vérification de la salle par l’IA','La photo doit montrer une salle de sport. Sinon : simple contrôle de luminosité.')}${tog('malus','Malus si non validé','Une tâche marquée pas fait, ou non validée le lendemain, retire sa somme de la cagnotte.')}</section>
+  <div class="field"><span class="lbl">Façon de manger</span><div class="seg"><button class="${p.omad?'on':''}" data-act="omad" data-v="1">OMAD · 1 repas</button><button class="${!p.omad?'on':''}" data-act="omad" data-v="0">Plusieurs repas</button></div>
+   ${p.omad?`<span class="lbl">Heure de ton repas</span>${stepper('PF','omadTime',15,600,1320,'time')}<div class="chips">${[30,60,90,120].map(v=>`<button class="chip sm ${(p.omadWin||60)===v?'on':''}" data-act="omadWin" data-v="${v}">Fenêtre ${durTxt(v)}</button>`).join('')}</div><p class="muted" style="font-size:12.5px">Si ton travail tombe à cette heure, la fenêtre se décale toute seule sur le créneau libre le plus proche. Repas à l’heure : ${M$(OMAD_PTS,false)}, en retard : ${M$(OMAD_PTS/2,false)}.</p>`:''}</div>
   <div class="field"><span class="lbl">Analyse des repas (IA)</span><div class="flat row between"><span>${aiProv()==='gemini'?'Gemini':'Claude'} · ${apiKey()?'clé enregistrée':'aucune clé'}</span><span class="stamp ${apiKey()?'st-done':'st-up'}">${apiKey()?'Active':'Inactive'}</span></div>${keySetup()}</div>
   <div class="field"><span class="lbl">Agenda</span><label for="icsIn" class="btn ghost">${ic('agenda')} Importer un agenda (.ics)</label><p class="muted" style="font-size:12.5px">${S.ics.length?`${S.ics.length} événements importés. `:''}Exporte ton planning en .ics (Google Agenda, Outlook, appli RH) puis choisis le fichier ici : les événements des 60 prochains jours deviennent des tâches à pointer.</p></div>
   <div class="field"><span class="lbl">Sauvegarde</span><div class="row" style="gap:8px"><button class="btn ghost sm" style="flex:1" data-act="bkExport">Exporter</button><label for="bkIn" class="btn ghost sm" style="flex:1">Importer</label></div><p class="muted" style="font-size:12.5px">Tes données vivent sur ce téléphone, dans Safari. Exporte une sauvegarde de temps en temps (elle va dans l’app Fichiers).</p></div>
@@ -1668,8 +1694,8 @@ function openSheet(html,name){sheetName=name||'x';const r=$('#sheetRoot');const 
   r.innerHTML=`<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true"><button class="sheet-x" data-act="close" aria-label="Fermer">${ic('x')}</button>${html}</div></div>`;if(was)r.querySelector('.sheet').scrollTop=sc}
 function closeSheet(){if(sheetName==='diag'&&DIAG&&!DIAG.done)return;stopVoice();$('#sheetRoot').innerHTML='';sheetName=null;MEAL=null;pending=null;NT=null;WO=null;PLW=null;RW=null;WG=null;rstConfirm=false}
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
-const CTX={get NS(){return NS},get OB(){return OB},get NT(){return NT},get WO(){return WO},get SL(){return SL},get RW(){return RW},get WG(){return WG}};
-function rerenderCtx(o){if(o==='NS')nightSheet();else if(o==='OB')render();else if(o==='NT')addTaskSheet();else if(o==='WO')dayEditSheet(WO.ds);else if(o==='SL')render();else if(o==='RW')rewardSheet();else if(o==='WG')drawWeigh()}
+const CTX={get PF(){return S.profile},get NS(){return NS},get OB(){return OB},get NT(){return NT},get WO(){return WO},get SL(){return SL},get RW(){return RW},get WG(){return WG}};
+function rerenderCtx(o){if(o==='PF'){save();render();settingsSheet()}else if(o==='NS')nightSheet();else if(o==='OB')render();else if(o==='NT')addTaskSheet();else if(o==='WO')dayEditSheet(WO.ds);else if(o==='SL')render();else if(o==='RW')rewardSheet();else if(o==='WG')drawWeigh()}
 
 /* ============ événements ============ */
 document.addEventListener('pointerdown',unlockAudio,{passive:true});
@@ -1751,6 +1777,8 @@ document.addEventListener('click',e=>{
    forceUpdate:()=>forceUpdate(),
    bkExport:()=>{try{const b=new Blob([JSON.stringify(S)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`cadence-sauvegarde-${today()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}catch(e){toast('Export impossible sur ce navigateur')}},
    meal:()=>openMeal(),
+   omad:()=>{S.profile.omad=v==='1';save();render();settingsSheet()},
+   omadWin:()=>{S.profile.omadWin=Number(v);save();render();settingsSheet()},
    mealRetry:()=>{if(MEAL){MEAL.bgRetry=0;analyzeMeal()}},
    diag:()=>{if(!DIAG||DIAG.done)runDiag();else diagSheet()},
    diagCopy:()=>{const t=DIAG&&DIAG.report||'';const ok=()=>toast('Rapport copié : colle-le dans ta conversation avec Claude');
@@ -1804,6 +1832,7 @@ function tick(){
   if(!sheetName&&!NIGHT&&V.tab==='jour'&&document.activeElement.tagName!=='INPUT')render();
 }
 if(S.onboarded&&!S.reset4){resetCounters();save()}
+if(S.onboarded&&!S.omadInit){S.profile.omad=true;S.profile.omadTime=S.profile.omadTime||810;S.profile.omadWin=S.profile.omadWin||60;S.omadInit=1;save()}
 try{if(S.nightLive&&S.nightLive.bins){const L=S.nightLive;const r=analyzeNight(L,L.start+Math.max(1,L.bins.length)*6e4);S.nights=[r,...(S.nights||[])].slice(0,30);S.nightLive=null;save()}}catch(e){}
 async function loadSecrets(){try{const x=await decFile('secrets.enc.json');let ch=false;
   if(x.gkey&&!lsGet('cadence.gkey','')){localStorage.setItem('cadence.gkey',x.gkey);ch=true}
