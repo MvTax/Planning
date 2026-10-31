@@ -1208,41 +1208,30 @@ function agendaHelp(kind,names,msg){
 /* ---------- SOMMEIL ---------- */
 let SL={mode:'now',wakeAt:null};
 function renderSommeil(){
-  const p=S.profile,t=today();const tm=addDs(t,1);
-  if(SL.wakeAt==null)SL.wakeAt=wakeFor(tm);
-  const now=nowMin();const LAT=15;
-  let opts=[];
-  if(SL.mode==='now'){for(const n of [6,5,4]){const w=now+LAT+n*90;opts.push({n,bed:now,wake:w,h:n*1.5})}}
-  else{for(const n of [6,5,4]){const b=SL.wakeAt-LAT-n*90;opts.push({n,bed:b,wake:SL.wakeAt,h:n*1.5})}}
-  const wb=workBlocks(tm).blocks;const work=wb.length?wb[0].s-(p.commute||0):null;
-  const myC=p.cycles||5;const recN=[6,5,4].includes(myC)?myC:5;
-  const optHtml=opts.map(o=>`<button class="opt ${o.n===recN?'rec':''}" data-act="slPick" data-bed="${o.bed}" data-wake="${o.wake}">
-    <span class="stack" style="gap:0"><span class="lbl">${SL.mode==='now'?'Réveil':'Coucher'}</span><span class="big">${hm(SL.mode==='now'?o.wake:o.bed)}</span></span>
-    <span class="stack" style="gap:2px;min-width:0"><b>${o.n} cycles · ${nf(o.h,1)} h</b><span class="muted" style="font-size:13px">${o.n===myC?'Ton rythme':o.n===6?'Idéal pour récupérer du sport':o.n===5?'Le bon compromis':'Nuit courte'}</span></span>
-    ${o.n===recN?'<span class="pill p-done">Ton rythme</span>':''}</button>`).join('');
-  const rec=opts.find(o=>o.n===recN);const bedT=rec.bed,wakeT=rec.wake;
-  const cyc=`<div class="cycles" aria-hidden="true"><i class="lat"></i>${Array.from({length:recN},()=>'<i></i>').join('')}</div><div class="row between num muted" style="font-size:12px"><span>${hm(bedT)}</span><span>endormi ${hm(bedT+LAT)}</span><span>${hm(wakeT)}</span></div>`;
-  // historique
+  const p=S.profile,t=today(),n=nowMin();const wd=n<600?t:addDs(t,1);
+  const myC=p.cycles||5,wake=wakeFor(wd),bed=wake-sleepNeed(),asleep=wake-myC*90;
+  const early=wake!==p.wake;
   const nights=(S.nights||[]).filter(r=>!r.short&&r.asleep).slice(0,7).reverse().map(r=>({d:r.d,h:r.asleep/60}));
-  const plannedBed=dayTasks(t).find(x=>x.id==='coucher');
-  const bmi=targets().bmi;
-  return`<header class="top"><div class="stack" style="gap:4px"><span class="lbl">Cycles de 90 min · 15 min pour s’endormir</span><h1>Sommeil</h1></div></header>
-  <section class="card tint k-work" style="gap:12px"><span class="lbl">Mon rythme</span>
-   <div class="tiles"><div class="tile" style="background:var(--surface)"><span class="lbl">Au lit</span><b>${hm(p.wake-sleepNeed())}</b></div><div class="tile" style="background:var(--surface)"><span class="lbl">Endormi</span><b>${hm(p.wake-myC*90)}</b></div><div class="tile" style="background:var(--surface)"><span class="lbl">Réveil</span><b>${hm(p.wake)}</b></div></div>
-   <div class="chips">${[4,5,6].map(c=>`<button class="chip sm ${myC===c?'on':''}" data-act="cyc" data-v="${c}">${c} cycles · ${nf(c*1.5,1)} h</button>`).join('')}</div>
-   ${stepper('PF','wake',15,300,720,'time')}
-   <p class="muted" style="font-size:12.5px">Les jours où tu commences tôt, le réveil s’avance tout seul. ${myC<5?'6 h de sommeil, c’est court pour récupérer de la musculation : si tu te sens fatigué, passe à 5 cycles.':''}</p></section>
-  <div class="seg"><button class="${SL.mode==='now'?'on':''}" data-act="slMode" data-v="now">Je me couche maintenant</button><button class="${SL.mode==='wake'?'on':''}" data-act="slMode" data-v="wake">Je dois me lever à…</button></div>
-  ${SL.mode==='wake'?stepper('SL','wakeAt',15,240,720,'time','big'):`<div class="flat row between"><span class="muted">Il est</span><span class="num" style="font-size:22px">${hm(now)}</span></div>`}
-  <section class="stack" style="gap:8px">${optHtml}</section>
-  <section class="card"><span class="lbl">Ta nuit conseillée</span>${cyc}
-    <div class="kv"><div><span class="lbl">Dernier café</span><b>${hm(bedT-480)}</b></div><div><span class="lbl">Dernier repas</span><b>${hm(bedT-150)}</b></div><div><span class="lbl">Écrans en mode nuit</span><b>${hm(bedT-60)}</b></div><div><span class="lbl">Lumière du jour</span><b>${hm(wakeT+15)}</b></div></div>
-    <button class="btn" data-act="slApply" data-bed="${bedT}" data-wake="${wakeT}">${ic('bell')} Programmer ce plan</button>
-    <button class="btn ghost" data-act="night" data-wake="${wakeT}">${ic('coucher')} Mode chevet · écoute du sommeil</button></section>
-  ${lastNightCard()}
-  <section class="card"><div class="row between"><h3>7 dernières nuits</h3><span class="muted num" style="font-size:13px">sommeil mesuré</span></div>
-    ${nights.length?sleepChart(nights):`<div class="empty">Lance le mode chevet ce soir : tes nuits apparaîtront ici.</div>`}</section>
-  ${bmi>30?`<div class="banner info"><span class="grow" style="font-weight:500">Si tu ronfles fort ou te réveilles fatigué malgré 7 h 30, parles-en à ton médecin : l’apnée du sommeil est fréquente avec un IMC au-dessus de 30, et elle freine la perte de gras.</span></div>`:''}`;
+  const last=(S.nights||[])[0];
+  const cyc=`<div class="cycles" aria-hidden="true" style="height:10px"><i class="lat" style="background:rgba(255,255,255,.25)"></i>${Array.from({length:myC},()=>'<i style="background:rgba(255,255,255,.55)"></i>').join('')}</div>`;
+  return`<header class="top"><div class="stack" style="gap:4px"><span class="lbl">${n<600?'Cette nuit':'Ce soir'}</span><h1>Sommeil</h1></div></header>
+  <section class="hero col" style="--hc:#2E2F7A;--hc2:#4B2E6E;gap:18px">
+   <div class="row between" style="align-items:flex-end">
+    <div class="stack" style="gap:2px"><span class="lbl">Au lit</span><span class="big" style="font-size:40px">${hm(bed)}</span></div>
+    <span class="meta" style="padding-bottom:8px">${ic('arrow')}</span>
+    <div class="stack" style="gap:2px;text-align:right"><span class="lbl">Réveil</span><span class="big" style="font-size:40px">${hm(wake)}</span></div></div>
+   ${cyc}
+   <p class="meta">Endormi vers ${hm(asleep)} · ${myC} cycles · ${nf(myC*1.5,1)} h${early?' · réveil avancé pour ton travail':''}</p>
+   <button class="btn go" data-act="night" data-wake="${wake}">${ic('coucher')} Lancer le mode chevet</button>
+   <button class="btn" data-act="alarms" data-bed="${bed}" data-wake="${wake}">${ic('bell')} Alarmes iPhone ${hm(wake)} · ${hm(wake+5)} · ${hm(wake+10)}</button></section>
+  <section class="sec"><div class="sec-h"><h2>Mon rythme</h2></div>
+   <div class="card" style="gap:12px">
+    <div class="seg">${[4,5,6].map(c=>`<button class="${myC===c?'on':''}" data-act="cyc" data-v="${c}">${nf(c*1.5,1)} h</button>`).join('')}</div>
+    <div class="row between"><span class="muted">Réveil habituel</span><div style="width:190px">${stepper('PF','wake',15,300,720,'time')}</div></div>
+    ${myC<5?`<p class="muted" style="font-size:12.5px">6 h, c’est court pour récupérer de la musculation. Si tu es fatigué, passe à 7,5 h.</p>`:''}</div></section>
+  <section class="sec"><div class="sec-h"><h2>Mes nuits</h2></div>
+   <div class="card" style="gap:12px">${last?`${hypno(last)}${nightStats(last)}`:`<p class="muted" style="font-size:14px">Lance le mode chevet ce soir : demain tu verras ta nuit (phases, ronflements, réveils).</p>`}
+    ${nights.length>1?`<span class="lbl" style="padding-top:6px">7 dernières nuits</span>${sleepChart(nights)}`:''}</div></section>`;
 }
 function sleepChart(n){
   const W=320,H=150,pl=26,pb=22,max=10,bw=(W-pl)/7;
@@ -1254,11 +1243,11 @@ function sleepChart(n){
 }
 function alarmSheet(bed,wake){
   const al=[0,5,10].map(m=>hm(wake+m));
-  openSheet(`<div class="grab"></div><span class="lbl">Plan enregistré</span><h2>Coucher ${hm(bed)} · réveil ${hm(wake)}</h2>
+  openSheet(`<div class="grab"></div><span class="lbl">Alarmes de secours</span><h2>Réveil ${hm(wake)}</h2>
   <p class="muted">Une page web ne peut pas régler les alarmes de l’iPhone elle-même. Mets ces 3 alarmes dans <b>Horloge → Alarmes → +</b> (20 secondes) :</p>
   <div class="chips">${al.map((t,i)=>`<button class="chip" data-act="copy" data-v="${t}">${i?'+'+i*5+' min · ':''}<span class="num">${t}</span></button>`).join('')}</div>
-  <p class="muted" style="font-size:13px">Règle : tu n’éteins la dernière qu’après avoir pointé ton réveil dans Cadence. Le mode chevet sonne aussi aux 3 heures, dans l’app.</p>
-  <button class="btn" data-act="night" data-wake="${wake}">${ic('coucher')} Préparer le mode chevet</button><button class="btn ghost" data-act="close">Fermer</button>`);
+  <p class="muted" style="font-size:13px">Touche une heure pour la copier. Règle : tu n’éteins la dernière qu’une fois debout. Le mode chevet sonne aussi aux 3 heures, dans l’app.</p>
+  <button class="btn ghost" data-act="close">Fermer</button>`);
 }
 
 /* ---------- mode chevet : veilleuse, 3 alarmes, écoute du sommeil ---------- */
@@ -1379,9 +1368,9 @@ function hypno(r){
 }
 function nightStats(r){
   if(r.short)return`<p class="muted">Nuit trop courte pour une analyse (moins de 30 min d’écoute).</p>`;
-  return`<div class="kv"><div><span class="lbl">Score</span><b>${r.score}/100</b></div><div><span class="lbl">Sommeil</span><b>${durTxt(r.asleep)}</b></div><div><span class="lbl">Endormi en</span><b>${r.latency} min</b></div><div><span class="lbl">Profond (estimé)</span><b>${durTxt(r.deep)}</b></div><div><span class="lbl">Réveils</span><b>${r.awak}</b></div><div><span class="lbl">Ronflements</span><b>${r.snoreMin} min</b></div><div><span class="lbl">Paroles</span><b>${r.talk}</b></div><div><span class="lbl">Mouvements</span><b>${r.moves}</b></div></div>
-  ${r.snoreMin>=30?`<div class="banner info"><span class="grow" style="font-weight:500">Beaucoup de ronflements cette nuit. Si ça se répète et que tu te réveilles fatigué, parles-en à ton médecin (apnée du sommeil).</span></div>`:''}
-  <p class="muted" style="font-size:12.5px">Estimation à partir des sons${r.moves?' et mouvements':''}, pas un examen médical. Aucun son n’est enregistré.</p>`;
+  return`<div class="tiles"><div class="tile tint k-work"><span class="lbl">Score</span><b>${r.score}/100</b></div><div class="tile tint k-free"><span class="lbl">Sommeil</span><b>${durTxt(r.asleep)}</b></div><div class="tile tint k-sport"><span class="lbl">Réveils</span><b>${r.awak}</b></div></div>
+  <p class="muted" style="font-size:13px">Endormi en ${r.latency} min · profond ${durTxt(r.deep)} · ronflements ${r.snoreMin} min${r.talk?' · '+r.talk+' paroles':''} · ${r.moves} mouvements. Estimation, pas un examen médical.</p>
+  ${r.snoreMin>=30?`<p style="font-size:13px;color:var(--warn)">Beaucoup de ronflements : si ça se répète et que tu es fatigué, parles-en à ton médecin.</p>`:''}`;
 }
 function lastNightCard(){const r=(S.nights||[])[0];if(!r)return`<section class="card"><h3>Analyse du sommeil</h3><div class="empty">Lance le mode chevet avec l’écoute : demain matin, tu verras tes phases de sommeil, tes ronflements et tes réveils ici.</div></section>`;
   return`<section class="card"><div class="row between"><h3>Dernière nuit analysée</h3><span class="muted num" style="font-size:13px">${fmtShort(new Date(r.start))}</span></div>${hypno(r)}${nightStats(r)}</section>`}
@@ -1611,7 +1600,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.994';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.995';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
@@ -1746,6 +1735,7 @@ document.addEventListener('click',e=>{
    obNext:()=>{obCapture();if(V.obStep<OB_STEPS.length-1){V.obStep++;render();window.scrollTo(0,0)}else{V.reob=false;obFinish()}},
    obPrev:()=>{obCapture();V.obStep=Math.max(0,V.obStep-1);render();window.scrollTo(0,0)},
    slMode:()=>{SL.mode=v;render()},
+   alarms:()=>alarmSheet(Number(el.dataset.bed),Number(el.dataset.wake)),
    slPick:()=>{alarmApply(Number(el.dataset.bed),Number(el.dataset.wake))},
    slApply:()=>{alarmApply(Number(el.dataset.bed),Number(el.dataset.wake))},
    night:()=>{NS=null;nightSheet(el.dataset.wake!=null?Number(el.dataset.wake):null)},
