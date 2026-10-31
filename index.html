@@ -52,7 +52,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
 input{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
-.app{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:22px;padding-top:14px}
+.app{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:22px;padding-top:34px}
 /* couleurs par thème */
 .k-work{--c:var(--c-work)} .k-sport{--c:var(--c-sport)} .k-meal{--c:var(--c-meal)} .k-free{--c:var(--c-free)} .k-trip{--c:var(--c-trip)} .k-perso{--c:var(--c-perso)} .k-pts{--c:var(--c-pts)} .k-money{--c:var(--c-money)}
 .tint{background:color-mix(in srgb,var(--c) 11%,var(--surface))}
@@ -193,10 +193,12 @@ p{margin:0}
 
 /* sheet */
 .scrim{position:fixed;inset:0;background:rgba(8,10,14,.45);z-index:40;display:flex;align-items:flex-end;justify-content:center;animation:fade .2s}
-.sheet{background:var(--bg);width:100%;max-width:560px;max-height:92%;overflow-y:auto;border-radius:26px 26px 0 0;
+.sheet{background:var(--bg);width:100%;max-width:560px;max-height:calc(100% - env(safe-area-inset-top,0px) - 24px);position:relative;overflow-y:auto;border-radius:26px 26px 0 0;
   padding:10px max(18px,env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));
   display:flex;flex-direction:column;gap:16px;animation:up .26s cubic-bezier(.2,.8,.2,1)}
 .grab{width:40px;height:5px;border-radius:9px;background:var(--line);margin:0 auto 4px}
+.sheet-x{position:sticky;top:0;align-self:flex-end;margin:-6px -4px -50px 0;width:40px;height:40px;border-radius:50%;background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center;color:var(--ink);z-index:3;flex:none}
+.sheet-x .ico{width:20px;height:20px;stroke-width:2.2}
 @keyframes up{from{transform:translateY(40px);opacity:.4}}
 @keyframes fade{from{opacity:0}}
 
@@ -1571,7 +1573,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.94';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.95';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
@@ -1658,7 +1660,7 @@ function obFinish(){
 /* ============ feuilles ============ */
 let sheetName=null;
 function openSheet(html,name){sheetName=name||'x';const r=$('#sheetRoot');const was=r.querySelector('.sheet');const sc=was?was.scrollTop:0;
-  r.innerHTML=`<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;if(was)r.querySelector('.sheet').scrollTop=sc}
+  r.innerHTML=`<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true"><button class="sheet-x" data-act="close" aria-label="Fermer">${ic('x')}</button>${html}</div></div>`;if(was)r.querySelector('.sheet').scrollTop=sc}
 function closeSheet(){if(sheetName==='diag'&&DIAG&&!DIAG.done)return;stopVoice();$('#sheetRoot').innerHTML='';sheetName=null;MEAL=null;pending=null;NT=null;WO=null;PLW=null;RW=null;WG=null;rstConfirm=false}
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
 const CTX={get NS(){return NS},get OB(){return OB},get NT(){return NT},get WO(){return WO},get SL(){return SL},get RW(){return RW},get WG(){return WG}};
