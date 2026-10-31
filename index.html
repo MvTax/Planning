@@ -1215,7 +1215,7 @@ function renderSommeil(){
   const last=(S.nights||[])[0];
   const cyc=`<div class="cycles" aria-hidden="true" style="height:10px"><i class="lat" style="background:rgba(255,255,255,.25)"></i>${Array.from({length:myC},()=>'<i style="background:rgba(255,255,255,.55)"></i>').join('')}</div>`;
   return`<header class="top"><div class="stack" style="gap:4px"><span class="lbl">${n<600?'Cette nuit':'Ce soir'}</span><h1>Sommeil</h1></div></header>
-  <section class="hero col" style="--hc:#3F3C9C;--hc2:#7A3D8E;gap:18px">
+  <section class="hero col" style="--hc:#2E2F7A;--hc2:#4B2E6E;gap:18px">
    <div class="row between" style="align-items:flex-end">
     <div class="stack" style="gap:2px"><span class="lbl">Au lit</span><span class="big" style="font-size:40px">${hm(bed)}</span></div>
     <span class="meta" style="padding-bottom:8px">${ic('arrow')}</span>
@@ -1600,7 +1600,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.996';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.997';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
