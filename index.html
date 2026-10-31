@@ -715,7 +715,7 @@ function renderJour(){
   if(isToday){
     const cur=T.find(x=>!x.info&&['run','due'].includes(status(x)))||T.find(x=>!x.info&&status(x)==='soon');
     if(cur){const s2=status(cur);const s=at(ds,cur.start),e=at(ds,cur.start+cur.dur);const mins=Math.round((s-Date.now())/6e4);
-      const when=s2==='run'?`Commencé à ${hm(cur.start)} · reste ${durTxt(Math.max(1,Math.round((e-Date.now())/6e4)))}`:mins>0?`Dans ${mins>=60?Math.floor(mins/60)+' h '+pad(mins%60):mins+' min'} · ${durTxt(cur.dur)}`:`Prévu à ${hm(cur.start)} · ${durTxt(-mins)} de retard`;
+      const when=cur.meal?(s2==='run'?`Fenêtre ${hm(cur.start)} → ${hm(cur.start+cur.dur)} · reste ${durTxt(Math.max(1,Math.round((e-Date.now())/6e4)))}`:s2==='due'?`Fenêtre ${hm(cur.start)} → ${hm(cur.start+cur.dur)} passée · mange maintenant`:`Fenêtre ${hm(cur.start)} → ${hm(cur.start+cur.dur)}`):s2==='run'?`Commencé à ${hm(cur.start)} · reste ${durTxt(Math.max(1,Math.round((e-Date.now())/6e4)))}`:mins>0?`Dans ${mins>=60?Math.floor(mins/60)+' h '+pad(mins%60):mins+' min'} · ${durTxt(cur.dur)}`:`Prévu à ${hm(cur.start)} · ${durTxt(-mins)} de retard`;
       const hc=s2==='run'||s2==='due'?'#E2700B':cur.type==='sport'?'#6A3FD6':'#2F5BEA';
       hero=`<section class="hero col" style="--hc:${cur.meal?'#E2700B':hc}"><div class="row between"><span class="lbl">${cur.meal?(s2==='run'?'Fenêtre de repas ouverte':s2==='due'?'Tu n’as pas encore mangé':'Repas bientôt'):s2==='run'?'En cours · pas encore pointé':s2==='due'?'À valider':'Bientôt'}</span><span class="pts">${M$(cur.pts)}</span></div>
         <div class="row" style="gap:14px;align-items:flex-end"><span class="big">${hm(cur.start)}</span><div style="min-width:0"><h2>${esc(cur.title)}</h2><p class="meta">${when}</p></div></div>${s2==='soon'?'':valBtns(cur,true)}</section>`;
@@ -1602,7 +1602,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.99';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.991';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
