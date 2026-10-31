@@ -258,7 +258,7 @@ svg.chart text{fill:var(--muted);font-family:var(--f-num);font-size:10px}
 <div class="tabs" id="tabs"></div>
 <div id="sheetRoot"></div>
 <div id="nightRoot"></div>
-<input type="file" id="cam" class="vh" accept="image/*" capture="user" aria-label="Prendre un selfie">
+<input type="file" id="cam" class="vh" accept="image/*" capture="environment" aria-label="Photographier la salle">
 <input type="file" id="mealCam" class="vh" accept="image/*" capture="environment" aria-label="Photographier mon plat">
 <input type="file" id="bkIn" class="vh" accept="application/json,.json" aria-label="Importer une sauvegarde">
 <input type="file" id="icsIn" class="vh" accept=".ics,text/calendar" aria-label="Importer un agenda">
@@ -570,14 +570,14 @@ function dayTasks(ds){
   const wake=wakeFor(ds),bed=S.bedOv[ds]??(wakeFor(addDs(ds,1))+1440-465);
   const W=workBlocks(ds),spans=busySpans(W.blocks,cm);
   const pl=planner(wake+20,bed-40,spans);
-  W.blocks.forEach((b,i)=>T.push({id:'travail'+i,type:'travail',title:b.t?'Travail · '+b.t:'Travail',start:b.s,dur:Math.max(15,b.e-b.s),pts:0,loc:b.loc||'',src:W.src,info:1}));
+  W.blocks.forEach((b,i)=>T.push({id:'travail'+i,type:'travail',title:b.t?'Travail · '+b.t:'Travail',start:b.s,dur:Math.max(15,b.e-b.s),pts:10,loc:b.loc||'',src:W.src}));
   const sess=sessionFor(ds);
   if(sess){let t=null;for(const pf of [p.sessionTime,wake+120,wake+180]){t=pl.find(pf,p.sessionMin+15,60);if(t!=null)break}if(t==null)t=pl.find(p.sessionTime,p.sessionMin+15,720);
     if(t!=null){pl.take(t,p.sessionMin+15);T.push({id:'sport',type:'sport',title:sess.name,start:t,dur:p.sessionMin,pts:sess.key==='CARDIO'?35:50,moved:t!==p.sessionTime})}}
   S.ics.forEach((e,i)=>{if(e.d===ds)T.push({id:'ics'+i,type:'agenda',title:e.t,start:e.s,dur:Math.max(15,e.e-e.s),pts:0,info:1})});
   for(const c of S.custom){let ok=false;
     if(c.repeat==='once')ok=c.date===ds;else if(c.repeat==='daily')ok=ds>=c.date;else if(c.repeat==='weekdays')ok=ds>=c.date&&wd<5;else if(c.repeat==='weekly')ok=ds>=c.date&&dow(parseYmd(c.date))===wd;
-    if(ok)T.push({id:c.id,type:c.type,title:c.title,start:c.start,dur:c.dur,pts:c.pts,custom:1,info:c.type==='travail'?1:0})}
+    if(ok)T.push({id:c.id,type:c.type,title:c.title,start:c.start,dur:c.dur,pts:c.pts,custom:1})}
   return T.filter(t=>!S.skips[ds+':'+t.id]).map(t=>{const k=ds+':'+t.id;const sh=S.shifts[k]||0;return Object.assign(t,{key:k,ds,start:t.start+sh})}).sort((a,b)=>a.start-b.start);
 }
 function dayStats(ds){
@@ -590,12 +590,34 @@ function dayStats(ds){
 function status(t){
   const pu=S.punches[t.key]||{};const now=Date.now(),s=at(t.ds,t.start),e=at(t.ds,t.start+t.dur);
   if(t.info)return now<s?'iup':now<e?'irun':'idone';
-  if(SINGLE.includes(t.type)){if(pu.in)return'done';if(S.missed[t.key])return'miss';if(now<s-30*6e4)return'up';if(now<s+90*6e4)return now<s?'soon':'due';return'miss'}
-  if(pu.out)return'done';if(pu.in)return'run';if(S.missed[t.key])return'miss';if(now<s-30*6e4)return'up';if(now<s)return'soon';if(now<e+60*6e4)return'due';return'miss';
+  if(pu.how==='miss'||S.missed[t.key])return'miss';
+  if(pu.in)return'done';
+  if(now<s-30*6e4)return'up';
+  if(t.type==='travail')return now<s?'soon':now<e?'run':'due';
+  return now<s?'soon':'due';
 }
-const lateDual=t=>!SINGLE.includes(t.type)&&!(S.punches[t.key]||{}).in&&status(t)==='due'&&Date.now()>at(t.ds,t.start)+15*6e4;
-const forgotBtns=(t,cls)=>`<button class="btn ${cls}" data-act="punch" data-k="${t.key}" data-w="forgot">${pIc(t)} J’ai déjà commencé, j’ai oublié de pointer</button><button class="btn ${cls==='go'?'':'ghost'}" data-act="punch" data-k="${t.key}" data-w="in">Je commence maintenant (en retard)</button><p class="${cls==='go'?'meta':'muted'}" style="font-size:12.5px">Oubli : entrée notée à ${hm(t.start)}, la tâche ne rapporte que la moitié (${Math.round(t.pts/2)} pts au lieu de ${t.pts}). Retard : entrée à l’heure réelle, 60 % puis 30 % des points d’entrée.</p>`;
-const STAMP={iup:['st-up',''],irun:['st-run','En cours'],idone:['st-up','Fini'],done:['st-done','Pointé'],run:['st-run','En cours'],due:['st-due','À pointer'],soon:['st-up','Bientôt'],up:['st-up','À venir'],miss:['st-miss','Manqué']};
+const STAMP={iup:['st-up',''],irun:['st-run','En cours'],idone:['st-up','Fini'],done:['st-done','Validé'],run:['st-due','En cours'],due:['st-due','À valider'],soon:['st-up','Bientôt'],up:['st-up','À venir'],miss:['st-miss','Pas fait']};
+const HOW={ok:'à l’heure',late:'en retard',forgot:'oubli de pointage',miss:'pas fait'};
+const howPts=(t,h)=>h==='ok'?t.pts:h==='miss'?-t.pts:Math.round(t.pts/2);
+/* boutons de validation selon le moment */
+function valBtns(t,hero){
+  const now=Date.now(),s=at(t.ds,t.start),late=now>s+15*6e4,past=t.ds<today(),photo=t.type==='sport';
+  const B=(how,lbl,cls)=>`<button class="btn ${cls}" data-act="val" data-k="${t.key}" data-v="${how}">${lbl} <span class="num" style="opacity:.75;font-weight:500">${howPts(t,how)>0?'+':''}${howPts(t,how)}</span></button>`;
+  const P=hero?'go':'';const G=hero?'':'ghost';let h='';
+  if(photo){h+=past?'':B(late?'late':'ok',`${ic('cam')} ${late?'Je suis à la salle (en retard)':'Je suis à la salle'}`,P)}
+  else if(past)h+=B('forgot',`${ic('check')} C’était fait, j’ai oublié de pointer`,P);
+  else if(!late)h+=B('ok',`${ic('check')} ${t.type==='travail'?'Je suis au travail':'Fait'}`,P);
+  else h+=B('forgot',`${ic('check')} J’ai oublié de pointer`,P)+B('late',`Arrivé en retard`,G);
+  h+=`<button class="btn danger" data-act="val" data-k="${t.key}" data-v="miss">Pas fait <span class="num" style="opacity:.75;font-weight:500">${-t.pts}</span></button>`;
+  return`<div class="stack" style="gap:8px">${h}</div>`;
+}
+function validate(key,how,mode){
+  const ds=key.split(':')[0];const t=dayTasks(ds).find(x=>x.key===key);if(!t)return;
+  S.ledger=S.ledger.filter(e=>e.key!==key);delete S.missed[key];
+  const now=Date.now();S.punches[key]={in:how==='miss'?0:(how==='forgot'?at(ds,t.start):now),how,at:now,mode:mode||'tap'};
+  const g=howPts(t,how);addPts(g,(how==='miss'?'Pas fait · ':how==='ok'?'':HOW[how].charAt(0).toUpperCase()+HOW[how].slice(1)+' · ')+t.title,key);
+  checkPerfect(ds);save();stopRing();return g;
+}
 
 /* ============ points ============ */
 function addPts(pts,label,key){S.ledger.push({t:Date.now(),pts,label,key:key||''})}
@@ -613,18 +635,17 @@ function timeFactor(t,ts){const L=(ts-at(t.ds,t.start))/6e4;
 const MEAL_PTS=15;
 function checkPerfect(ds){
   if(S.perfect[ds])return;const T=dayTasks(ds).filter(t=>!t.info);
-  const okT=T.every(t=>{const pu=S.punches[t.key];return pu&&(SINGLE.includes(t.type)?pu.in:pu.out)});
+  const okT=T.every(t=>{const pu=S.punches[t.key];return pu&&pu.in&&pu.how!=='miss'});
   if(okT&&((S.meals||{})[ds]||[]).length>=S.profile.meals){S.perfect[ds]=1;addPts(30,'Journée parfaite')}
 }
 function resetCounters(){Object.assign(S,{ledger:[],punches:{},missed:{},perfect:{},streakBonus:{},payouts:[],spent:[],setsDone:{},shifts:{},skips:{},lifts:{},nights:[],nightLive:null,meals:{},
   periodStart:Date.now(),since:Date.now(),weights:[{d:today(),kg:curWeight()}],reset4:1})}
 function sweepMissed(){
   if(!S.onboarded)return false;let ch=false;const t=today();
-  for(const ds of [addDs(t,-1),t]){for(const task of dayTasks(ds)){
+  for(let i=1;i<=3;i++){const ds=addDs(t,-i);for(const task of dayTasks(ds)){
     if(task.info||at(ds,task.start)<S.since)continue;
-    if(S.missed[task.key]||(S.punches[task.key]||{}).in)continue;
-    const lim=SINGLE.includes(task.type)?90:task.dur+60;
-    if(Date.now()>at(ds,task.start+lim)){S.missed[task.key]=1;ch=true;if(S.settings.malus)addPts(-Math.round(task.pts*.5),'Manqué : '+task.title,task.key)}
+    if(S.missed[task.key]||(S.punches[task.key]||{}).how)continue;
+    S.missed[task.key]=1;ch=true;if(S.settings.malus)addPts(-task.pts,'Non validé · '+task.title,task.key);
   }}
   return ch;
 }
@@ -647,13 +668,11 @@ function renderJour(){
     return`<button class="wd ${d===ds?'on':''}" data-act="date" data-v="${d}">${DAYS[i]}<b>${parseYmd(d).getDate()}</b><i class="dot ${dot}"></i></button>`}).join('');
   let hero='';
   if(isToday){
-    const cur=T.find(x=>!x.info&&['due','run'].includes(status(x)))||T.find(x=>!x.info&&status(x)==='soon');
-    if(cur){const st=status(cur);const pu=S.punches[cur.key]||{};const s=at(ds,cur.start);const mins=Math.round((s-Date.now())/6e4);
-      const when=st==='run'?`Commencé à ${clock(pu.in)} · fin prévue ${hm(cur.start+cur.dur)}`:mins>0?`Dans ${mins>=60?Math.floor(mins/60)+' h '+pad(mins%60):mins+' min'} · ${durTxt(cur.dur)}`:`Prévu à ${hm(cur.start)} · ${-mins} min de retard`;
-      const act=lateDual(cur)?forgotBtns(cur,'go'):st==='run'?`<button class="btn go" data-act="punch" data-k="${cur.key}" data-w="out">${pIc(cur,'out')} Pointer la sortie</button>`:
-        `<button class="btn go" data-act="punch" data-k="${cur.key}" data-w="in">${pIc(cur)} ${cur.type==='sport'?'Je suis à la salle':'Pointer'}</button>`;
-      hero=`<section class="hero"><div class="row between"><span class="lbl">${st==='run'?'En cours':st==='due'?'Maintenant':'Bientôt'}</span><span class="pts">+${cur.pts} pts</span></div>
-        <div class="row" style="gap:14px;align-items:flex-end"><span class="big">${hm(cur.start)}</span><div style="min-width:0"><h2>${esc(cur.title)}</h2><p class="meta">${when}</p></div></div>${act}</section>`;
+    const cur=T.find(x=>!x.info&&['run','due'].includes(status(x)))||T.find(x=>!x.info&&status(x)==='soon');
+    if(cur){const s2=status(cur);const s=at(ds,cur.start),e=at(ds,cur.start+cur.dur);const mins=Math.round((s-Date.now())/6e4);
+      const when=s2==='run'?`Commencé à ${hm(cur.start)} · reste ${durTxt(Math.max(1,Math.round((e-Date.now())/6e4)))}`:mins>0?`Dans ${mins>=60?Math.floor(mins/60)+' h '+pad(mins%60):mins+' min'} · ${durTxt(cur.dur)}`:`Prévu à ${hm(cur.start)} · ${durTxt(-mins)} de retard`;
+      hero=`<section class="hero"><div class="row between"><span class="lbl" style="${s2==='run'||s2==='due'?'color:var(--warn)':''}">${s2==='run'?'En cours · pas encore pointé':s2==='due'?'À valider':'Bientôt'}</span><span class="pts">+${cur.pts} pts</span></div>
+        <div class="row" style="gap:14px;align-items:flex-end"><span class="big">${hm(cur.start)}</span><div style="min-width:0"><h2>${esc(cur.title)}</h2><p class="meta">${when}</p></div></div>${s2==='soon'?'':valBtns(cur,true)}</section>`;
     }
   }
   const st=dayStats(ds);
@@ -662,18 +681,23 @@ function renderJour(){
   const statsCard=`<section class="card"><div class="row between"><span class="lbl">${isToday?'Ta journée':fmtShort(parseYmd(ds))} · ${hm(st.wake)} → ${hm(st.bed)}</span><span class="num muted" style="font-size:13px">${durTxt(st.awake)} éveillé</span></div>
     <div class="bar" style="display:flex;height:12px">${bar(st.work,st.awake,'var(--accent)')}${bar(st.trips,st.awake,'var(--warn)')}${bar(st.free,st.awake,'var(--money)')}</div>
     <div class="kv" style="grid-template-columns:repeat(3,1fr)"><div><span class="lbl">Travail</span><b style="color:var(--accent)">${st.work?durTxt(st.work):'—'}</b></div><div><span class="lbl">Trajets</span><b style="color:var(--warn)">${st.trips?durTxt(st.trips):'—'}</b></div><div><span class="lbl">Temps libre</span><b style="color:var(--money)">${durTxt(st.free)}</b></div></div>
+    ${isToday?(()=>{const n=nowMin();const wl=workBlocks(ds).blocks.reduce((a,b)=>a+Math.max(0,b.e-Math.max(b.s,n)),0);const tb=Math.max(0,st.bed-n);return`<p style="font-size:14px"><b>Il reste</b> ${wl?durTxt(wl)+' de travail · ':''}${durTxt(tb)} avant le coucher${tb?' · '+durTxt(Math.max(0,tb-wl))+' libres':''}</p>`})():''}
     <p class="muted" style="font-size:12.5px">Semaine : ${durTxt(wWork)} de travail · ${durTxt(wFree)} de temps libre (${durTxt(Math.round(wFree/7))} par jour en moyenne).</p></section>`;
-  const list=T.map(x=>{const s2=status(x);const pu=S.punches[x.key]||{};const[c,l]=STAMP[s2];
-    if(x.info)return`<button class="tc ${s2==='idone'?'past':''}" data-act="${x.type==='travail'?'workday':'task'}" data-v="${ds}" data-k="${x.key}">
+  const row=x=>{const s2=status(x);const pu=S.punches[x.key]||{};const[c,l]=STAMP[s2];
+    if(x.info)return`<button class="tc ${s2==='idone'?'past':''}" data-act="task" data-k="${x.key}">
       <span class="t">${hm(x.start)}<small>${hm(x.start+x.dur)}</small></span>
-      <span class="ti"><b>${esc(x.title)}</b><span>${ic(x.type)}${x.loc?esc(x.loc)+' · ':''}${durTxt(x.dur)}</span></span>
+      <span class="ti"><b>${esc(x.title)}</b><span>${ic(x.type)}${durTxt(x.dur)}</span></span>
       <span class="stamp ${c}">${l||durTxt(x.dur)}</span></button>`;
-    const stampTxt=s2==='done'?(pu.out?clock(pu.out):clock(pu.in)):s2==='run'?clock(pu.in)+' →':l;
     const earned=S.ledger.filter(e=>e.key===x.key).reduce((a,e)=>a+e.pts,0);
-    return`<button class="tc ${s2==='done'||s2==='miss'?'past':''} ${isToday&&(s2==='due'||s2==='run')?'now':''}" data-act="task" data-k="${x.key}">
+    const lbl=s2==='done'?(pu.how==='ok'?'Validé':HOW[pu.how]||'Validé'):s2==='run'&&isToday?'En cours':l;
+    const rest=s2==='run'&&isToday?` · reste ${durTxt(Math.max(1,Math.round((at(ds,x.start+x.dur)-Date.now())/6e4)))}`:'';
+    return`<button class="tc ${s2==='done'||s2==='miss'?'past':''} ${isToday&&(s2==='due'||s2==='run')?'now':''}" data-act="task" data-k="${x.key}" style="${isToday&&(s2==='due'||s2==='run')?'outline-color:var(--warn)':''}">
       <span class="t">${hm(x.start)}${x.dur?`<small>${hm(x.start+x.dur)}</small>`:''}</span>
-      <span class="ti"><b>${esc(x.title)}</b><span>${ic(x.type)}${x.moved?'Placé autour du travail':TYPE[x.type]?TYPE[x.type][0]:''}${x.dur?' · '+durTxt(x.dur):''}${earned?` · <span class="pts">${earned>0?'+':''}${earned} pts</span>`:` · ${x.pts} pts`}</span></span>
-      <span class="stamp ${c}">${stampTxt}</span></button>`}).join('');
+      <span class="ti"><b>${esc(x.title)}</b><span>${ic(x.type)}${x.loc?esc(x.loc):x.moved?'Placé autour du travail':TYPE[x.type]?TYPE[x.type][0]:''}${x.dur?' · '+durTxt(x.dur):''}${rest}${earned?` · <span class="pts" style="${earned<0?'color:var(--bad)':''}">${earned>0?'+':''}${earned} pts</span>`:` · ${x.pts} pts`}</span></span>
+      <span class="stamp ${c}">${lbl}</span></button>`};
+  const isPast=x=>{const s2=status(x);return x.info?s2==='idone':(s2==='done'||s2==='miss')};
+  const rem=isToday?T.filter(x=>!isPast(x)):T,doneL=isToday?T.filter(isPast):[];
+  const list=rem.map(row).join('')+(doneL.length?`<button class="chip sm" data-act="showDone" style="align-self:flex-start">${V.showDone?'Masquer':'Voir'} les ${doneL.length} élément${doneL.length>1?'s':''} terminé${doneL.length>1?'s':''}</button>${V.showDone?doneL.map(row).join(''):''}`:'');
   const wkLabel=w?`Semaine ${w} · ${PHASES[phaseOf(w)].n}`:`${PHASES[0].n} · programme le ${fmtShort(parseYmd(S.programStart||t))}`;
   const mN=((S.meals||{})[t]||[]).length;
   return`<header class="top"><div class="stack" style="gap:4px;min-width:0"><span class="lbl">${fmtDate(new Date())}</span><h1>${greeting()}${p.name?', '+esc(p.name):''}</h1><span class="muted" style="font-size:13px">${wkLabel}</span></div>
@@ -684,30 +708,28 @@ function renderJour(){
   ${isToday?mealCard():''}
   <div class="week">${strip}</div>
   ${statsCard}
-  <section class="stack" style="gap:10px"><div class="row between"><h2>${isToday?'Planning':fmtDate(parseYmd(ds))}</h2><div class="row" style="gap:6px"><button class="chip sm" data-act="workday" data-v="${ds}">Modifier</button><button class="chip sm on" data-act="addtask">${ic('plus')} Tâche</button></div></div>
-  <div class="tl">${list||`<div class="empty">Jour off : pas de travail ni de séance prévus.</div>`}</div></section>`;
+  <section class="stack" style="gap:10px"><div class="row between"><h2>${isToday?'Ce qui reste':fmtDate(parseYmd(ds))}</h2><div class="row" style="gap:6px"><button class="chip sm" data-act="workday" data-v="${ds}">Modifier</button><button class="chip sm on" data-act="addtask">${ic('plus')} Tâche</button></div></div>
+  <div class="tl">${rem.length?'':`<div class="empty">${T.length?'Tout est fait pour aujourd’hui.':'Jour off : pas de travail ni de séance prévus.'}</div>`}${list}</div></section>`;
 }
 
 /* ---------- détail tâche ---------- */
 function taskSheet(key){
   const ds=key.split(':')[0];const t=dayTasks(ds).find(x=>x.key===key);if(!t)return closeSheet();
   if(t.info){openSheet(`<div class="grab"></div><span class="lbl">${TYPE[t.type]?TYPE[t.type][0]:''} · ${fmtShort(parseYmd(ds))}</span><h2>${esc(t.title)}</h2><p class="muted num">${hm(t.start)} → ${hm(t.start+t.dur)} · ${durTxt(t.dur)}</p><p class="muted" style="font-size:13px">Pour les statistiques uniquement, pas de pointage.</p><button class="btn ghost" data-act="close">Fermer</button>`);return}
-  const st=status(t),pu=S.punches[t.key]||{},isToday=ds===today(),single=SINGLE.includes(t.type);
+  const st=status(t),pu=S.punches[t.key]||{},isToday=ds===today();
   const earned=S.ledger.filter(e=>e.key===t.key);
   let actions='';
-  if(isToday){
-    if(lateDual(t))actions+=forgotBtns(t,'');
-    else if(!pu.in&&st!=='up')actions+=`<button class="btn" data-act="punch" data-k="${key}" data-w="in">${pIc(t)} ${t.type==='reveil'?'Pointer mon réveil':t.type==='coucher'?'Je me couche':single?'Pointer':'Pointer l’entrée'}</button>`;
-    else if(!pu.in&&st==='up')actions+=`<div class="banner info">${ic('bell')}<span class="grow">Pointage possible à partir de ${hm(t.start-30)}.</span></div>`;
-    if(pu.in&&!single&&!pu.out)actions+=`<button class="btn" data-act="punch" data-k="${key}" data-w="out">${pIc(t,'out')} Pointer la sortie</button>`;
-  }
+  const canVal=ds>=addDs(today(),-3)&&ds<=today()&&st!=='up';
+  if(canVal&&(st==='run'||st==='due'))actions=valBtns(t,false);
+  else if(canVal&&(st==='done'||st==='miss'))actions=`<details><summary class="muted" style="font-size:13.5px;padding:6px 0">Corriger la validation</summary>${valBtns(t,false)}</details>`;
+  else if(st==='soon'||st==='up')actions=`<div class="banner info">${ic('bell')}<span class="grow">Validation possible à partir de ${hm(t.start-30)}.</span></div>`;
   let link='';
   if(t.type==='sport')link=`<button class="btn ghost" data-act="gosport" data-v="${ds}">Ouvrir la séance ${ic('arrow')}</button>`;
   if(t.type==='repas'&&t.slot){const m=mealsFor(ds).find(x=>x.slot===t.slot);if(m)link=`<button class="btn ghost" data-act="recipe" data-ds="${ds}" data-slot="${t.slot}">${esc(m.r.n)} ${ic('arrow')}</button>`}
   if(t.type==='courses')link=`<button class="btn ghost" data-act="goshop">Ouvrir la liste de courses ${ic('arrow')}</button>`;
   if(t.type==='reveil'||t.type==='coucher')link=`<button class="btn ghost" data-act="tab" data-v="sommeil">Calculer mes cycles ${ic('arrow')}</button>`;
   if(t.type==='pesee')link=`<button class="btn ghost" data-act="weigh">Noter mon poids ${ic('arrow')}</button>`;
-  const recs=[pu.in?`<div class="row between"><span>Entrée</span><span class="stamp st-done">${clock(pu.in)}${pu.forgot?' · rattrapé à '+clock(pu.forgot):''} · ${pu.inV==='ia'?'visage vérifié':'photo'}</span></div>`:'',pu.out?`<div class="row between"><span>Sortie</span><span class="stamp st-done">${clock(pu.out)}</span></div>`:''].join('');
+  const recs=pu.how?`<div class="row between"><span>${pu.how==='miss'?'Marqué pas fait':'Validé'} à ${clock(pu.at||pu.in)}</span><span class="stamp ${pu.how==='miss'?'st-miss':'st-done'}">${HOW[pu.how]}${pu.mode==='ia'?' · salle vérifiée':''}</span></div>`:S.missed[key]?`<div class="row between"><span>Non validé à temps</span><span class="stamp st-miss">pas fait</span></div>`:'';
   openSheet(`<div class="grab"></div>
    <div class="stack" style="gap:6px"><span class="lbl">${TYPE[t.type]?TYPE[t.type][0]:''} · ${fmtShort(parseYmd(ds))}</span><h2>${esc(t.title)}</h2>
    <p class="muted num">${hm(t.start)}${t.dur?' → '+hm(t.start+t.dur)+' · '+durTxt(t.dur):''} · ${t.pts} pts</p></div>
@@ -715,89 +737,53 @@ function taskSheet(key){
    ${recs?`<div class="flat stack" style="gap:8px">${recs}</div>`:''}
    ${earned.length?`<div class="flat">${earned.map(e=>`<div class="ledger"><span>${esc(e.label)}</span><span class="num" style="color:${e.pts<0?'var(--bad)':'var(--money)'}">${e.pts>0?'+':''}${e.pts}</span></div>`).join('')}</div>`:''}
    ${actions}${link}
-   ${!pu.in?`<div class="field"><span class="lbl">Ajuster</span><div class="chips"><button class="chip sm" data-act="shift" data-k="${key}" data-v="-15">−15 min</button><button class="chip sm" data-act="shift" data-k="${key}" data-v="15">+15 min</button><button class="chip sm" data-act="shift" data-k="${key}" data-v="60">+1 h</button><button class="chip sm" data-act="skip" data-k="${key}">Retirer ce jour</button>${t.custom?`<button class="chip sm" data-act="delcustom" data-v="${t.id}">Supprimer la tâche</button>`:''}</div></div>`:''}`);
+   ${!pu.how&&st!=='miss'?`<div class="field"><span class="lbl">Ajuster</span><div class="chips"><button class="chip sm" data-act="shift" data-k="${key}" data-v="-15">−15 min</button><button class="chip sm" data-act="shift" data-k="${key}" data-v="15">+15 min</button><button class="chip sm" data-act="shift" data-k="${key}" data-v="60">+1 h</button><button class="chip sm" data-act="skip" data-k="${key}">Retirer ce jour</button>${t.custom?`<button class="chip sm" data-act="delcustom" data-v="${t.id}">Supprimer la tâche</button>`:''}</div></div>`:''}`);
 }
 
-/* ---------- pointage selfie ---------- */
+/* ---------- pointage salle : photo de la salle vérifiée par l'IA ---------- */
 let pending=null;
-const needsPhoto=(t,w)=>t.type==='sport'&&(w!=='out'||S.settings.selfieOut);
-const pIc=(t,w)=>ic(t&&needsPhoto(t,w)?'cam':'check');
-function punchSheet(key,which){
+function punchSheet(key,how){
   const ds=key.split(':')[0];const t=dayTasks(ds).find(x=>x.key===key);if(!t)return;
-  pending={key,which,t,state:'idle'};
-  if(!needsPhoto(t,which)){doPunch(null,'tap');return}
-  if(S.settings.ai)faceModel().catch(()=>{});
-  drawPunch();try{$('#cam').click()}catch(e){}
+  pending={key,how,t,state:'idle'};warmAI();drawPunch();try{$('#cam').click()}catch(e){}
 }
 function drawPunch(img,msg,kind){
-  const t=pending.t,w=pending.which;const isWake=t.type==='reveil';
-  const title=w==='forgot'?'Rattraper mon pointage':w==='out'?'Pointer la sortie':isWake?'Montre-moi que tu es réveillé':t.type==='coucher'?'Pointer le coucher':'Pointer l’entrée';
-  const sub=w==='forgot'?`Un selfie maintenant pour prouver que tu y es. Ton entrée sera notée à ${hm(t.start)}.`:isWake?'Selfie, yeux bien ouverts. Lève-toi d’abord, allume la lumière.':'Un selfie rapide, de face.';
-  const camInner=img?`<img src="${img}" alt="Ton selfie">`:ic('cam');
-  const stamp=kind==='ok'?`<span class="bigstamp" style="color:var(--money)">POINTÉ ${clock(Date.now())}</span>`:kind==='ko'?`<span class="bigstamp" style="color:var(--bad)">REFUSÉ</span>`:'';
-  const body=pending.state==='busy'?`<div class="row" style="justify-content:center"><span class="spin"></span><span class="muted">${esc(msg||'Vérification…')}</span></div>`:
-    kind==='ok'?`<p style="text-align:center">${esc(msg||'')}</p><button class="btn" data-act="close">Continuer</button>`:
-    `${msg?`<div class="banner ${kind==='ko'?'bad':'info'}"><span class="grow">${esc(msg)}</span></div>`:''}<label for="cam" class="btn">${ic('cam')} ${kind==='ko'?'Reprendre la photo':'Ouvrir la caméra'}</label>
-     <p class="muted" style="font-size:12.5px;text-align:center">${S.settings.ai?'Ton iPhone vérifie qu’il s’agit d’un vrai visage'+(isWake?' aux yeux ouverts':'')+'. La photo ne quitte pas le téléphone et n’est pas conservée.':'Vérification simple : photo prise à l’instant et assez éclairée. La photo n’est pas conservée.'}</p>`;
-  openSheet(`<div class="grab"></div><div class="stack" style="gap:4px;text-align:center"><span class="lbl">${esc(t.title)} · prévu ${hm(t.start)}</span><h2>${title}</h2><p class="muted">${sub}</p></div>
-    <div class="cam">${camInner}${stamp}</div>${body}`,'punch');
+  const t=pending.t;
+  const camInner=img?`<img src="${img}" alt="Photo de la salle" style="width:100%;max-height:260px;object-fit:cover;border-radius:16px">`:`<div class="cam" style="border-radius:20px;width:100%;height:160px">${ic('sport')}</div>`;
+  const stamp=kind==='ok'?`<span class="bigstamp" style="color:var(--money);bottom:12px">VALIDÉ ${clock(Date.now())}</span>`:kind==='ko'?`<span class="bigstamp" style="color:var(--bad);bottom:12px">REFUSÉ</span>`:'';
+  const body=pending.state==='busy'?`<div class="row" style="justify-content:center"><span class="spin"></span><span class="muted">Vérification de la salle… <span class="num" id="aiT">0,0 s</span></span></div>`:
+    kind==='ok'?`<p style="text-align:center">${esc(msg||'')}</p><button class="btn" data-act="gosport" data-v="${t.ds}">Ouvrir ma séance ${ic('arrow')}</button><button class="btn ghost" data-act="close">Fermer</button>`:
+    `${msg?`<div class="banner ${kind==='ko'?'bad':'info'}"><span class="grow">${esc(msg)}</span></div>`:''}<label for="cam" class="btn">${ic('cam')} ${kind==='ko'?'Reprendre la photo':'Photographier la salle'}</label>
+     <p class="muted" style="font-size:12.5px;text-align:center">Prends la salle : machines, haltères, bancs. La photo n’est pas conservée.</p>`;
+  openSheet(`<div class="grab"></div><div class="stack" style="gap:4px"><span class="lbl">${esc(t.title)} · prévu ${hm(t.start)}${pending.how==='late'?' · en retard':''}</span><h2>Je suis à la salle</h2></div>
+    <div style="position:relative">${camInner}${stamp}</div>${body}`,'punch');
 }
 function loadImg(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file);const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=u})}
 async function handlePhoto(file){
   if(!pending||!file)return;const P0=pending;
-  const age=Date.now()-(file.lastModified||Date.now());
-  if(age>3*6e4){drawPunch(null,'Cette photo ne vient pas d’être prise. Utilise la caméra, pas la galerie.','ko');return}
+  if(Date.now()-(file.lastModified||Date.now())>3*6e4){drawPunch(null,'Cette photo ne vient pas d’être prise. Utilise l’appareil photo, pas la galerie.','ko');return}
   let im;try{im=await loadImg(file)}catch(e){drawPunch(null,'Impossible de lire la photo. Réessaie.','ko');return}
-  const max=512,sc=Math.min(1,max/Math.max(im.width,im.height));const cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);
-  const cx=cv.getContext('2d');cx.drawImage(im,0,0,cv.width,cv.height);const url=cv.toDataURL('image/jpeg',.8);
-  pending.state='busy';drawPunch(url,'Vérification du visage…');
-  const isWake=pending.t.type==='reveil';
-  let ok=true,msg='',mode='local';if(pending!==P0)return;
-  if(S.settings.ai&&!SAMPLE_IMG){
-    try{pending.state='busy';drawPunch(url,FL?'Vérification du visage…':'Chargement du détecteur (1re fois)…');
-      const fl=await Promise.race([faceModel(),new Promise((_,r)=>setTimeout(()=>r('timeout'),25000))]);if(pending!==P0)return;
-      const res=fl.detect(cv);mode='ia';
-      const has=!!(res.faceLandmarks&&res.faceLandmarks.length);const cats=(res.faceBlendshapes&&res.faceBlendshapes[0]&&res.faceBlendshapes[0].categories)||[];
-      const g=n=>{const c=cats.find(c=>c.categoryName===n);return c?c.score:0};const blink=Math.max(g('eyeBlinkLeft'),g('eyeBlinkRight'));
-      ok=has&&(!isWake||blink<.55);
-      msg=!has?'Je ne vois pas de visage. Cadre bien ta tête, de face, avec de la lumière.':ok?(isWake?'Yeux bien ouverts. Bonne journée !':'Visage reconnu.'):'Tes yeux ont l’air fermés. Lève-toi, allume la lumière et reprends.';
-    }catch(e){mode='local'}
+  const sc=Math.min(1,512/Math.max(im.width,im.height));const cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);
+  const cx=cv.getContext('2d');cx.drawImage(im,0,0,cv.width,cv.height);const url=cv.toDataURL('image/jpeg',.75);
+  pending.state='busy';drawPunch(url);const t0=performance.now();const tk=setInterval(()=>{const el=$('#aiT');if(el)el.textContent=nf((performance.now()-t0)/1000,1)+' s'},100);
+  let ok=true,msg='',mode='local';
+  if(S.settings.ai!==false&&aiReady()){
+    try{const r=await aiRaw(cv,`Photo prise à l’instant pour prouver que la personne est à la salle de sport. Est-ce l’intérieur d’une salle de sport ou de musculation (machines, haltères, barres, bancs, racks, tapis, vestiaire de salle) ? Réponds non pour une photo d’écran, un logement sans matériel, la rue, un selfie sans salle visible. JSON uniquement : {"ok":true,"msg":"phrase courte, tutoiement"}`,120);
+      mode='ia';ok=r.ok===true||r.ok==='true';msg=r.msg||(ok?'Salle reconnue. Bonne séance !':'Je ne reconnais pas une salle de sport.');
+      if(!ok)msg=(r.msg||'Je ne reconnais pas une salle de sport.')+' Prends les machines ou les haltères dans le cadre.';
+    }catch(e){if(e&&e.bg){clearInterval(tk);if(pending===P0){pending.state='idle';drawPunch(url,'Vérification interrompue (app en arrière-plan). Reprends la photo.','ko')}return}mode='local';logE('salle','IA indisponible : '+(e&&e.message))}
   }
-  if(S.settings.ai&&SAMPLE&&SAMPLE_IMG){
-    try{const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.8));
-      const r=await SAMPLE.json(`Tu valides un pointage dans une application d’habitudes. Analyse la photo jointe (un selfie censé être pris à l’instant).
-Réponds UNIQUEMENT en JSON : {"visage":true|false,"ecran":true|false,"yeux_ouverts":true|false,"eveil":0-100,"message":"une phrase courte en français, tutoiement, encourageante"}
-- visage : un vrai visage humain est-il visible ?
-- ecran : est-ce la photo d’un écran ou d’une autre photo (triche) ?
-- yeux_ouverts / eveil : la personne a-t-elle l’air réveillée (yeux ouverts, tête droite) ? ${isWake?'C’est un pointage de réveil, sois exigeant sur les yeux ouverts.':''}
-Ne commente jamais l’apparence physique ni le poids.`,{images:blob,modelTier:'quick',cache:false});
-      mode='ia';
-      ok=!!r.visage&&!r.ecran&&(!isWake||(r.yeux_ouverts&&(r.eveil??0)>=40));
-      msg=r.message||'';
-      if(!ok)msg=!r.visage?'Je ne vois pas de visage. Cadre bien ta tête.':r.ecran?'Ça ressemble à la photo d’un écran. Prends un vrai selfie.':'Tes yeux ont l’air encore fermés. Lève-toi, allume la lumière et reprends.';
-    }catch(e){mode='local'}
-  }
-  if(mode==='local'){
-    const d=cx.getImageData(0,0,cv.width,cv.height).data;let s=0,s2=0,n=0;for(let i=0;i<d.length;i+=16){const l=.299*d[i]+.587*d[i+1]+.114*d[i+2];s+=l;s2+=l*l;n++}
-    const mean=s/n,vr=s2/n-mean*mean;ok=mean>35&&vr>180;msg=ok?'Photo validée.':'Photo trop sombre ou floue. Allume la lumière et reprends.';
-  }
+  clearInterval(tk);
+  if(mode==='local'){try{const d=cx.getImageData(0,0,cv.width,cv.height).data;let s=0,s2=0,n=0;for(let i=0;i<d.length;i+=16){const l=.299*d[i]+.587*d[i+1]+.114*d[i+2];s+=l;s2+=l*l;n++}
+    const mean=s/n,vr=s2/n-mean*mean;ok=mean>35&&vr>180;msg=ok?'Photo validée (vérification simple, IA indisponible).':'Photo trop sombre ou floue. Reprends-la.'}catch(e){ok=true}}
   if(pending!==P0)return;pending.state='idle';
   if(!ok){drawPunch(url,msg,'ko');return}
-  doPunch(url,mode,msg);
+  const g=validate(P0.key,P0.how,mode);render();drawPunch(url,`${msg} +${g} pts · ${eur(g*S.profile.rate)} dans la cagnotte.`,'ok');
 }
-function doPunch(url,mode,msg){
-  const{key,which,t}=pending;const now=Date.now();const pu=S.punches[key]||(S.punches[key]={});const single=SINGLE.includes(t.type);let gained=0;
-  if(which==='forgot'){pu.in=at(t.ds,t.start);pu.inV=mode;pu.inF=.5;pu.forgot=now;gained=Math.round(t.pts*.4*.5);addPts(gained,'Entrée (oubli, points ÷ 2) · '+t.title,key)}
-  else if(which==='in'){pu.in=now;pu.inV=mode;const f=timeFactor(t,now);pu.inF=f;
-    gained=single?Math.round(t.pts*f):Math.round(t.pts*.4*f);
-    if(S.missed[key]){delete S.missed[key];const m=S.ledger.findIndex(e=>e.key===key&&e.pts<0);if(m>=0)S.ledger.splice(m,1)}
-    addPts(gained,(single?'':'Entrée · ')+t.title+(f<1?' (retard)':''),key);
-    if(t.type==='reveil'){const s=streak();if(s>0&&s%7===0&&!S.streakBonus[t.ds]){S.streakBonus[t.ds]=1;addPts(50,`Série de ${s} réveils à l’heure`,'')}}
-  }else{pu.out=now;pu.outV=mode;const el=(now-pu.in)/6e4;const comp=t.dur?clamp(el/(t.dur*.8),0,1):1;gained=el<t.dur*.3?0:Math.round(t.pts*.6*comp*(pu.forgot?.5:1));
-    addPts(gained,'Sortie · '+t.title+(pu.forgot?' (oubli, points ÷ 2)':'')+(comp<1?' (écourté)':''),key)}
-  checkPerfect(t.ds);save();stopRing();
-  if(mode==='tap'){toast(`${which==='out'?'Sortie pointée':which==='forgot'?'Entrée rattrapée':t.type==='reveil'?'Réveil pointé':'Pointé'} à ${clock(now)} · +${gained} pts`);closeSheet();render();return}
-  drawPunch(url,`+${gained} pts · ${eur(gained*S.profile.rate)} ajoutés à la cagnotte.${msg&&mode==='ia'?' '+msg:''}`,'ok');render();
+function valAct(key,how){
+  const ds=key.split(':')[0];const t=dayTasks(ds).find(x=>x.key===key);if(!t)return;
+  if(t.type==='sport'&&how!=='miss'){punchSheet(key,how);return}
+  const g=validate(key,how,'tap');closeSheet();render();
+  toast(how==='miss'?`Pas fait · ${g} pts`:`${t.title} · ${HOW[how]} · +${g} pts`);
 }
 
 /* ---------- repas : photo du plat analysée par l'IA ---------- */
@@ -908,9 +894,10 @@ function sugarHit(r,notes){const txt=normTxt([r.plat,...(r.ing||[]),r.bad,...(no
     if(['soda','ice tea','limonade','canette','boisson énergisante','sucre'].includes(lbl)&&SUGAR_OK.test(txt))continue;
     if(k==='sucre'&&/sans sucre|sucre ajoute 0|peu sucre/.test(txt))continue;return lbl}}
   return null}
-const parseJSON=txt=>{const a=txt.indexOf('{'),b=txt.lastIndexOf('}');if(a<0)throw new Error('Réponse illisible. Reprends la photo.');return normAI(JSON.parse(txt.slice(a,b+1)))};
-async function aiVision(cv,prompt){
-  if(SAMPLE&&SAMPLE_IMG){const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.72));return normAI(await SAMPLE.json(prompt,{images:blob,modelTier:'quick',cache:false}))}
+const parseJSON=txt=>{const a=txt.indexOf('{'),b=txt.lastIndexOf('}');if(a<0)throw new Error('Réponse illisible. Reprends la photo.');return JSON.parse(txt.slice(a,b+1))};
+async function aiVision(cv,prompt){return normAI(await aiRaw(cv,prompt,400))}
+async function aiRaw(cv,prompt,maxTok){
+  if(SAMPLE&&SAMPLE_IMG){const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.72));return await SAMPLE.json(prompt,{images:blob,modelTier:'quick',cache:false})}
   const data=cv.toDataURL('image/jpeg',.72).split(',')[1];
   const go=async(u,o,lim)=>{const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),lim||10000);const t0=performance.now(),hid0=document.hidden,host=u.split('/')[2],mdl=(u.match(/models\/([^:]+)/)||[])[1]||aiModel();
     try{const r=await fetch(u,Object.assign({method:'POST',signal:ctl.signal},o));logE('ai',`${host} ${mdl} → HTTP ${r.status} en ${Math.round(performance.now()-t0)} ms · image ${Math.round(data.length*.75/1024)} Ko`);return r}
@@ -921,7 +908,7 @@ async function aiVision(cv,prompt){
     let lastErr=null;
     for(const mdl of GEM_MODELS){
       let res;try{res=await go(`https://generativelanguage.googleapis.com/v1beta/models/${mdl}:generateContent`,{headers:{'content-type':'application/json','x-goog-api-key':apiKey()},
-        body:JSON.stringify({contents:[{role:'user',parts:[{inline_data:{mime_type:'image/jpeg',data}},{text:prompt}]}],generationConfig:{temperature:.2,maxOutputTokens:400,responseMimeType:'application/json'}})},9000)}
+        body:JSON.stringify({contents:[{role:'user',parts:[{inline_data:{mime_type:'image/jpeg',data}},{text:prompt}]}],generationConfig:{temperature:.2,maxOutputTokens:maxTok||400,responseMimeType:'application/json'}})},9000)}
       catch(e){if(e.slow){lastErr=e;continue}throw e}
       if(res.ok){const j=await res.json();if(mdl!==GEM_MODELS[0]){GEM_MODELS=[mdl,...GEM_MODELS.filter(x=>x!==mdl)];try{localStorage.setItem('cadence.gmodel',mdl)}catch(e){}}
         return parseJSON(((j.candidates||[])[0]?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join(''))}
@@ -932,7 +919,7 @@ async function aiVision(cv,prompt){
     throw lastErr||new Error('Gemini ne répond pas. Réessaie.');
   }
   const res=await go('https://api.anthropic.com/v1/messages',{headers:{'content-type':'application/json','x-api-key':apiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:aiModel(),max_tokens:400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data}},{type:'text',text:prompt}]}]})},15000);
+    body:JSON.stringify({model:aiModel(),max_tokens:maxTok||400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data}},{type:'text',text:prompt}]}]})},15000);
   if(!res.ok){let m='';try{m=(await res.json()).error?.message||''}catch(e){}
     throw new Error(res.status===401?'Clé API refusée. Vérifie-la dans Réglages → Analyse des repas.':res.status===400&&/credit/i.test(m)?'Plus de crédit sur ton compte Anthropic (Billing).':res.status===429||res.status===529?'Le service est surchargé. Réessaie dans une minute.':res.status===404?'Modèle indisponible : choisis l’autre modèle dans Réglages.':'Erreur de l’IA ('+res.status+'). '+m)}
   const j=await res.json();return parseJSON((j.content||[]).map(c=>c.text||'').join(''));
@@ -1320,7 +1307,7 @@ function nightStats(r){
 function lastNightCard(){const r=(S.nights||[])[0];if(!r)return`<section class="card"><h3>Analyse du sommeil</h3><div class="empty">Lance le mode chevet avec l’écoute : demain matin, tu verras tes phases de sommeil, tes ronflements et tes réveils ici.</div></section>`;
   return`<section class="card"><div class="row between"><h3>Dernière nuit analysée</h3><span class="muted num" style="font-size:13px">${fmtShort(new Date(r.start))}</span></div>${hypno(r)}${nightStats(r)}</section>`}
 function nightReport(r,key){openSheet(`<div class="grab"></div><span class="lbl">Ta nuit · ${clock(r.start)} → ${clock(r.end)}</span><h2>${r.short?'Nuit terminée':r.score>=75?'Bonne nuit de récupération':r.score>=55?'Nuit correcte':'Nuit agitée'}</h2>${hypno(r)}${nightStats(r)}
-  ${key&&key.split(':')[0]===today()&&!(S.punches[key]||{}).in?`<button class="btn" data-act="punch" data-k="${key}" data-w="in">${ic('check')} Pointer mon réveil</button>`:''}<button class="btn ghost" data-act="close">Fermer</button>`,'report')}
+  ${false?`<button class="btn" data-act="punch" data-k="${key}" data-w="in">${ic('check')} Pointer mon réveil</button>`:''}<button class="btn ghost" data-act="close">Fermer</button>`,'report')}
 document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&NIGHT){try{wakeLock=await navigator.wakeLock?.request('screen')}catch(e){}if(NIGHT.listen&&!AU&&!NIGHT.ringing)startListening()}});
 
 
@@ -1359,7 +1346,7 @@ function renderSeance(){
   const doneSets=sess.items.reduce((a,_,i)=>a+(S.setsDone[`${ds}:${i}`]||[]).filter(Boolean).length,0);
   return`<section class="card"><div class="row between"><span class="lbl">${isT?'Aujourd’hui':fmtDate(parseYmd(ds))} · S${sess.w}${isDeload(sess.w)?' · semaine allégée':''}</span><span class="stamp st-run">${PHASES[sess.ph].n}</span></div>
     <h2>${sess.name}</h2><p class="muted num">${task?hm(task.start)+' · ':''}${durTxt(p.sessionMin)} · ${doneSets}/${totalSets} séries</p><div class="bar m"><i style="width:${totalSets?doneSets/totalSets*100:0}%"></i></div>
-    ${isT&&task?(pu.out?`<div class="banner info">${ic('check')}<span class="grow">Séance pointée de ${clock(pu.in)} à ${clock(pu.out)}.</span></div>`:pu.in?`<button class="btn" data-act="punch" data-k="${task.key}" data-w="out">${ic(S.settings.selfieOut?'cam':'check')} Pointer la fin de séance</button>`:`<button class="btn" data-act="punch" data-k="${task.key}" data-w="in">${ic('cam')} Pointer le début de séance</button>`):''}
+    ${isT&&task?(pu.how&&pu.how!=='miss'?`<div class="banner info">${ic('check')}<span class="grow">Séance validée à ${clock(pu.at||pu.in)} (${HOW[pu.how]}).</span></div>`:status(task)==='due'?valBtns(task,false):''):''}
     ${!isT?`<button class="btn ghost" data-act="sportDate" data-v="${t}">Revenir à aujourd’hui</button>`:''}</section>
   <section class="card"><span class="lbl">Échauffement · 6 min</span><p>3 min de vélo ou marche rapide, puis 10 rotations d’épaules, 10 squats à vide jusqu’à une chaise, 10 ponts fessiers. Première série de chaque exercice principal à mi-charge.</p></section>
   <section class="card" style="gap:0">${exHtml}</section>
@@ -1531,7 +1518,7 @@ function renderCagnotte(){
      ${pr>=1?(buyConfirm===r.id?`<div class="row" style="gap:6px"><button class="btn money sm" data-act="buyDo" data-v="${r.id}">Confirmer</button><button class="btn ghost sm" data-act="buyCancel">Non</button></div>`:`<button class="btn money sm" data-act="buy" data-v="${r.id}">Je me l’offre</button>`):`<button class="chip sm" data-act="delReward" data-v="${r.id}" aria-label="Retirer">${ic('x')}</button>`}
      <div class="bar m"><i style="width:${pr*100}%"></i></div></div>`}).join(''):`<div class="empty">Ajoute ce que tu veux t’offrir : la barre se remplit avec ce que tu as vraiment viré sur ton épargne.</div>`}</section>
   <section class="card" style="gap:0"><h3 style="padding-bottom:6px">Historique</h3>${recent.length?recent.map(l=>`<div class="ledger"><span style="min-width:0">${esc(l.label)}<br><span class="muted num" style="font-size:12px">${fmtShort(new Date(l.t))} · ${clock(l.t)}</span></span><span class="num" style="color:${l.pts<0?'var(--bad)':'var(--money)'}">${l.pts>0?'+':''}${l.pts}</span></div>`).join(''):`<div class="empty">Ton premier pointage apparaîtra ici.</div>`}</section>
-  <section class="flat stack" style="gap:6px"><b>Barème</b><p style="font-size:13.5px">Séance de sport (selfie à l’entrée de la salle) : 50 pts · repas validé par l’IA : ${MEAL_PTS} pts · journée parfaite (séance faite + tous les repas validés) : +30. Séance en retard : 60 % puis 30 % des points d’entrée. Oubli de pointage : moitié des points. Séance manquée : ${S.settings.malus?'−50 % de sa valeur':'pas de malus'}. Le travail ne se pointe pas : il sert aux statistiques.</p></section>
+  <section class="flat stack" style="gap:6px"><b>Barème</b><p style="font-size:13.5px">Travail : 10 pts par service · séance de sport (photo de la salle) : 50 pts · repas validé : ${MEAL_PTS} pts · journée parfaite : +30. À l’heure : tous les points. En retard ou oubli de pointage : la moitié. Pas fait : tous les points en négatif. Non validé le lendemain : ${S.settings.malus?'compté comme pas fait':'sans malus'}. Sucre interdit : la photo du repas est refusée.</p></section>
   ${S.payouts.length?`<section class="card" style="gap:0"><h3 style="padding-bottom:6px">Virements</h3>${[...S.payouts].reverse().map(x=>`<div class="ledger"><span>${fmtShort(new Date(x.t))}</span><span class="num" style="color:var(--money)">${eur(x.eur)}</span></div>`).join('')}</section>`:''}`;
 }
 function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
@@ -1544,7 +1531,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.92';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.93';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
@@ -1554,7 +1541,7 @@ function settingsSheet(checked){if(!checked&&!upChecking){upChecking=true;checkU
   const tog=(k,l,d)=>`<button class="ing" data-act="setTog" data-v="${k}" style="grid-template-columns:1fr auto"><span class="nm">${l}<small>${d}</small></span><span class="ck ${s[k]?'on':''}">${s[k]?ic('check'):''}</span></button>`;
   openSheet(`<div class="grab"></div><h2>Réglages</h2>
   <div class="field"><span class="lbl">Apparence</span><div class="seg">${[['auto','Auto'],['light','Jour'],['dark','Nuit']].map(([k,l])=>`<button class="${s.theme===k?'on':''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div></div>
-  <section class="card" style="gap:0">${tog('sound','Son d’alarme','Sonne dans l’app quand un pointage est dû (app ouverte).')}${tog('selfieOut','Selfie à la sortie de la salle','Le selfie ne sert qu’aux séances de sport. Sinon, la sortie de la salle se pointe d’un tap.')}${tog('ai','Vérification du visage (salle)','Détecte un vrai visage sur le selfie de la salle, directement sur l’iPhone.')}${tog('malus','Malus si tâche manquée','Retire la moitié des points prévus.')}</section>
+  <section class="card" style="gap:0">${tog('sound','Son d’alarme','Sonne dans l’app quand un pointage est dû (app ouverte).')}${tog('ai','Vérification de la salle par l’IA','La photo doit montrer une salle de sport. Sinon : simple contrôle de luminosité.')}${tog('malus','Malus si non validé','Une tâche marquée pas fait, ou non validée le lendemain, retire tous ses points.')}</section>
   <div class="field"><span class="lbl">Analyse des repas (IA)</span><div class="flat row between"><span>${aiProv()==='gemini'?'Gemini':'Claude'} · ${apiKey()?'clé enregistrée':'aucune clé'}</span><span class="stamp ${apiKey()?'st-done':'st-up'}">${apiKey()?'Active':'Inactive'}</span></div>${keySetup()}</div>
   <div class="field"><span class="lbl">Agenda</span><label for="icsIn" class="btn ghost">${ic('agenda')} Importer un agenda (.ics)</label><p class="muted" style="font-size:12.5px">${S.ics.length?`${S.ics.length} événements importés. `:''}Exporte ton planning en .ics (Google Agenda, Outlook, appli RH) puis choisis le fichier ici : les événements des 60 prochains jours deviennent des tâches à pointer.</p></div>
   <div class="field"><span class="lbl">Sauvegarde</span><div class="row" style="gap:8px"><button class="btn ghost sm" style="flex:1" data-act="bkExport">Exporter</button><label for="bkIn" class="btn ghost sm" style="flex:1">Importer</label></div><p class="muted" style="font-size:12.5px">Tes données vivent sur ce téléphone, dans Safari. Exporte une sauvegarde de temps en temps (elle va dans l’app Fichiers).</p></div>
@@ -1648,6 +1635,8 @@ document.addEventListener('click',e=>{
    date:()=>{V.date=v;render()},
    task:()=>taskSheet(el.dataset.k),
    punch:()=>punchSheet(el.dataset.k,el.dataset.w),
+   val:()=>valAct(el.dataset.k,v),
+   showDone:()=>{V.showDone=!V.showDone;render()},
    close:()=>{closeSheet();render()},
    shift:()=>{const k=el.dataset.k;S.shifts[k]=(S.shifts[k]||0)+Number(v);save();render();taskSheet(k)},
    skip:()=>{S.skips[el.dataset.k]=1;save();closeSheet();render();toast('Retirée de cette journée')},
