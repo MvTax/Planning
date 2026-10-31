@@ -16,28 +16,28 @@
 <style>
 /* Layout: une colonne de « cartes de pointage » (heure en chiffres mono à gauche, tampon d'état à droite), barre d'onglets fixe en bas. */
 :root{
-  --bg:#F2F3EF; --surface:#FFFFFF; --surface-2:#F7F8F4; --ink:#14181E; --muted:#68707A; --line:#E0E2DB;
-  --accent:#2443D6; --accent-ink:#FFFFFF; --accent-soft:#E5EAFC;
-  --money:#0E7A54; --money-soft:#DDF0E6; --warn:#A35F00; --warn-soft:#FBEED9; --bad:#BC392F; --bad-soft:#F8E2DF;
+  --bg:#F3F3F7; --surface:#FFFFFF; --surface-2:#F6F6FA; --ink:#17181F; --muted:#6B6E7D; --line:#E3E3EB;
+  --accent:#4A47C4; --accent-ink:#FFFFFF; --accent-soft:#ECEBFB;
+  --money:#1E8A5C; --money-soft:#E0F2E9; --warn:#A9417C; --warn-soft:#F7E6F0; --bad:#C0392F; --bad-soft:#F9E3E1;
   --night:#0B0D12; --night-ink:#E9ECF2;
-  --c-work:#2F62E8; --c-sport:#7446E0; --c-meal:#E8690F; --c-free:#0E9AA7; --c-trip:#C98A00; --c-perso:#D63E74; --c-pts:#4B4FD8; --c-money:#12935F;
-  --shadow:0 1px 2px rgba(20,24,30,.05),0 10px 30px rgba(20,24,30,.06);
+  --c-work:#4A5BD4; --c-sport:#7A57C6; --c-meal:#B9517A; --c-free:#2A9486; --c-trip:#878BA0; --c-perso:#C4568A; --c-pts:#4A47C4; --c-money:#1E8A5C;
+  --shadow:0 1px 2px rgba(23,24,31,.04),0 12px 32px rgba(23,24,31,.07);
   --f-ui:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --f-num:"Fragment Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --f-num:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --r:20px; --r-sm:12px;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#0C0E12; --surface:#151920; --surface-2:#1B2028; --ink:#ECEEF2; --muted:#8C939E; --line:#262C35;
-  --accent:#8AA2FF; --accent-ink:#0C0E12; --accent-soft:#1C2444;
-  --money:#4FCB98; --money-soft:#11281F; --warn:#F2AE4B; --warn-soft:#2C2214; --bad:#FF8075; --bad-soft:#2F1816;
-  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.25); color-scheme:dark;
-  --c-work:#7FA2FF; --c-sport:#AE8CFF; --c-meal:#FF9A4D; --c-free:#4FD3DD; --c-trip:#F2C14E; --c-perso:#FF7FA8; --c-pts:#9EA2FF; --c-money:#4FCB98; } }
+  --bg:#0E0F14; --surface:#16171F; --surface-2:#1D1F29; --ink:#ECEDF3; --muted:#9093A3; --line:#272936;
+  --accent:#A5AAFF; --accent-ink:#0E0F14; --accent-soft:#232547;
+  --money:#5AD39A; --money-soft:#132A20; --warn:#E59AC8; --warn-soft:#2E1D2A; --bad:#FF8A80; --bad-soft:#331B1B;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 12px 32px rgba(0,0,0,.28); color-scheme:dark;
+  --c-work:#93A0FF; --c-sport:#C0A6FF; --c-meal:#F29BBE; --c-free:#6AD6C8; --c-trip:#AEB2C6; --c-perso:#F6A3C7; --c-pts:#A5AAFF; --c-money:#5AD39A; } }
 :root[data-theme="dark"]{
-  --bg:#0C0E12; --surface:#151920; --surface-2:#1B2028; --ink:#ECEEF2; --muted:#8C939E; --line:#262C35;
-  --accent:#8AA2FF; --accent-ink:#0C0E12; --accent-soft:#1C2444;
-  --money:#4FCB98; --money-soft:#11281F; --warn:#F2AE4B; --warn-soft:#2C2214; --bad:#FF8075; --bad-soft:#2F1816;
-  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.25); color-scheme:dark;
-  --c-work:#7FA2FF; --c-sport:#AE8CFF; --c-meal:#FF9A4D; --c-free:#4FD3DD; --c-trip:#F2C14E; --c-perso:#FF7FA8; --c-pts:#9EA2FF; --c-money:#4FCB98; }
+  --bg:#0E0F14; --surface:#16171F; --surface-2:#1D1F29; --ink:#ECEDF3; --muted:#9093A3; --line:#272936;
+  --accent:#A5AAFF; --accent-ink:#0E0F14; --accent-soft:#232547;
+  --money:#5AD39A; --money-soft:#132A20; --warn:#E59AC8; --warn-soft:#2E1D2A; --bad:#FF8A80; --bad-soft:#331B1B;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 12px 32px rgba(0,0,0,.28); color-scheme:dark;
+  --c-work:#93A0FF; --c-sport:#C0A6FF; --c-meal:#F29BBE; --c-free:#6AD6C8; --c-trip:#AEB2C6; --c-perso:#F6A3C7; --c-pts:#A5AAFF; --c-money:#5AD39A; }
 
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px)}
 html{-webkit-text-size-adjust:100%}
@@ -75,13 +75,13 @@ input{font:inherit;color:inherit}
 .segbar{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--surface-2);gap:2px}
 .segbar i{display:block;height:100%;background:var(--c)}
 .btn.btn-meal{background:var(--c-meal);color:var(--surface);display:inline-flex;grid-template-columns:none}
-.hero.col{background:linear-gradient(140deg,var(--hc),color-mix(in srgb,var(--hc) 72%,#000));color:#fff}
+.hero.col{background:linear-gradient(150deg,var(--hc) 0%,var(--hc2,var(--hc)) 100%);color:#fff;box-shadow:0 14px 34px color-mix(in srgb,var(--hc) 30%,transparent)}
 .hero.col .lbl,.hero.col .meta{color:rgba(255,255,255,.82)}
 .hero.col .btn.go{background:#fff;color:var(--hc)}
 .hero.col .btn{background:rgba(255,255,255,.17);color:#fff}
 .hero.col .btn.danger{background:rgba(0,0,0,.18);color:#fff}
 .hero.col .pts{color:#fff;background:rgba(255,255,255,.18);padding:4px 9px;border-radius:99px}
-.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .muted{color:var(--muted)}
 .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
 h1{font-size:30px;line-height:1.08;font-weight:800;letter-spacing:-.03em;margin:0;text-wrap:balance}
@@ -360,7 +360,7 @@ function defaultState(){return{
   v:1,updatedAt:0,onboarded:false,since:0,
   profile:{name:'',sex:'h',birth:'1996-01-01',height:175,weight:80,waist:0,goal:90,pace:'standard',activity:'bureau',
     workDays:[0,1,2,3,4],workStart:540,workEnd:1050,wake:420,exp:'debutant',place:'salle',days:[0,2,4],sessionTime:1110,sessionMin:60,
-    injuries:[],diet:[],meals:4,omad:false,omadTime:810,omadWin:60,commute:30,budget:80,store:'lidl',shopDay:6,rate:0.02,payout:'hebdo',firstReward:'vetements',firstPrice:60},
+    injuries:[],diet:[],meals:4,omad:false,omadTime:1260,omadWin:120,commute:30,budget:80,store:'lidl',shopDay:6,rate:0.02,payout:'hebdo',firstReward:'vetements',firstPrice:60},
   programStart:null,custom:[],punches:{},ledger:[],payouts:[],spent:[],periodStart:0,rewards:[],weights:[],
   shifts:{},skips:{},missed:{},perfect:{},streakBonus:{},wakeOv:{},bedOv:{},workOv:{},lifts:{},setsDone:{},shopChecked:{},ics:[],agenda:null,agendaCal:'',meals:{},nights:[],nightLive:null,
   settings:{theme:'auto',sound:true,selfieOut:false,ai:true,malus:true}
@@ -383,7 +383,7 @@ async function loadAgendaFile(manual){
     if(!S.agenda||(a.updatedAt||0)>(S.agenda.updatedAt||0)){S.agenda=a;save();render();if(sheetName==='plan')planSheet();if(manual)toast(`Planning mis à jour jusqu’au ${fmtShort(parseYmd(a.to))}`)}
     else if(manual)toast('Planning déjà à jour');return true}
   catch(e){if(manual)agendaHelp(e&&e.code==='nokey'?'nokey':'err');return false}}
-async function loadSeed(){if(S.onboarded)return;try{const r=await decFile('state.enc.json');if(r&&r.onboarded&&!S.onboarded){S=Object.assign(defaultState(),r);if(!S.reset4)resetCounters();S.profile=Object.assign(defaultState().profile,r.profile||{});S.settings=Object.assign(defaultState().settings,r.settings||{});save();render();toast('Ton profil a été récupéré')}}catch(e){}}
+async function loadSeed(){if(S.onboarded)return;try{const r=await decFile('state.enc.json');if(r&&r.onboarded&&!S.onboarded){S=Object.assign(defaultState(),r);if(!S.reset4)resetCounters();if(!S.omadInit){S.profile.omad=true;S.omadInit=1}if(!S.omadEve){S.profile.omadTime=1260;S.profile.omadWin=120;S.omadEve=1}S.profile=Object.assign(defaultState().profile,r.profile||{});S.settings=Object.assign(defaultState().settings,r.settings||{});save();render();toast('Ton profil a été récupéré')}}catch(e){}}
 /* détection de visage sur l'appareil (MediaPipe) */
 let FL=null,FLload=null;const MPV='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 function faceModel(){if(FL)return Promise.resolve(FL);if(!FLload)FLload=(async()=>{const v=await import(MPV+'/vision_bundle.mjs');const fs=await v.FilesetResolver.forVisionTasks(MPV+'/wasm');
@@ -716,8 +716,8 @@ function renderJour(){
     const cur=T.find(x=>!x.info&&['run','due'].includes(status(x)))||T.find(x=>!x.info&&status(x)==='soon');
     if(cur){const s2=status(cur);const s=at(ds,cur.start),e=at(ds,cur.start+cur.dur);const mins=Math.round((s-Date.now())/6e4);
       const when=cur.meal?(s2==='run'?`Fenêtre ${hm(cur.start)} → ${hm(cur.start+cur.dur)} · reste ${durTxt(Math.max(1,Math.round((e-Date.now())/6e4)))}`:s2==='due'?`Fenêtre ${hm(cur.start)} → ${hm(cur.start+cur.dur)} passée · mange maintenant`:`Fenêtre ${hm(cur.start)} → ${hm(cur.start+cur.dur)}`):s2==='run'?`Commencé à ${hm(cur.start)} · reste ${durTxt(Math.max(1,Math.round((e-Date.now())/6e4)))}`:mins>0?`Dans ${mins>=60?Math.floor(mins/60)+' h '+pad(mins%60):mins+' min'} · ${durTxt(cur.dur)}`:`Prévu à ${hm(cur.start)} · ${durTxt(-mins)} de retard`;
-      const hc=s2==='run'||s2==='due'?'#E2700B':cur.type==='sport'?'#6A3FD6':'#2F5BEA';
-      hero=`<section class="hero col" style="--hc:${cur.meal?'#E2700B':hc}"><div class="row between"><span class="lbl">${cur.meal?(s2==='run'?'Fenêtre de repas ouverte':s2==='due'?'Tu n’as pas encore mangé':'Repas bientôt'):s2==='run'?'En cours · pas encore pointé':s2==='due'?'À valider':'Bientôt'}</span><span class="pts">${M$(cur.pts)}</span></div>
+      const [hc,hc2]=cur.meal||s2==='run'||s2==='due'?['#3F3C9C','#7A3D8E']:cur.type==='sport'?['#5A3DB6','#8B4CB0']:['#3550B8','#3B2E86'];
+      hero=`<section class="hero col" style="--hc:${hc};--hc2:${hc2}"><div class="row between"><span class="lbl">${cur.meal?(s2==='run'?'Fenêtre de repas ouverte':s2==='due'?'Tu n’as pas encore mangé':'Repas bientôt'):s2==='run'?'En cours · pas encore pointé':s2==='due'?'À valider':'Bientôt'}</span><span class="pts">${M$(cur.pts)}</span></div>
         <div class="row" style="gap:14px;align-items:flex-end"><span class="big">${hm(cur.start)}</span><div style="min-width:0"><h2>${esc(cur.title)}</h2><p class="meta">${when}</p></div></div>${s2==='soon'?'':valBtns(cur,true)}</section>`;
     }
   }
@@ -1602,7 +1602,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.991';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.992';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
@@ -1832,7 +1832,8 @@ function tick(){
   if(!sheetName&&!NIGHT&&V.tab==='jour'&&document.activeElement.tagName!=='INPUT')render();
 }
 if(S.onboarded&&!S.reset4){resetCounters();save()}
-if(S.onboarded&&!S.omadInit){S.profile.omad=true;S.profile.omadTime=S.profile.omadTime||810;S.profile.omadWin=S.profile.omadWin||60;S.omadInit=1;save()}
+if(S.onboarded&&!S.omadEve){S.profile.omadTime=1260;S.profile.omadWin=120;S.omadEve=1;save()}
+if(S.onboarded&&!S.omadInit){S.profile.omad=true;S.profile.omadTime=S.profile.omadTime||1260;S.profile.omadWin=S.profile.omadWin||120;S.omadInit=1;save()}
 try{if(S.nightLive&&S.nightLive.bins){const L=S.nightLive;const r=analyzeNight(L,L.start+Math.max(1,L.bins.length)*6e4);S.nights=[r,...(S.nights||[])].slice(0,30);S.nightLive=null;save()}}catch(e){}
 async function loadSecrets(){try{const x=await decFile('secrets.enc.json');let ch=false;
   if(x.gkey&&!lsGet('cadence.gkey','')){localStorage.setItem('cadence.gkey',x.gkey);ch=true}
