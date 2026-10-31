@@ -639,13 +639,13 @@ const howPts=(t,h)=>h==='ok'?t.pts:h==='miss'?-t.pts:Math.round(t.pts/2);
 /* boutons de validation selon le moment */
 function valBtns(t,hero){
   const now=Date.now(),s=at(t.ds,t.start),late=now>s+15*6e4,past=t.ds<today(),photo=t.type==='sport';
-  const B=(how,lbl,cls)=>`<button class="btn ${cls}" data-act="val" data-k="${t.key}" data-v="${how}">${lbl} <span class="num" style="opacity:.75;font-weight:500">${howPts(t,how)>0?'+':''}${howPts(t,how)}</span></button>`;
+  const B=(how,lbl,cls)=>`<button class="btn ${cls}" data-act="val" data-k="${t.key}" data-v="${how}">${lbl} <span class="num" style="opacity:.8;font-weight:500">${M$(howPts(t,how))}</span></button>`;
   const P=hero?'go':'';const G=hero?'':'ghost';let h='';
   if(photo){h+=past?'':B(late?'late':'ok',`${ic('cam')} ${late?'Je suis à la salle (en retard)':'Je suis à la salle'}`,P)}
   else if(past)h+=B('forgot',`${ic('check')} C’était fait, j’ai oublié de pointer`,P);
   else if(!late)h+=B('ok',`${ic('check')} ${t.type==='travail'?'Je suis au travail':'Fait'}`,P);
   else h+=B('forgot',`${ic('check')} J’ai oublié de pointer`,P)+B('late',`Arrivé en retard`,G);
-  h+=`<button class="btn danger" data-act="val" data-k="${t.key}" data-v="miss">Pas fait <span class="num" style="opacity:.75;font-weight:500">${-t.pts}</span></button>`;
+  h+=`<button class="btn danger" data-act="val" data-k="${t.key}" data-v="miss">Pas fait <span class="num" style="opacity:.8;font-weight:500">${M$(-t.pts)}</span></button>`;
   return`<div class="stack" style="gap:8px">${h}</div>`;
 }
 function validate(key,how,mode){
@@ -657,6 +657,7 @@ function validate(key,how,mode){
 }
 
 /* ============ points ============ */
+const M$=(p,sign=true)=>(sign?(p>0?'+':p<0?'−':''):'')+eur(Math.abs(p)*S.profile.rate);
 function addPts(pts,label,key){S.ledger.push({t:Date.now(),pts,label,key:key||''})}
 const periodPts=()=>S.ledger.filter(l=>l.t>=S.periodStart).reduce((a,l)=>a+l.pts,0);
 const dayPts=ds=>S.ledger.filter(l=>ymd(new Date(l.t))===ds).reduce((a,l)=>a+l.pts,0);
@@ -710,7 +711,7 @@ function renderJour(){
     if(cur){const s2=status(cur);const s=at(ds,cur.start),e=at(ds,cur.start+cur.dur);const mins=Math.round((s-Date.now())/6e4);
       const when=s2==='run'?`Commencé à ${hm(cur.start)} · reste ${durTxt(Math.max(1,Math.round((e-Date.now())/6e4)))}`:mins>0?`Dans ${mins>=60?Math.floor(mins/60)+' h '+pad(mins%60):mins+' min'} · ${durTxt(cur.dur)}`:`Prévu à ${hm(cur.start)} · ${durTxt(-mins)} de retard`;
       const hc=s2==='run'||s2==='due'?'#E2700B':cur.type==='sport'?'#6A3FD6':'#2F5BEA';
-      hero=`<section class="hero col" style="--hc:${hc}"><div class="row between"><span class="lbl">${s2==='run'?'En cours · pas encore pointé':s2==='due'?'À valider':'Bientôt'}</span><span class="pts">+${cur.pts} pts</span></div>
+      hero=`<section class="hero col" style="--hc:${hc}"><div class="row between"><span class="lbl">${s2==='run'?'En cours · pas encore pointé':s2==='due'?'À valider':'Bientôt'}</span><span class="pts">${M$(cur.pts)}</span></div>
         <div class="row" style="gap:14px;align-items:flex-end"><span class="big">${hm(cur.start)}</span><div style="min-width:0"><h2>${esc(cur.title)}</h2><p class="meta">${when}</p></div></div>${s2==='soon'?'':valBtns(cur,true)}</section>`;
     }
   }
@@ -734,7 +735,7 @@ function renderJour(){
     return`<button class="tc ${s2==='done'||s2==='miss'||s2==='idone'?'past':''}" data-act="task" data-k="${x.key}" style="${hot?'outline:2px solid var(--warn);outline-offset:-2px':''}">
       <span class="badge sm k-${k}">${ic(x.type)}</span>
       <span class="ti"><b>${esc(x.title)}</b><span class="num">${hm(x.start)}${x.dur?' → '+hm(x.start+x.dur):''}${rest}${x.loc?' · '+esc(x.loc):''}</span>
-      ${x.info?'':`<span style="font-size:12px;font-weight:600;color:${earned<0?'var(--bad)':earned>0?'var(--money)':'var(--muted)'}">${earned?(earned>0?'+':'')+earned+' pts':x.pts+' pts possibles'}</span>`}</span>
+      ${x.info?'':`<span style="font-size:12px;font-weight:600;color:${earned<0?'var(--bad)':earned>0?'var(--money)':'var(--muted)'}">${earned?M$(earned):M$(x.pts,false)+' à gagner'}</span>`}</span>
       <span class="pill p-${s2}">${lbl}</span></button>`};
   const isPast=x=>{const s2=status(x);return x.info?s2==='idone':(s2==='done'||s2==='miss')};
   const rem=isToday?T.filter(x=>!isPast(x)):T,doneL=isToday?T.filter(isPast):[];
@@ -743,7 +744,7 @@ function renderJour(){
   const mN=((S.meals||{})[t]||[]).length;
   return`<header class="top"><div class="stack" style="gap:4px;min-width:0"><span class="lbl">${fmtDate(new Date())}</span><h1>${greeting()}${p.name?', '+esc(p.name):''}</h1><span class="muted" style="font-size:13px">${wkLabel}</span></div>
     <button class="avatar" data-act="settings" aria-label="Réglages">${p.name?esc(p.name[0].toUpperCase()):ic('gear')}</button></header>
-  <div class="stats"><div class="stat k-pts"><span class="lbl">${ic('star')} Points</span><b>${dayPts(t)}</b></div><div class="stat k-money" data-act="tab" data-v="cagnotte"><span class="lbl">${ic('cagnotte')} Cagnotte</span><b>${eur(periodEur())}</b></div><div class="stat k-meal"><span class="lbl">${ic('repas')} Repas</span><b>${mN}/${p.meals}</b></div></div>
+  <div class="stats"><div class="stat k-money" data-act="tab" data-v="cagnotte"><span class="lbl">${ic('cagnotte')} Aujourd’hui</span><b>${M$(dayPts(t))}</b></div><div class="stat k-money" data-act="tab" data-v="cagnotte"><span class="lbl">${ic('cagnotte')} Cagnotte</span><b>${eur(periodEur())}</b></div><div class="stat k-meal"><span class="lbl">${ic('repas')} Repas</span><b>${mN}/${p.meals}</b></div></div>
   ${hasUpdate()?`<button class="banner info" data-act="forceUpdate" style="width:100%;text-align:left">${ic('arrow')}<span class="grow">Nouvelle version disponible${REMOTE_V.notes?' : '+esc(REMOTE_V.notes):''}. Touche pour mettre à jour.</span></button>`:''}
   ${hero}
   ${isToday?mealCard():''}
@@ -773,10 +774,10 @@ function taskSheet(key){
   const recs=pu.how?`<div class="row between"><span>${pu.how==='miss'?'Marqué pas fait':'Validé'} à ${clock(pu.at||pu.in)}</span><span class="stamp ${pu.how==='miss'?'st-miss':'st-done'}">${HOW[pu.how]}${pu.mode==='ia'?' · salle vérifiée':''}</span></div>`:S.missed[key]?`<div class="row between"><span>Non validé à temps</span><span class="stamp st-miss">pas fait</span></div>`:'';
   openSheet(`<div class="grab"></div>
    <div class="stack" style="gap:6px"><span class="lbl">${TYPE[t.type]?TYPE[t.type][0]:''} · ${fmtShort(parseYmd(ds))}</span><h2>${esc(t.title)}</h2>
-   <p class="muted num">${hm(t.start)}${t.dur?' → '+hm(t.start+t.dur)+' · '+durTxt(t.dur):''} · ${t.pts} pts</p></div>
+   <p class="muted num">${hm(t.start)}${t.dur?' → '+hm(t.start+t.dur)+' · '+durTxt(t.dur):''} · ${M$(t.pts,false)} à gagner</p></div>
    ${t.type==='travail'?`<p class="muted" style="font-size:13px">${t.src==='agenda'?'Depuis ton agenda':t.src==='manuel'?'Modifié à la main':t.src==='estime'?'Estimé : planning pas encore publié':'Horaires habituels'}${t.loc?' · '+esc(t.loc):''}</p>`:t.box?`<div class="banner info"><span class="grow" style="font-weight:500">Ce repas tombe pendant ton service : prépare-le en boîte la veille ou au batch cooking.</span></div>`:t.moved?`<p class="muted" style="font-size:13px">Placé automatiquement dans un créneau libre autour de ton travail.</p>`:''}
    ${recs?`<div class="flat stack" style="gap:8px">${recs}</div>`:''}
-   ${earned.length?`<div class="flat">${earned.map(e=>`<div class="ledger"><span>${esc(e.label)}</span><span class="num" style="color:${e.pts<0?'var(--bad)':'var(--money)'}">${e.pts>0?'+':''}${e.pts}</span></div>`).join('')}</div>`:''}
+   ${earned.length?`<div class="flat">${earned.map(e=>`<div class="ledger"><span>${esc(e.label)}</span><span class="num" style="color:${e.pts<0?'var(--bad)':'var(--money)'}">${M$(e.pts)}</span></div>`).join('')}</div>`:''}
    ${actions}${link}
    ${!pu.how&&st!=='miss'?`<div class="field"><span class="lbl">Ajuster</span><div class="chips"><button class="chip sm" data-act="shift" data-k="${key}" data-v="-15">−15 min</button><button class="chip sm" data-act="shift" data-k="${key}" data-v="15">+15 min</button><button class="chip sm" data-act="shift" data-k="${key}" data-v="60">+1 h</button><button class="chip sm" data-act="skip" data-k="${key}">Retirer ce jour</button>${t.custom?`<button class="chip sm" data-act="delcustom" data-v="${t.id}">Supprimer la tâche</button>`:''}</div></div>`:''}`);
 }
@@ -818,13 +819,13 @@ async function handlePhoto(file){
     const mean=s/n,vr=s2/n-mean*mean;ok=mean>35&&vr>180;msg=ok?'Photo validée (vérification simple, IA indisponible).':'Photo trop sombre ou floue. Reprends-la.'}catch(e){ok=true}}
   if(pending!==P0)return;pending.state='idle';
   if(!ok){drawPunch(url,msg,'ko');return}
-  const g=validate(P0.key,P0.how,mode);render();drawPunch(url,`${msg} +${g} pts · ${eur(g*S.profile.rate)} dans la cagnotte.`,'ok');
+  const g=validate(P0.key,P0.how,mode);render();drawPunch(url,`${msg} ${M$(g)} dans la cagnotte.`,'ok');
 }
 function valAct(key,how){
   const ds=key.split(':')[0];const t=dayTasks(ds).find(x=>x.key===key);if(!t)return;
   if(t.type==='sport'&&how!=='miss'){punchSheet(key,how);return}
   const g=validate(key,how,'tap');closeSheet();render();
-  toast(how==='miss'?`Pas fait · ${g} pts`:`${t.title} · ${HOW[how]} · +${g} pts`);
+  toast(how==='miss'?`Pas fait · ${M$(g)}`:`${t.title} · ${HOW[how]} · ${M$(g)}`);
 }
 
 /* ---------- repas : photo du plat analysée par l'IA ---------- */
@@ -891,7 +892,7 @@ function mealSheet(){
      ${r.resume?`<p style="font-size:15px">${esc(r.resume)}</p>`:''}
      ${!ok&&(r.fix||[]).length?`<section class="card" style="gap:10px"><span class="lbl" style="color:var(--warn)">Avant de manger</span>${r.fix.map(x=>`<div class="row" style="gap:10px;align-items:flex-start"><b style="color:var(--warn);flex:none">→</b><span>${esc(x)}</span></div>`).join('')}</section>`:''}`}
      ${M.ms?`<p class="muted num" style="font-size:12px;text-align:right">Analysé en ${nf(M.ms/1000,1)} s</p>`:''}
-     ${ok?`<div class="banner info">${ic('check')}<span class="grow">Repas pointé · +${MEAL_PTS} pts${n>1?' · validé au '+n+'e essai':''}</span></div><button class="btn" data-act="close">Bon appétit</button>`:
+     ${ok?`<div class="banner info">${ic('check')}<span class="grow">Repas pointé · ${M$(MEAL_PTS)} dans la cagnotte${n>1?' · validé au '+n+'e essai':''}</span></div><button class="btn" data-act="close">Bon appétit</button>`:
       `<label for="mealCam" class="btn">${ic('cam')} ${np?'Reprendre la photo':'J’ai corrigé · reprendre la photo'} (essai ${n+1})</label>${np?'':`<button class="describe" data-act="fixIng">${ic('pen')} Ce n’est pas ça · préciser les ingrédients</button>`}<button class="btn ghost" data-act="close">Annuler ce repas</button>`}`;
   }else body=`<div class="cam" style="border-radius:20px;width:100%;height:180px">${ic('repas')}</div><label for="mealCam" class="btn">${ic('cam')} Photographier mon plat</label><p class="muted" style="font-size:12.5px;text-align:center">Tout le plat dans le cadre, vu d’au-dessus, avec la boisson. L’IA estime les calories et te dit quoi ajuster.</p>`;
   openSheet(`<div class="grab"></div><div class="stack" style="gap:8px"><span class="lbl">Pointage repas${n?' · essai '+(M.state==='busy'?n+1:n):''}</span><h2>${M.state==='result'&&r&&r.verdict==='valide'?'C’est validé':M.state==='ask'?'Une précision':'Mon plat'}</h2>${(M.state==='idle'||!n)&&M.state!=='ask'?`<div class="chips">${chips}</div>`:''}</div>${body}`,'meal');
@@ -1082,7 +1083,7 @@ async function runDiag(){
   await step('Calculs de la journée',async()=>{const t=today(),T=dayTasks(t),st=dayStats(t),tg=targets();return{s:st.fixed?'!!':'OK',d:`${T.length} éléments · éveil ${hm(st.wake)} → ${hm(st.bed)}${S.wakeOv[t]!=null?' (réveil modifié)':''}${S.bedOv[t]!=null?' (coucher modifié '+hm(S.bedOv[t])+')':''}${st.fixed?' · coucher incohérent ignoré':''} · travail ${durTxt(st.work)} · trajets ${durTxt(st.trips)} · libre ${durTxt(st.free)} · cible ${tg.kcal} kcal / ${tg.prot} g prot.`}});
   await step('Planning de travail',async()=>{const W=workBlocks(today());const A=S.agenda;return{s:A&&A.to<today()?'!!':'OK',d:`source ${W.src}${A?' · agenda jusqu’au '+A.to:' · pas d’agenda'}`}});
   await step('Programme sport',async()=>{const w=weekOf(today());const nd=nextSessionDate(today());return{d:`semaine ${w} · prochaine séance ${nd||'?'}`}});
-  add('Données',"OK",`${Object.values(S.meals||{}).reduce((a,x)=>a+x.length,0)} repas · ${S.ledger.length} lignes de points · ${(S.nights||[]).length} nuits · ${S.custom.length} tâches perso`);
+  add('Données',"OK",`${Object.values(S.meals||{}).reduce((a,x)=>a+x.length,0)} repas · ${S.ledger.length} lignes de cagnotte · ${(S.nights||[]).length} nuits · ${S.custom.length} tâches perso`);
   add('Arrière-plan pendant le test',hidden?'!!':'OK',hidden?'l’app est passée en arrière-plan : certains tests ont pu échouer':'non');
   document.removeEventListener('visibilitychange',onVis);
   D.ms=performance.now()-D.t0;D.done=true;
@@ -1104,7 +1105,7 @@ function addTaskSheet(){
   <div class="field"><span class="lbl">Heure</span>${stepper('NT','start',15,0,1425,'time','big')}<div class="chips">${[-60,60].map(v=>`<button class="chip sm" data-act="st" data-o="NT" data-k="start" data-d="${v}" data-min="0" data-max="1425">${v>0?'+':'−'}1 h</button>`).join('')}</div></div>
   <div class="field"><span class="lbl">Durée</span><div class="chips">${[15,30,45,60,90,120].map(v=>`<button class="chip ${NT.dur===v?'on':''}" data-act="pick" data-o="NT" data-k="dur" data-v="${v}" data-n="1">${durTxt(v)}</button>`).join('')}</div></div>
   <div class="field"><span class="lbl">Répéter</span><div class="chips">${[['once','Une fois'],['daily','Chaque jour'],['weekdays','Lun-ven'],['weekly','Chaque semaine']].map(([k,l])=>`<button class="chip ${NT.repeat===k?'on':''}" data-act="pick" data-o="NT" data-k="repeat" data-v="${k}">${l}</button>`).join('')}</div></div>
-  <div class="field"><span class="lbl">Points</span><div class="chips">${[10,20,30,50,80].map(v=>`<button class="chip ${NT.pts===v?'on':''}" data-act="pick" data-o="NT" data-k="pts" data-v="${v}" data-n="1">${v} pts</button>`).join('')}</div></div>
+  <div class="field"><span class="lbl">Ce que ça rapporte</span><div class="chips">${[10,20,30,50,80].map(v=>`<button class="chip ${NT.pts===v?'on':''}" data-act="pick" data-o="NT" data-k="pts" data-v="${v}" data-n="1">${M$(v,false)}</button>`).join('')}</div></div>
   <div class="field"><span class="lbl">Nom (facultatif)</span><input id="ntTitle" value="${esc(NT.title)}" placeholder="${esc(TYPE[NT.type][0])}" style="border:1.5px solid var(--line);background:var(--surface);border-radius:14px;padding:13px 14px;font-size:16px"></div>
   <button class="btn" data-act="ntSave">Ajouter à ${NT.day===today()?'aujourd’hui':fmtShort(parseYmd(NT.day))} · ${hm(NT.start)}</button>`,'add');
 }
@@ -1547,10 +1548,10 @@ function renderCagnotte(){
   const recent=[...S.ledger].reverse().slice(0,12);
   const t=today();const week=Array.from({length:7},(_,i)=>{const d=addDs(t,i-6);return{d,v:dayPts(d)}});
   const mx=Math.max(50,...week.map(x=>x.v));
-  const bars=`<svg class="chart" viewBox="0 0 320 110" role="img" aria-label="Points des 7 derniers jours">${week.map((x,i)=>{const h=Math.max(0,x.v)/mx*70;const cx=12+i*44;return`<rect x="${cx}" y="${84-h}" width="28" height="${Math.max(h,2)}" rx="6" fill="${x.d===t?'var(--money)':'var(--money-soft)'}"/><text x="${cx+14}" y="${100}" text-anchor="middle">${DAYS[dow(parseYmd(x.d))].slice(0,2)}</text>${x.v?`<text x="${cx+14}" y="${78-h}" text-anchor="middle" style="fill:var(--ink)">${x.v}</text>`:''}`}).join('')}</svg>`;
-  return`<header class="top"><div class="stack" style="gap:4px"><span class="lbl">1 point = ${nf(p.rate*100,0)} centime${p.rate>.01?'s':''}</span><h1>Cagnotte</h1></div></header>
+  const bars=`<svg class="chart" viewBox="0 0 320 110" role="img" aria-label="Gains des 7 derniers jours">${week.map((x,i)=>{const h=Math.max(0,x.v)/mx*70;const cx=12+i*44;return`<rect x="${cx}" y="${84-h}" width="28" height="${Math.max(h,2)}" rx="6" fill="${x.d===t?'var(--money)':'var(--money-soft)'}"/><text x="${cx+14}" y="${100}" text-anchor="middle">${DAYS[dow(parseYmd(x.d))].slice(0,2)}</text>${x.v?`<text x="${cx+14}" y="${78-h}" text-anchor="middle" style="fill:var(--ink)">${eur(x.v*S.profile.rate)}</text>`:''}`}).join('')}</svg>`;
+  return`<header class="top"><div class="stack" style="gap:4px"><span class="lbl">Ton argent gagné en tenant ton plan</span><h1>Cagnotte</h1></div></header>
   <section class="hero"><span class="lbl">À virer sur ton épargne · période en cours</span><span class="big" style="color:var(--money)">${eur(e)}</span>
-   <p class="meta">${nf(pts)} points depuis le ${fmtShort(new Date(S.periodStart||Date.now()))} · virement prévu le ${fmtShort(next)}</p>
+   <p class="meta">Gagné depuis le ${fmtShort(new Date(S.periodStart||Date.now()))} · virement prévu le ${fmtShort(next)}</p>
    ${payConfirm?`<div class="stack" style="gap:8px"><p class="meta">Confirme que tu as viré ${eur(e)} sur ton compte épargne depuis ton appli bancaire.</p><div class="row"><button class="btn go" data-act="payDo">C’est fait</button><button class="btn" data-act="payCancel">Annuler</button></div></div>`:
    `<button class="btn ${Date.now()>=next.getTime()?'go':''}" data-act="pay" ${e<=0?'disabled style="opacity:.5"':''}>J’ai fait le virement de ${eur(e)}</button>`}</section>
   <div class="stats" style="grid-template-columns:repeat(2,1fr)"><div class="stat money"><span class="lbl">Épargné au total</span><b>${eur(totalSaved())}</b></div><div class="stat"><span class="lbl">Dispo à dépenser</span><b>${eur(avail)}</b></div></div>
@@ -1559,8 +1560,8 @@ function renderCagnotte(){
    ${S.rewards.length?S.rewards.map(r=>{const pr=clamp(avail/r.price,0,1);return`<div class="reward"><div style="min-width:0"><b>${esc(r.label)}</b><br><span class="muted num" style="font-size:13px">${eur(Math.min(avail,r.price))} / ${eur(r.price)}</span></div>
      ${pr>=1?(buyConfirm===r.id?`<div class="row" style="gap:6px"><button class="btn money sm" data-act="buyDo" data-v="${r.id}">Confirmer</button><button class="btn ghost sm" data-act="buyCancel">Non</button></div>`:`<button class="btn money sm" data-act="buy" data-v="${r.id}">Je me l’offre</button>`):`<button class="chip sm" data-act="delReward" data-v="${r.id}" aria-label="Retirer">${ic('x')}</button>`}
      <div class="bar m"><i style="width:${pr*100}%"></i></div></div>`}).join(''):`<div class="empty">Ajoute ce que tu veux t’offrir : la barre se remplit avec ce que tu as vraiment viré sur ton épargne.</div>`}</section>
-  <section class="card" style="gap:0"><h3 style="padding-bottom:6px">Historique</h3>${recent.length?recent.map(l=>`<div class="ledger"><span style="min-width:0">${esc(l.label)}<br><span class="muted num" style="font-size:12px">${fmtShort(new Date(l.t))} · ${clock(l.t)}</span></span><span class="num" style="color:${l.pts<0?'var(--bad)':'var(--money)'}">${l.pts>0?'+':''}${l.pts}</span></div>`).join(''):`<div class="empty">Ton premier pointage apparaîtra ici.</div>`}</section>
-  <section class="flat stack" style="gap:6px"><b>Barème</b><p style="font-size:13.5px">Travail : 10 pts par service · séance de sport (photo de la salle) : 50 pts · repas validé : ${MEAL_PTS} pts · journée parfaite : +30. À l’heure : tous les points. En retard ou oubli de pointage : la moitié. Pas fait : tous les points en négatif. Non validé le lendemain : ${S.settings.malus?'compté comme pas fait':'sans malus'}. Sucre interdit : la photo du repas est refusée.</p></section>
+  <section class="card" style="gap:0"><h3 style="padding-bottom:6px">Historique</h3>${recent.length?recent.map(l=>`<div class="ledger"><span style="min-width:0">${esc(l.label)}<br><span class="muted num" style="font-size:12px">${fmtShort(new Date(l.t))} · ${clock(l.t)}</span></span><span class="num" style="color:${l.pts<0?'var(--bad)':'var(--money)'}">${M$(l.pts)}</span></div>`).join(''):`<div class="empty">Ton premier pointage apparaîtra ici.</div>`}</section>
+  <section class="flat stack" style="gap:6px"><b>Ce que tu gagnes</b><p style="font-size:13.5px">Service de travail : ${M$(10,false)} · séance de sport (photo de la salle) : ${M$(50,false)} · repas validé : ${M$(MEAL_PTS,false)} · journée parfaite : ${M$(30)}. À l’heure : la somme entière. En retard ou oubli de pointage : la moitié. Pas fait : la somme est retirée de la cagnotte. Non validé le lendemain : ${S.settings.malus?'compté comme pas fait':'rien n’est retiré'}. Sucre interdit : la photo du repas est refusée.</p></section>
   ${S.payouts.length?`<section class="card" style="gap:0"><h3 style="padding-bottom:6px">Virements</h3>${[...S.payouts].reverse().map(x=>`<div class="ledger"><span>${fmtShort(new Date(x.t))}</span><span class="num" style="color:var(--money)">${eur(x.eur)}</span></div>`).join('')}</section>`:''}`;
 }
 function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
@@ -1573,7 +1574,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.95';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.96';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
@@ -1583,7 +1584,7 @@ function settingsSheet(checked){if(!checked&&!upChecking){upChecking=true;checkU
   const tog=(k,l,d)=>`<button class="ing" data-act="setTog" data-v="${k}" style="grid-template-columns:1fr auto"><span class="nm">${l}<small>${d}</small></span><span class="ck ${s[k]?'on':''}">${s[k]?ic('check'):''}</span></button>`;
   openSheet(`<div class="grab"></div><h2>Réglages</h2>
   <div class="field"><span class="lbl">Apparence</span><div class="seg">${[['auto','Auto'],['light','Jour'],['dark','Nuit']].map(([k,l])=>`<button class="${s.theme===k?'on':''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div></div>
-  <section class="card" style="gap:0">${tog('sound','Son d’alarme','Sonne dans l’app quand un pointage est dû (app ouverte).')}${tog('ai','Vérification de la salle par l’IA','La photo doit montrer une salle de sport. Sinon : simple contrôle de luminosité.')}${tog('malus','Malus si non validé','Une tâche marquée pas fait, ou non validée le lendemain, retire tous ses points.')}</section>
+  <section class="card" style="gap:0">${tog('sound','Son d’alarme','Sonne dans l’app quand un pointage est dû (app ouverte).')}${tog('ai','Vérification de la salle par l’IA','La photo doit montrer une salle de sport. Sinon : simple contrôle de luminosité.')}${tog('malus','Malus si non validé','Une tâche marquée pas fait, ou non validée le lendemain, retire sa somme de la cagnotte.')}</section>
   <div class="field"><span class="lbl">Analyse des repas (IA)</span><div class="flat row between"><span>${aiProv()==='gemini'?'Gemini':'Claude'} · ${apiKey()?'clé enregistrée':'aucune clé'}</span><span class="stamp ${apiKey()?'st-done':'st-up'}">${apiKey()?'Active':'Inactive'}</span></div>${keySetup()}</div>
   <div class="field"><span class="lbl">Agenda</span><label for="icsIn" class="btn ghost">${ic('agenda')} Importer un agenda (.ics)</label><p class="muted" style="font-size:12.5px">${S.ics.length?`${S.ics.length} événements importés. `:''}Exporte ton planning en .ics (Google Agenda, Outlook, appli RH) puis choisis le fichier ici : les événements des 60 prochains jours deviennent des tâches à pointer.</p></div>
   <div class="field"><span class="lbl">Sauvegarde</span><div class="row" style="gap:8px"><button class="btn ghost sm" style="flex:1" data-act="bkExport">Exporter</button><label for="bkIn" class="btn ghost sm" style="flex:1">Importer</label></div><p class="muted" style="font-size:12.5px">Tes données vivent sur ce téléphone, dans Safari. Exporte une sauvegarde de temps en temps (elle va dans l’app Fichiers).</p></div>
@@ -1632,8 +1633,8 @@ function renderOnboarding(){
     <div class="field"><span class="lbl">Budget courses par semaine</span>${stepper('OB','budget',5,20,300,'eur')}<div class="chips">${[50,70,90,120].map(v=>c('budget',v,v+' €',1)).join('')}</div></div>
     <div class="field"><span class="lbl">Magasin</span><div class="chips">${Object.entries(STORES).map(([k,[n]])=>c('store',k,n)).join('')}</div></div>
     <div class="field"><span class="lbl">Jour des grandes courses</span><div class="chips">${DAYS.map((d,i)=>c('shopDay',i,d,1)).join('')}</div></div>`;
-  if(s===5)body=`<h1>Ta cagnotte</h1><p class="muted">Chaque pointage validé rapporte des points, convertis en euros. À chaque période, tu vires la somme sur ton épargne. Cet argent sert ensuite à tes récompenses.</p>
-    <div class="field"><span class="lbl">Valeur d’un point</span><div class="chips">${[.01,.02,.03,.05].map(v=>c('rate',v,nf(v*100,0)+' ct',1)).join('')}</div><p class="muted" style="font-size:13px">Une journée parfaite ≈ 200 points, soit ${eur(200*o.rate)} par jour et ${eur(200*o.rate*7)} par semaine.</p></div>
+  if(s===5)body=`<h1>Ta cagnotte</h1><p class="muted">Chaque pointage validé ajoute de l’argent à ta cagnotte. À chaque période, tu vires la somme sur ton épargne. Cet argent sert ensuite à tes récompenses.</p>
+    <div class="field"><span class="lbl">Combien tu te récompenses</span><div class="chips">${[[.01,'Léger'],[.02,'Normal'],[.03,'Généreux'],[.05,'Très généreux']].map(([v,l])=>c('rate',v,l,1)).join('')}</div><p class="muted" style="font-size:13px">Séance de sport : ${eur(50*o.rate)} · repas validé : ${eur(15*o.rate)} · service de travail : ${eur(10*o.rate)}. Une très bonne journée ≈ ${eur(200*o.rate)}, soit environ ${eur(200*o.rate*7)} par semaine.</p></div>
     <div class="field"><span class="lbl">Virement vers l’épargne</span><div class="chips">${c('payout','hebdo','Chaque semaine')}${c('payout','quinzaine','Tous les 15 jours')}</div></div>
     <div class="field"><span class="lbl">Première récompense</span><div class="chips">${Object.entries(CAT).map(([k,l])=>c('firstReward',k,l)).join('')}</div><div class="chips">${[40,60,100,150].map(v=>c('firstPrice',v,v+' €',1)).join('')}</div></div>`;
   if(s===6){const save=S.profile;S.profile=o;const tg=targets();S.profile=save;
@@ -1641,7 +1642,7 @@ function renderOnboarding(){
     <section class="card"><span class="lbl">Alimentation</span><div class="kv"><div><span class="lbl">Calories</span><b>${tg.kcal}</b></div><div><span class="lbl">Protéines</span><b>${tg.prot} g</b></div><div><span class="lbl">Perte visée</span><b>${nf(tg.lossWk,1)} kg/sem</b></div><div><span class="lbl">Objectif</span><b>${tg.weeks} sem.</b></div></div></section>
     <section class="card"><span class="lbl">Sport</span><p>${o.days.length} séances par semaine (${o.days.map(d=>DAYS[d].toLowerCase()).join(', ')}) à ${hm(o.sessionTime)}, programme de 12 semaines en 3 phases, ${o.place==='salle'?'en salle':'à la maison'}. Marche active les autres jours.</p></section>
     <section class="card"><span class="lbl">Sommeil</span><p>Réveil ${hm(o.wake)}, coucher conseillé ${hm(o.wake+1440-465)} (5 cycles).</p></section>
-    <section class="card"><span class="lbl">Cagnotte</span><p>1 point = ${nf(o.rate*100,0)} ct, virement ${o.payout==='hebdo'?'chaque semaine':'tous les 15 jours'}.</p></section>`}
+    <section class="card"><span class="lbl">Cagnotte</span><p>Séance ${eur(50*o.rate)}, repas ${eur(15*o.rate)}, virement ${o.payout==='hebdo'?'chaque semaine':'tous les 15 jours'}.</p></section>`}
   return`<div class="ob-prog" aria-hidden="true">${OB_STEPS.map((_,i)=>`<i class="${i<=s?'on':''}"></i>`).join('')}</div><span class="lbl">Étape ${s+1} sur ${OB_STEPS.length} · ${OB_STEPS[s]}</span>${body}
   <div class="ob-nav">${s>0?`<button class="btn ghost" style="width:auto" data-act="obPrev">Retour</button>`:'<span></span>'}<button class="btn" data-act="obNext">${s===OB_STEPS.length-1?'Commencer':'Continuer'}</button></div>`;
 }
