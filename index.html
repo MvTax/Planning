@@ -593,9 +593,22 @@ function targets(){
 /* ============ programme & journée ============ */
 function weekOf(ds){if(!S.programStart)return 0;const diff=Math.round((parseYmd(ds)-parseYmd(S.programStart))/864e5);if(diff<0)return 0;const w=Math.floor(diff/7)+1;return((w-1)%12)+1}
 function cycleOf(ds){if(!S.programStart)return 1;const diff=Math.round((parseYmd(ds)-parseYmd(S.programStart))/864e5);return diff<0?1:Math.floor(Math.floor(diff/7)/12)+1}
+/* jours de salle : repos et services de l'après-midi en priorité, éviter les débuts à midi */
+const SD_MEMO={};
+function dayScore(d){const b=workBlocks(d).blocks;if(!b.length)return 3;const st=b[0].s;return st>=840?2:st>=780?1:0}
+function sportDays(ds){
+  if(!S.programStart)return[];const diff=Math.floor((parseYmd(ds)-parseYmd(S.programStart))/864e5);if(diff<0)return[];
+  const b0=addDs(S.programStart,Math.floor(diff/7)*7);const D=Array.from({length:7},(_,i)=>addDs(b0,i));
+  const sc=D.map(dayScore);const n=Math.min(6,Math.max(1,(S.profile.days||[]).length||3));const key=b0+n+sc.join('');if(SD_MEMO[key])return SD_MEMO[key];
+  let best=null,bv=-1e9;const rec=(start,pick)=>{if(pick.length===n){let v=0;for(const i of pick)v+=sc[i]===0?-30:sc[i]*10;
+      for(let k=1;k<pick.length;k++)if(pick[k]-pick[k-1]===1)v-=6;const gaps=pick.slice(1).map((x,k)=>x-pick[k]);v-=gaps.length?(Math.max(...gaps)-Math.min(...gaps)):0;
+      if(v>bv){bv=v;best=pick.slice()}return}
+    for(let i=start;i<7;i++){pick.push(i);rec(i+1,pick);pick.pop()}};
+  rec(0,[]);return SD_MEMO[key]=(best||[]).map(i=>D[i]);
+}
 function sessionFor(ds){
   const w=weekOf(ds);if(w<1)return null;
-  const wd=dow(parseYmd(ds));const days=[...S.profile.days].sort((a,b)=>a-b);const i=days.indexOf(wd);if(i<0)return null;
+  const days=sportDays(ds);const i=days.indexOf(ds);if(i<0)return null;
   const n=days.length,ph=phaseOf(w);let list;
   if(ph===1)list=n<=3?(w%2?['FB_A','FB_B','FB_A']:['FB_B','FB_A','FB_B']):(w%2?['FB_A','FB_B','FB_A','CARDIO','CARDIO']:['FB_B','FB_A','FB_B','CARDIO','CARDIO']);
   else if(n<=2)list=['FB_A','FB_B'];else if(n===3)list=['FB_A','FB_B','FB_C'];else list=['UA','LA','UB','LB','CARDIO','CARDIO'];
@@ -1638,7 +1651,7 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.999';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-11-01.1';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
