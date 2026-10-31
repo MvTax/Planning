@@ -1,0 +1,339 @@
+/* REPAS : aliments, recettes, calculs nutrition, OMAD, photo du plat + IA, sucres interdits, dictée, onglet Repas (menu, courses). Propriétaire : « Agent Repas ». */
+/* ============ données : aliments & recettes ============ */
+// [nom, kcal, prot, gluc, lip /100 g, €/kg, paquet g, rayon, périssable]
+const I={
+ poulet:['Blanc de poulet',110,23,0,1.5,11.5,600,'Viandes & poissons',1],
+ boeuf5:['Bœuf haché 5 %',125,21,0,5,13,500,'Viandes & poissons',1],
+ dinde:['Escalopes de dinde',105,23,0,1.5,12,500,'Viandes & poissons',1],
+ colin:['Colin d’Alaska surgelé',80,17,0,1,9,1000,'Surgelés',0],
+ thon:['Thon au naturel (boîte)',115,26,0,1,12,140,'Épicerie',0],
+ oeuf:['Œufs',145,12.5,0.7,10,5.5,720,'Frais',1],
+ skyr:['Skyr nature',63,11,4,0.2,5,450,'Frais',1],
+ fb0:['Fromage blanc 0 %',48,7.5,4,0.2,2.4,1000,'Frais',1],
+ lait:['Lait demi-écrémé',46,3.3,4.8,1.6,1.15,1000,'Frais',0],
+ tofu:['Tofu nature',145,15,2,8.5,9,400,'Frais',1],
+ avoine:['Flocons d’avoine',370,13,60,7,2.2,1000,'Épicerie',0],
+ riz:['Riz basmati',355,8,78,1,3,1000,'Épicerie',0],
+ pates:['Pâtes complètes',350,13,65,2.5,2.2,500,'Épicerie',0],
+ lentilles:['Lentilles corail',340,24,52,1.5,3.6,500,'Épicerie',0],
+ hrouge:['Haricots rouges (boîte)',110,8,15,0.5,2.6,250,'Épicerie',0],
+ poischiche:['Pois chiches (boîte)',120,7,16,2.5,2.4,265,'Épicerie',0],
+ concasse:['Tomates concassées (boîte)',24,1.2,4,0.2,1.9,400,'Épicerie',0],
+ mais:['Maïs (boîte)',80,3,14,1.5,3.2,285,'Épicerie',0],
+ amandes:['Amandes',600,21,9,52,14,200,'Épicerie',0],
+ huile:['Huile d’olive',900,0,0,100,9,1000,'Épicerie',0],
+ pain:['Pain complet',245,10,42,3.5,4,500,'Épicerie',0],
+ tortilla:['Tortillas complètes',300,9,48,7,6,370,'Épicerie',0],
+ patate:['Patates douces',86,1.6,20,0.1,2.8,1000,'Fruits & légumes',1],
+ pdt:['Pommes de terre',77,2,17,0.1,1.6,2500,'Fruits & légumes',0],
+ courgette:['Courgettes',17,1.2,2.5,0.3,2.8,1000,'Fruits & légumes',1],
+ poivron:['Poivrons',26,1,5,0.3,4,500,'Fruits & légumes',1],
+ tomate:['Tomates',18,0.9,3.5,0.2,3,1000,'Fruits & légumes',1],
+ oignon:['Oignons',40,1.1,9,0.1,2,1000,'Fruits & légumes',0],
+ banane:['Bananes',90,1.1,21,0.3,2,1000,'Fruits & légumes',1],
+ pomme:['Pommes',52,0.3,12,0.2,2.6,1000,'Fruits & légumes',1],
+ brocoli:['Brocoli surgelé',34,2.8,4.5,0.4,2.8,1000,'Surgelés',0],
+ hverts:['Haricots verts surgelés',31,1.8,5,0.2,2.6,1000,'Surgelés',0],
+ wok:['Légumes pour wok surgelés',35,2,5,0.3,3.2,1000,'Surgelés',0],
+ epinards:['Épinards hachés surgelés',23,2.9,1.4,0.4,2.6,1000,'Surgelés',0],
+ fruitsR:['Fruits rouges surgelés',45,1,8,0.4,6,750,'Surgelés',0]
+};
+const PANTRY=['huile','riz','pates','avoine','lentilles','amandes','pdt','oignon','colin','brocoli','hverts','wok','epinards','fruitsR'];
+const VRAC=['tomate','pomme','banane','courgette','poivron','patate'];
+const MEAT=['poulet','boeuf5','dinde'];
+const DAIRY=['skyr','fb0','lait'];
+const R=[
+ {id:'b1',slot:'b',n:'Bol skyr, avoine & fruits rouges',t:5,ing:[['skyr',250],['avoine',50],['fruitsR',100],['amandes',15]],steps:['Mets le skyr dans un bol.','Ajoute les flocons et les fruits rouges encore surgelés (ils décongèlent en 5 min).','Parsème d’amandes concassées.']},
+ {id:'b2',slot:'b',n:'Omelette 3 œufs & pain complet',t:10,ing:[['oeuf',180],['pain',60],['tomate',100],['huile',5]],steps:['Bats les œufs avec sel et poivre.','Cuis 3 min à feu moyen dans la poêle huilée.','Sers avec le pain grillé et la tomate en tranches.']},
+ {id:'b3',slot:'b',n:'Overnight oats protéinés',t:5,ing:[['avoine',60],['lait',200],['fb0',150],['banane',100]],steps:['La veille : mélange avoine, lait et fromage blanc dans un bocal.','Ferme et mets au frigo.','Le matin : ajoute la banane en rondelles.']},
+ {id:'b4',slot:'b',n:'Tartines œufs brouillés & fromage blanc',t:8,ing:[['pain',70],['oeuf',120],['fb0',150],['pomme',150]],steps:['Brouille les œufs à feu doux en remuant.','Pose-les sur le pain grillé.','Fromage blanc et pomme à côté.']},
+ {id:'s1',slot:'s',n:'Fromage blanc & banane',t:2,ing:[['fb0',250],['banane',100]],steps:['Coupe la banane dans le fromage blanc. Cannelle si tu aimes.']},
+ {id:'s2',slot:'s',n:'Œufs durs & pomme',t:2,ing:[['oeuf',120],['pomme',150]],steps:['Prépare 6 œufs durs le dimanche (10 min d’ébullition), garde-les au frigo 5 jours.']},
+ {id:'s3',slot:'s',n:'Skyr & amandes',t:1,ing:[['skyr',200],['amandes',15]],steps:['Skyr + amandes. Facile à emporter au travail.']},
+ {id:'m1',slot:'m',k:'meat',n:'Poulet, riz & brocoli',t:25,batch:1,ing:[['poulet',170],['riz',70],['brocoli',200],['huile',10]],steps:['Lance le riz (12 min).','Coupe le poulet en dés, saisis 6-7 min avec l’huile, paprika, sel.','Brocoli à la vapeur ou au micro-ondes 6 min.','Batch : fais 3 portions, garde-les 3 jours au frigo.']},
+ {id:'m2',slot:'m',k:'meat',n:'Chili con carne léger',t:30,batch:1,ing:[['boeuf5',140],['hrouge',120],['riz',60],['poivron',80],['concasse',150],['oignon',50],['huile',5]],steps:['Fais revenir oignon et poivron 5 min.','Ajoute le bœuf, émiette, 5 min.','Tomates, haricots rincés, cumin, paprika : 15 min à feu doux.','Sers avec le riz. Encore meilleur le lendemain.']},
+ {id:'m3',slot:'m',k:'fish',n:'Colin, patate douce & haricots verts',t:30,ing:[['colin',200],['patate',250],['hverts',200],['huile',10]],steps:['Patate douce en cubes au four 25 min à 200 °C avec la moitié de l’huile.','Colin au four les 12 dernières minutes, citron et herbes.','Haricots verts à la poêle avec le reste de l’huile.']},
+ {id:'m4',slot:'m',k:'meat',n:'Wok de dinde aux légumes',t:15,ing:[['dinde',160],['wok',250],['riz',70],['huile',10]],steps:['Lance le riz.','Dinde en lamelles, saisis 4 min à feu vif.','Ajoute les légumes surgelés, sauce soja, gingembre : 6 min.']},
+ {id:'m5',slot:'m',k:'meat',n:'Pâtes complètes bolognaise',t:25,batch:1,ing:[['boeuf5',130],['pates',80],['concasse',200],['courgette',150],['oignon',50]],steps:['Oignon et courgette râpée à la poêle 5 min.','Ajoute le bœuf, puis les tomates, origan : 15 min.','Pâtes al dente, mélange.']},
+ {id:'m6',slot:'m',k:'fish',n:'Salade de pâtes au thon',t:15,batch:1,ing:[['thon',140],['pates',70],['mais',80],['tomate',150],['huile',10]],steps:['Cuis les pâtes, rince à l’eau froide.','Mélange thon égoutté, maïs, tomates, huile, vinaigre.','Se garde 2 jours : parfait en boîte repas.']},
+ {id:'m7',slot:'m',k:'meat',n:'Curry de poulet aux pois chiches',t:25,batch:1,ing:[['poulet',150],['poischiche',120],['concasse',150],['epinards',150],['riz',50],['oignon',50],['huile',5]],steps:['Oignon + curry en poudre 3 min.','Poulet en dés 5 min, puis tomates, pois chiches, épinards : 12 min.','Sers avec le riz.']},
+ {id:'m8',slot:'m',k:'meat',n:'Wraps poulet croquants',t:15,ing:[['tortilla',120],['poulet',140],['poivron',80],['tomate',80],['fb0',60]],steps:['Poulet en lamelles épicées, 6 min à la poêle.','Sauce : fromage blanc, ail, ciboulette, sel.','Garnis les tortillas avec poivron et tomate crus, roule.']},
+ {id:'m9',slot:'m',k:'veg',n:'Dahl de lentilles & œufs mollets',t:25,batch:1,ing:[['lentilles',80],['concasse',150],['epinards',150],['oeuf',120],['oignon',50],['huile',5]],steps:['Oignon + curry + cumin 3 min.','Lentilles rincées, tomates, 300 ml d’eau : 15 min.','Ajoute les épinards. Œufs mollets 6 min à part.']},
+ {id:'m10',slot:'m',k:'veg',only:1,n:'Tofu sauté, riz & légumes',t:20,ing:[['tofu',200],['riz',70],['wok',250],['huile',10]],steps:['Tofu en cubes, sèche-le, dore-le 8 min.','Ajoute les légumes et sauce soja : 6 min.','Sers avec le riz.']},
+ {id:'m11',slot:'m',k:'veg',n:'Omelette pommes de terre & salade',t:25,ing:[['oeuf',180],['pdt',250],['tomate',150],['huile',10]],steps:['Pommes de terre en fines tranches, 12 min à la poêle couverte.','Verse les œufs battus, 6 min à feu doux.','Salade de tomates à côté.']},
+ {id:'m12',slot:'m',k:'meat',n:'Bœuf, pommes de terre rôties & haricots',t:35,ing:[['boeuf5',150],['pdt',300],['hverts',200],['huile',10]],steps:['Pommes de terre en quartiers au four 30 min à 210 °C.','Steaks hachés 3 min par face.','Haricots verts à la poêle.']}
+];
+const RID=Object.fromEntries(R.map(r=>[r.id,r]));
+function macros(ing,f=1){let k=0,p=0,c=0,l=0;for(const[id,g]of ing){const x=I[id];const q=g*f/100;k+=x[1]*q;p+=x[2]*q;c+=x[3]*q;l+=x[4]*q}return{k,p,c,l}}
+
+/* ============ calculs nutrition ============ */
+function age(){const b=new Date(S.profile.birth);if(isNaN(b))return 30;const n=new Date();let a=n.getFullYear()-b.getFullYear();if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate()))a--;return clamp(a,14,90)}
+function curWeight(){const w=S.weights;return w.length?w[w.length-1].kg:S.profile.weight}
+const ACT={bureau:[1.375,'Bureau, assis'],debout:[1.5,'Debout souvent'],physique:[1.65,'Travail physique']};
+const PACE={doux:[.15,'Doux'],standard:[.2,'Standard'],rapide:[.25,'Soutenu']};
+function targets(){
+  const p=S.profile,w=curWeight(),a=age();
+  const bmr=10*w+6.25*p.height-5*a+(p.sex==='f'?-161:5);
+  const tdee=bmr*(ACT[p.activity]||ACT.bureau)[0];
+  const def=(PACE[p.pace]||PACE.standard)[0];
+  let kcal=Math.round(tdee*(1-def)/10)*10;kcal=Math.max(kcal,p.sex==='f'?1400:1700);
+  const goal=Math.min(p.goal,w);
+  let prot=Math.round(Math.min(2*goal,1.7*w));if(p.omad)prot=Math.round(Math.min(prot,1.5*goal));
+  const fat=Math.round(.8*goal);
+  const carb=Math.max(80,Math.round((kcal-prot*4-fat*9)/4));
+  const lossWk=(tdee-kcal)*7/7700;
+  const weeks=lossWk>0?Math.ceil((w-p.goal)/lossWk):0;
+  return{bmr,tdee,kcal,prot,fat,carb,lossWk,weeks,water:Math.min(4,Math.round(w*.035*10)/10),bmi:w/((p.height/100)**2),w,a,def};
+}
+
+
+/* ---------- repas : photo du plat analysée par l'IA ---------- */
+const SLOT_L={b:'Petit-déjeuner',l:'Déjeuner',s:'Collation',d:'Dîner',o:'Repas unique',o1:'Plat principal',o2:'Complément',o3:'Dessert protéiné'};
+const SLOT_END={b:630,l:930,s:1110,d:1380};
+const slotShares=()=>S.profile.omad?{o:1}:S.profile.meals===4?{b:.25,l:.32,s:.12,d:.31}:{b:.28,l:.38,d:.34};
+function guessSlot(){if(S.profile.omad)return'o';const h=nowMin(),four=S.profile.meals===4;return h<630?'b':h<930?'l':(four&&h<1110)?'s':'d'}
+
+function mealCard(){
+  const p=S.profile,tg=targets(),t=today(),ms=(S.meals||{})[t]||[];const k=ms.reduce((a,m)=>a+m.kcal,0),pr=ms.reduce((a,m)=>a+m.prot,0);const n=nowMin();
+  let info='',canEat=true;
+  if(p.omad){const o=omadInfo(t),y=omadInfo(addDs(t,-1));
+    if(o){const st=o.done?'done':n<o.start-30?'before':n<=o.end+30?'open':'late';canEat=st!=='before'&&!(st==='late'&&o.done);
+      info=`<div class="row between" style="background:var(--surface);border-radius:14px;padding:10px 12px;gap:10px"><span><b>Fenêtre ${hm(o.start)} → ${hm(o.end)}</b>${o.t.moved?'<br><span class="muted" style="font-size:12px">décalée autour de ton travail</span>':''}</span><span class="pill p-${o.done?'done':st==='open'?'run':st==='late'?'due':'up'}">${o.done?'Repas pris à '+clock(o.first.t):st==='open'?'Ouverte':st==='late'?'Pas encore mangé':'Dans '+durTxt(o.start-n)}</span></div>
+      ${!o.done&&st==='late'?`<div class="banner"><span class="grow">Ta fenêtre est passée et tu n’as pas mangé. Ne saute pas ton seul repas : prends-le maintenant (${M$(OMAD_PTS/2,false)} au lieu de ${M$(OMAD_PTS,false)}).</span></div>`:''}
+      ${!o.done&&y&&!y.done&&y.t.ds>=ymd(new Date(S.since))?`<p class="muted" style="font-size:13px">Hier tu n’as pas mangé : fais un repas complet aujourd’hui, sans doubler les portions.</p>`:''}
+      ${st==='before'?`<p class="muted" style="font-size:13px">En attendant : eau, café ou thé sans sucre.</p>`:''}`}}
+  else{const skip=Object.keys(slotShares()).filter(s=>n>SLOT_END[s]&&!ms.some(m=>m.slot===s));
+    if(skip.length)info=`<p class="muted" style="font-size:13px">${skip.map(s=>SLOT_L[s]).join(', ')} : pas pointé, donc pas mangé. Les calories sont reportées sur tes prochains repas.</p>`}
+  return`<section class="sec"><div class="sec-h"><span class="badge k-meal">${ic('repas')}</span><h2>${p.omad?'Repas unique · OMAD':'Repas du jour'}</h2><span class="pill k-meal" style="--pc:var(--c-meal)">${ms.length}/${mealsN()} ${p.omad?'repas':'validés'}</span></div>
+   <div class="card tint k-meal" style="gap:14px">
+   <div class="row between" style="align-items:flex-end"><div><span class="big-n" style="color:var(--c-meal)">${Math.round(k)}</span><span class="muted"> / ${tg.kcal} kcal</span></div><div style="text-align:right"><span class="big-n" style="font-size:22px;color:var(--c-money)">${Math.round(pr)}</span><span class="muted"> / ${tg.prot} g prot.</span></div></div>
+   <div class="stack" style="gap:6px"><div class="bar" style="height:10px"><i style="width:${clamp(k/tg.kcal,0,1)*100}%;background:${k>tg.kcal*1.05?'var(--bad)':'var(--c-meal)'}"></i></div><div class="bar" style="height:10px"><i style="width:${clamp(pr/tg.prot,0,1)*100}%;background:var(--c-money)"></i></div></div>
+   ${info}
+   ${ms.length?`<div class="stack" style="gap:0;background:var(--surface);border-radius:14px;padding:4px 12px">${ms.map(m=>`<div class="ledger"><span style="min-width:0"><b>${SLOT_L[m.slot]||'Repas'}</b> · ${esc(m.nom)}<br><span class="muted num" style="font-size:12px">${clock(m.t)}${m.tries>1?' · validé au '+m.tries+'e essai':''}</span></span><span class="num">${Math.round(m.kcal)} kcal</span></div>`).join('')}</div>`:''}
+   ${canEat?`<button class="btn btn-meal" data-act="meal">${ic('cam')} Photographier mon plat</button>`:''}</div></section>`;
+}
+let MEAL=null,mealTok=0;
+
+function openMeal(){
+  if(!started()){openSheet(`<div class="grab"></div><span class="lbl">Bientôt</span><h2>Ça commence demain</h2><p class="muted">Les pointages de repas démarrent le dimanche 1er novembre.</p><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}
+  if(S.profile.omad){const o=omadInfo(today()),n=nowMin();
+    if(o&&n<o.start-30){openSheet(`<div class="grab"></div><span class="lbl">OMAD</span><h2>Pas encore</h2><section class="card" style="border:2px solid var(--bad);gap:8px"><span class="lbl" style="color:var(--bad)">Hors de ta fenêtre</span><p style="font-size:15px">Ton repas du jour est à <b>${hm(o.start)}</b> (dans ${durTxt(o.start-n)}). D’ici là : eau, café ou thé sans sucre.</p></section><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}
+    if(o&&o.done&&n>o.end+30){openSheet(`<div class="grab"></div><span class="lbl">OMAD</span><h2>Repas déjà pris</h2><section class="card" style="border:2px solid var(--bad);gap:8px"><span class="lbl" style="color:var(--bad)">Hors de ta fenêtre</span><p style="font-size:15px">Tu as mangé à ${clock(o.first.t)}. Prochain repas demain vers ${hm(o.start)}. Eau, café ou thé sans sucre sont OK.</p></section><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}}
+  warmAI();MEAL={slot:guessSlot(),tries:[],state:'idle',notes:[],asks:0,answer:'',picks:[],askMode:'voice'};mealSheet();if(aiReady())try{$('#mealCam').click()}catch(e){}}
+function mealSheet(){
+  const M=MEAL;if(!M)return;
+  if(!aiReady()){openSheet(`<div class="grab"></div><h2>Activer l’analyse des plats</h2>${keySetup()}`,'meal');return}
+  const chips=Object.keys(slotShares()).map(k=>`<button class="chip sm ${M.slot===k?'on':''}" data-act="mealSlot" data-v="${k}">${SLOT_L[k]}</button>`).join('');
+  const img=M.img?`<img src="${M.img}" alt="Ton plat" style="width:100%;max-height:260px;object-fit:cover;border-radius:16px">`:'';
+  let body='';const r=M.res;const n=M.tries.length;
+  if(M.state==='busy')body=`${img}<div class="row" style="justify-content:center;padding:8px"><span class="spin"></span><span class="muted">Analyse${n?' du plat corrigé':''}… <span class="num" id="aiT">0,0 s</span></span></div><p class="muted" style="font-size:12.5px;text-align:center">Garde l’app ouverte pendant l’analyse.</p>`;
+  else if(M.state==='retry')body=`${img}<div class="banner info"><span class="grow">Analyse interrompue quand l’app est passée en arrière-plan. Elle repart toute seule maintenant.</span></div>`;
+  else if(M.state==='error')body=`${img}<div class="banner bad"><span class="grow">${esc(M.err)}</span></div>${M.cv?`<button class="btn" data-act="mealRetry">Réessayer avec la même photo</button>`:''}<label for="mealCam" class="btn ghost">${ic('cam')} Reprendre la photo</label>`;
+  else if(M.state==='ask'){
+    const sug=[...new Set([...(M.askSug||[]),'Mayonnaise','Fromage','Sauce','Beurre'])].slice(0,10);
+    body=`${img}<section class="card" style="gap:12px"><span class="lbl">Question</span><h3 style="font-size:18px;text-wrap:balance">${esc(M.askQ||'Qu’est-ce qu’il y a dedans ?')}</h3>
+      ${M.askMode==='voice'?`<button class="mic ${M.listening?'on':''}" data-act="voice">${ic('mic')} ${M.listening?'Je t’écoute… touche pour arrêter':M.answer?'Reparler':'Répondre à la voix'}</button>
+        ${M.answer||M.listening?`<textarea id="ansIn" class="ans" placeholder="Ta réponse apparaît ici">${esc(M.answer)}</textarea>`:''}
+        <button class="describe" data-act="askText">${ic('pen')} Décrire les ingrédients</button>`:
+       `<div class="chips">${sug.map(x=>`<button class="chip ${M.picks.includes(x)?'on':''}" data-act="pickIng" data-v="${esc(x)}">${esc(x)}</button>`).join('')}</div>
+        <textarea id="ansIn" class="ans" placeholder="Ex. : poulet, crudités, sauce blanche, pain baguette">${esc(M.answer)}</textarea>
+        <button class="describe" data-act="askVoice">${ic('mic')} Répondre à la voix plutôt</button>`}
+      ${M.voiceErr?`<p class="muted" style="font-size:13px">${esc(M.voiceErr)}</p>`:''}
+      ${M.askMode==='text'||M.answer||M.picks.length?`<button class="btn" data-act="sendAns">${ic('arrow')} Envoyer et analyser</button>`:''}</section>
+      <button class="btn ghost" data-act="skipAns">Je ne sais pas · estime au mieux</button>`;
+  }
+  else if(M.state==='result'&&r){
+    const ok=r.verdict==='valide',np=r.verdict==='pas_un_plat';
+    if(r.verdict==='interdit'){body=`<div style="position:relative">${img}<span class="bigstamp" style="color:var(--bad);bottom:12px;font-size:22px">INTERDIT</span></div>
+      <section class="card" style="gap:8px;border:2px solid var(--bad)"><span class="lbl" style="color:var(--bad)">Sucre interdit</span><h3 style="font-size:20px">${esc(r.bad.charAt(0).toUpperCase()+r.bad.slice(1))}</h3><p style="font-size:14.5px">Pas de sucre rapide dans ton plan. Remplace-le, puis reprends la photo.</p></section>
+      <label for="mealCam" class="btn danger" style="font-size:17px;padding:18px">${ic('cam')} Reprendre la photo</label>`;}
+    else
+    body=`<div style="position:relative">${img}<span class="bigstamp" style="color:${ok?'var(--money)':np?'var(--muted)':'var(--warn)'};bottom:12px">${ok?'VALIDÉ':np?'PAS UN PLAT':'À CORRIGER'}</span></div>
+     ${np?`<p>${esc(r.resume||'Je ne vois pas de repas sur cette photo.')}</p>`:`
+     <div class="row between" style="align-items:baseline;gap:12px"><h3 style="min-width:0">${esc(r.plat||'Ton plat')}</h3><span class="num" style="font-size:30px;white-space:nowrap">${Math.round(r.kcal||0)}<small class="muted" style="font-size:13px"> kcal</small></span></div>
+     <p class="num muted" style="font-size:13.5px">Protéines ${Math.round(r.prot||0)} g · Glucides ${Math.round(r.gluc||0)} g · Lipides ${Math.round(r.lip||0)} g</p>
+     ${r.resume?`<p style="font-size:15px">${esc(r.resume)}</p>`:''}
+     ${!ok&&(r.fix||[]).length?`<section class="card" style="gap:10px"><span class="lbl" style="color:var(--warn)">Avant de manger</span>${r.fix.map(x=>`<div class="row" style="gap:10px;align-items:flex-start"><b style="color:var(--warn);flex:none">→</b><span>${esc(x)}</span></div>`).join('')}</section>`:''}`}
+     ${M.ms?`<p class="muted num" style="font-size:12px;text-align:right">Analysé en ${nf(M.ms/1000,1)} s</p>`:''}
+     ${ok?`<div class="banner info">${ic('check')}<span class="grow">Repas pointé${M.gain?' · '+M$(M.gain)+' dans la cagnotte':' · complément ajouté'}${n>1?' · validé au '+n+'e essai':''}</span></div><button class="btn" data-act="close">Bon appétit</button>`:
+      `<label for="mealCam" class="btn">${ic('cam')} ${np?'Reprendre la photo':'J’ai corrigé · reprendre la photo'} (essai ${n+1})</label>${np?'':`<button class="describe" data-act="fixIng">${ic('pen')} Ce n’est pas ça · préciser les ingrédients</button>`}<button class="btn ghost" data-act="close">Annuler ce repas</button>`}`;
+  }else body=`<div class="cam" style="border-radius:20px;width:100%;height:180px">${ic('repas')}</div><label for="mealCam" class="btn">${ic('cam')} Photographier mon plat</label><p class="muted" style="font-size:12.5px;text-align:center">Tout le plat dans le cadre, vu d’au-dessus, avec la boisson. L’IA estime les calories et te dit quoi ajuster.</p>`;
+  openSheet(`<div class="grab"></div><div class="stack" style="gap:8px"><span class="lbl">Pointage repas${n?' · essai '+(M.state==='busy'?n+1:n):''}</span><h2>${M.state==='result'&&r&&r.verdict==='valide'?'C’est validé':M.state==='ask'?'Une précision':'Mon plat'}</h2>${(M.state==='idle'||!n)&&M.state!=='ask'?`<div class="chips">${chips}</div>`:''}</div>${body}`,'meal');
+}
+
+function mealPrompt(){
+  const M=MEAL,p=S.profile,tg=targets(),sh=slotShares();const ms=(S.meals||{})[today()]||[];
+  const ek=ms.reduce((a,m)=>a+m.kcal,0);
+  const n=nowMin(),left=Math.max(0,tg.kcal-ek),rem=Object.keys(sh).filter(k=>k===M.slot||(!ms.some(m=>m.slot===k)&&n<(SLOT_END[k]||1440))).reduce((a,k)=>a+sh[k],0)||sh[M.slot];
+  const ep=ms.reduce((a,m)=>a+m.prot,0),omad=p.omad;
+  const bk=omad?Math.round(Math.max(300,left)/10)*10:Math.round(Math.max(150,Math.min(tg.kcal*sh[M.slot]*1.6,left*sh[M.slot]/rem))/10)*10;const bp=omad?Math.max(25,Math.round((tg.prot-ep)*.8)):Math.round(tg.prot*sh[M.slot]/rem*.85);
+  const diet=(p.diet||[]).map(d=>({halal:'halal',sansporc:'sans porc',vegetarien:'végétarien',pescetarien:'pescétarien',sanslactose:'sans lactose'}[d])).join(', ');
+  const last=M.tries[M.tries.length-1];const noQ=M.notes.length||M.asks>=2||M.skipped;
+  return`Coach nutrition. Photo d’un plat avant de le manger. Objectif : perte de gras, garder le muscle.${diet?' Régime '+diet+'.':''}
+${omad?`Mode OMAD : c’est le SEUL repas de la journée${ms.length?' (complément du repas déjà validé)':''}. Il doit être copieux et complet : protéines, légumes, féculents. Budget ${bk} kcal : valide entre 75 % et 115 % du budget ; s’il en manque beaucoup, demande d’ajouter (fix). Au moins ${bp} g de protéines.`:`Repas : ${SLOT_L[M.slot]}. Budget ${bk} kcal (±20 %), au moins ${bp} g de protéines.`}${last?` Essai précédent : ${Math.round(last.kcal||0)} kcal, demandé : ${(last.fix||[]).join(' ; ')||'rien'}. Si c’est corrigé et dans le budget, valide.`:''}${M.notes.length?` Ingrédients donnés par l’utilisateur (à utiliser) : ${M.notes.join(' ; ')}.`:''}${M.skipped?' Ingrédients cachés inconnus : prends les plus probables.':''}
+Estime les quantités et les calories. Verdict v :
+"interdit" EN PRIORITÉ si tu vois un aliment ou une boisson très sucré, même en petite quantité : crêpe, gaufre, donut, muffin, cookie, brownie, gâteau, pâtisserie, viennoiserie sucrée, bonbons, chocolat, glace, chantilly, pâte à tartiner, céréales sucrées, soda ou canette sucrée, jus de fruits, ice tea, limonade, sirop, boisson énergisante, milkshake, frappé, café ou thé sucré aromatisé, bubble tea. Mets l’élément dans bad. Les boissons zéro sucre sont autorisées ;
+"ok" si dans le budget et protéines correctes ;
+"fix" sinon, avec 1 ou 2 actions courtes et chiffrées dans fix (ex. « Retire la moitié des frites (100 g) », « Ajoute 150 g de skyr ») ;
+"non" si ce n’est pas de la nourriture${noQ?'':` ;
+"q" si des ingrédients caloriques sont cachés (sandwich fermé, burger, sauce…) : q = question courte, sug = 4 à 6 ingrédients probables`}.
+Pas de correction pour moins de 10 % d’écart. msg = 1 phrase courte, tutoiement. ing = 3 à 5 ingrédients vus.
+JSON uniquement : {"v":"","bad":"","plat":"","kcal":0,"p":0,"g":0,"l":0,"msg":"","fix":[],"ing":[]${noQ?'':',"q":"","sug":[]'}}`;
+}
+function normAI(o){const V={ok:'valide',fix:'a_corriger',non:'pas_un_plat',q:'question',interdit:'interdit'};const L=a=>Array.isArray(a)?a.map(x=>String(x)).filter(Boolean):[];
+  return{verdict:V[o.v]||o.verdict||'a_corriger',plat:o.plat||'',kcal:+o.kcal||0,prot:+(o.p??o.prot)||0,gluc:+(o.g??o.gluc)||0,lip:+(o.l??o.lip)||0,resume:o.msg||o.resume||'',fix:L(o.fix).slice(0,3),ing:L(o.ing).slice(0,6),question:o.q||o.question||'',suggestions:L(o.sug||o.suggestions).slice(0,8),bad:o.bad?String(o.bad):''}}
+/* sucres interdits : contrôle par l'app, en plus de l'IA */
+const SUGAR=[['crepe','crêpe'],['gaufre','gaufre'],['donut','donut'],['doughnut','donut'],['muffin','muffin'],['pancake','pancake'],['brioche','brioche'],['cookie','cookie'],['brownie','brownie'],['gateau','gâteau'],['patisserie','pâtisserie'],['viennoiserie','viennoiserie'],['pain au chocolat','pain au chocolat'],['chocolatine','chocolatine'],['eclair','éclair'],['macaron','macaron'],['churros','churros'],['cupcake','cupcake'],['cheesecake','cheesecake'],['tiramisu','tiramisu'],['bonbon','bonbons'],['confiserie','confiserie'],['chocolat','chocolat'],['nutella','pâte à tartiner'],['pate a tartiner','pâte à tartiner'],['glace','glace'],['creme glacee','glace'],['sorbet','sorbet'],['sundae','glace'],['chantilly','chantilly'],['creme fouettee','chantilly'],['milkshake','milkshake'],['milk shake','milkshake'],['frappe','frappé'],['frappuccino','frappuccino'],['bubble tea','bubble tea'],['soda','soda'],['coca','soda'],['cola','soda'],['fanta','soda'],['sprite','soda'],['oasis','soda'],['orangina','soda'],['schweppes','soda'],['ice tea','ice tea'],['iced tea','ice tea'],['the glace','ice tea'],['lipton','ice tea'],['limonade','limonade'],['canette','canette'],['red bull','boisson énergisante'],['monster','boisson énergisante'],['energy drink','boisson énergisante'],['boisson energisante','boisson énergisante'],['sirop','sirop'],['jus de fruit','jus de fruits'],['jus d orange','jus de fruits'],['jus de pomme','jus de fruits'],['nectar','jus de fruits'],['smoothie','smoothie'],['cereales chocolat','céréales sucrées'],['cereales sucrees','céréales sucrées'],['caramel','caramel'],['confiture','confiture'],['sucre','sucre'],['dessert','dessert']];
+const SUGAR_OK=/z[eé]ro|light|sans sucre|diet|max|chocolat noir 8|chocolat noir 9|0 ?%/;
+const normTxt=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/['’-]/g,' ');
+function sugarHit(r,notes){const txt=normTxt([r.plat,...(r.ing||[]),r.bad,...(notes||[])].join(' | '));
+  for(const[k,lbl]of SUGAR){const re=new RegExp('(^|[^a-z])'+k+'(s|x)?([^a-z]|$)');if(re.test(txt)){
+    if(['soda','ice tea','limonade','canette','boisson énergisante','sucre'].includes(lbl)&&SUGAR_OK.test(txt))continue;
+    if(k==='sucre'&&/sans sucre|sucre ajoute 0|peu sucre/.test(txt))continue;return lbl}}
+  return null}
+
+async function aiVision(cv,prompt){return normAI(await aiRaw(cv,prompt,400))}
+
+async function handleMealPhoto(file){
+  const M=MEAL;if(!M||!file)return;
+  if(Date.now()-(file.lastModified||Date.now())>5*6e4){M.state='error';M.err='Cette photo ne vient pas d’être prise. Utilise l’appareil photo, pas la galerie.';mealSheet();return}
+  let im;try{im=await loadImg(file)}catch(e){M.state='error';M.err='Impossible de lire la photo.';mealSheet();return}
+  const sc=Math.min(1,640/Math.max(im.width,im.height));const cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
+  M.img=cv.toDataURL('image/jpeg',.7);M.cv=cv;return analyzeMeal();
+}
+async function analyzeMeal(){
+  const M=MEAL;if(!M||!M.cv)return;stopVoice();M.state='busy';M.res=null;M.ms=0;M.hid=false;mealSheet();const tok=++mealTok;const t0=performance.now();
+  const tick=setInterval(()=>{const el=$('#aiT');if(el)el.textContent=nf((performance.now()-t0)/1000,1)+' s'},100);
+  try{const r=await aiVision(M.cv,mealPrompt());clearInterval(tick);M.ms=Math.round(performance.now()-t0);if(MEAL!==M||tok!==mealTok)return;
+    const hit=r.verdict==='interdit'?(r.bad||sugarHit(r,M.notes)||'sucre'):sugarHit(r,M.notes);
+    if(hit&&r.verdict!=='pas_un_plat'){r.verdict='interdit';r.bad=r.bad||hit;M.res=r;M.tries.push({verdict:'interdit',kcal:r.kcal,fix:[]});M.state='result';logE('repas','interdit : '+r.bad);mealSheet();return}
+    if(r.verdict==='question'&&M.asks<2&&!M.skipped){M.asks++;M.askQ=r.question;M.askSug=(r.suggestions||[]).map(x=>String(x).slice(0,30)).slice(0,8);M.answer='';M.picks=[];M.askMode='voice';M.voiceErr='';M.state='ask';mealSheet();return}
+    if(r.verdict==='question')r.verdict='a_corriger';
+    M.res=r;M.tries.push({verdict:r.verdict,kcal:r.kcal,fix:r.fix});M.state='result';
+    if(r.verdict==='valide'){const ds=today();S.meals=S.meals||{};(S.meals[ds]=S.meals[ds]||[]).push({id:'m'+Date.now().toString(36),t:Date.now(),slot:M.slot,nom:String(r.plat||'Repas').slice(0,60),kcal:+r.kcal||0,prot:+r.prot||0,gluc:+r.gluc||0,lip:+r.lip||0,tries:M.tries.length});
+      const nm=nowMin(),o=S.profile.omad?omadInfo(ds):null;const first=S.meals[ds].length===1;M.gain=o?(first?(nm<=o.end+30?OMAD_PTS:Math.round(OMAD_PTS/2)):0):MEAL_PTS;
+      if(M.gain)addPts(M.gain,(o&&nm>o.end+30?'Repas en retard · ':'Repas validé · ')+String(r.plat||SLOT_L[M.slot]).slice(0,40),'meal');checkPerfect(ds);save();render()}
+  }catch(e){clearInterval(tick);if(MEAL!==M)return;
+    if(e&&e.bg&&(M.bgRetry||0)<2){M.bgRetry=(M.bgRetry||0)+1;M.hid=false;if(document.hidden){M.state='retry';mealSheet();return}logE('ai','relance automatique après arrière-plan');return analyzeMeal()}
+    M.state='error';M.err=e&&e.message?e.message:'L’analyse a échoué. Réessaie.'}
+  mealSheet();
+}
+/* dictée vocale (Safari : reconnaissance vocale d'Apple) */
+let REC=null;
+function stopVoice(){if(REC){try{REC.stop()}catch(e){}REC=null}if(MEAL)MEAL.listening=false}
+function toggleVoice(){
+  const M=MEAL;if(!M)return;if(M.listening){stopVoice();mealSheet();return}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){M.askMode='text';M.voiceErr='La dictée de l’app n’est pas disponible ici : touche le micro du clavier pour dicter.';mealSheet();setTimeout(()=>$('#ansIn')?.focus(),60);return}
+  const rec=new SR();REC=rec;rec.lang='fr-FR';rec.interimResults=true;rec.continuous=true;let fin=M.answer||'';
+  rec.onresult=e=>{let tmp='';for(let i=e.resultIndex;i<e.results.length;i++){const x=e.results[i];if(x.isFinal)fin=(fin+' '+x[0].transcript).trim();else tmp+=x[0].transcript}
+    M.answer=fin;const el=$('#ansIn');if(el)el.value=(fin+' '+tmp).trim();else if(fin||tmp){M.answer=(fin+' '+tmp).trim();mealSheet()}};
+  rec.onerror=e=>{if(REC!==rec)return;M.voiceErr=e.error==='not-allowed'||e.error==='service-not-allowed'?'Micro ou dictée refusés : autorise le micro pour ce site (aA → Réglages du site) et active Siri et Dictée dans Réglages.':e.error==='no-speech'?'Je n’ai rien entendu. Réessaie ou décris par écrit.':'La dictée a coupé. Réessaie ou décris par écrit.'};
+  rec.onend=()=>{if(REC===rec)REC=null;M.listening=false;if(MEAL===M&&M.state==='ask')mealSheet()};
+  try{rec.start();M.listening=true;M.voiceErr=''}catch(e){M.voiceErr='Impossible de démarrer la dictée.'}mealSheet();
+}
+
+
+
+/* ---------- REPAS ---------- */
+function dietOK(r){const d=S.profile.diet||[];if(r.only&&!d.includes('vegetarien')&&!d.includes('pescetarien'))return false;if(d.includes('vegetarien')&&r.k&&r.k!=='veg')return false;if(d.includes('pescetarien')&&r.k==='meat')return false;return true}
+function mealsFor(ds){
+  const p=S.profile,tg=targets(),w=Math.max(0,weekOf(ds)),wd=dow(parseYmd(ds));
+  const M=R.filter(r=>r.slot==='m'&&dietOK(r)),B=R.filter(r=>r.slot==='b'),SN=R.filter(r=>r.slot==='s');
+  const off=(w*4+cycleOf(ds)*3)%M.length;const Lp=[0,0,1,1,2,2,3],Dp=[1,2,2,3,3,0,0];
+  const L=M[(Lp[wd]+off)%M.length];let D=M[(Dp[wd]+off)%M.length];if(D===L)D=M[(Dp[wd]+off+1)%M.length];
+  let sh,out;
+  if(p.omad){sh={o1:.6,o2:.25,o3:.15};out=[{slot:'o1',label:'Plat principal',r:D},{slot:'o2',label:'Complément',r:B[(wd+w)%B.length]},{slot:'o3',label:'Dessert protéiné',r:SN[(wd+w)%SN.length]}]}
+  else{sh=p.meals===4?{b:.25,l:.32,s:.12,d:.31}:{b:.28,l:.38,d:.34};out=[{slot:'b',label:'Petit-déjeuner',r:B[(wd+w)%B.length]},{slot:'l',label:'Déjeuner',r:L}];
+  if(p.meals===4)out.push({slot:'s',label:'Collation',r:SN[(wd+w)%SN.length]});
+  out.push({slot:'d',label:'Dîner',r:D})}
+  for(const m of out){const base=macros(m.r.ing).k;m.f=Math.round(clamp(tg.kcal*sh[m.slot]/base,.6,p.omad?2.6:1.8)*20)/20;m.mac=macros(m.r.ing,m.f)}
+  return out;
+}
+const ingName=id=>{const d=S.profile.diet||[];let n=I[id][0];if(d.includes('halal')&&MEAT.includes(id))n+=' (halal)';if(d.includes('sanslactose')&&DAIRY.includes(id))n+=' sans lactose';return n};
+const qtyTxt=(id,g)=>id==='oeuf'?`${Math.max(1,Math.round(g/60))} œuf${Math.round(g/60)>1?'s':''}`:id==='lait'?`${Math.round(g/10)*10} ml`:`${Math.max(5,Math.round(g/5)*5)} g`;
+function renderRepas(){
+  const sub=V.foodSub;
+  return`<header class="top"><div class="stack" style="gap:4px"><span class="lbl">Alimentation · courses · budget</span><h1>Repas</h1></div></header>
+  <div class="seg">${[['menu','Menu'],['courses','Courses'],['cibles','Objectifs']].map(([k,l])=>`<button class="${sub===k?'on':''}" data-act="foodSub" data-v="${k}">${l}</button>`).join('')}</div>
+  ${sub==='courses'?renderCourses():sub==='cibles'?renderCibles():renderMenu()}`;
+}
+function renderMenu(){
+  const t=today(),ds=V.foodDate||t,mon=mondayOf(ds),tg=targets();const ms=mealsFor(ds);
+  const tot=ms.reduce((a,m)=>({k:a.k+m.mac.k,p:a.p+m.mac.p,c:a.c+m.mac.c,l:a.l+m.mac.l}),{k:0,p:0,c:0,l:0});
+  const strip=Array.from({length:7},(_,i)=>{const d=addDs(mon,i);return`<button class="wd ${d===ds?'on':''}" data-act="foodDate" data-v="${d}">${DAYS[i]}<b>${parseYmd(d).getDate()}</b><i class="dot"></i></button>`}).join('');
+  const bar=(l,v,tv,u,c)=>`<div class="macro"><span class="muted">${l}</span><div class="bar ${c}"><i style="width:${clamp(v/tv,0,1)*100}%"></i></div><span class="num">${Math.round(v)}/${tv} ${u}</span></div>`;
+  const tasks=dayTasks(ds);
+  return`<div class="week">${strip}</div>
+  <section class="card"><div class="row between"><span class="lbl">${ds===t?'Aujourd’hui':fmtDate(parseYmd(ds))}</span><span class="num muted" style="font-size:13px">${Math.round(tot.k)} / ${tg.kcal} kcal</span></div>
+   ${bar('Protéines',tot.p,tg.prot,'g','m')}${bar('Glucides',tot.c,tg.carb,'g','')}${bar('Lipides',tot.l,tg.fat,'g','w')}${tot.p<tg.prot-10?`<p class="muted" style="font-size:13px">Il manque ${Math.round(tg.prot-tot.p)} g de protéines : ajoute ${Math.round((tg.prot-tot.p)/11*100/50)*50} g de skyr ou de fromage blanc dans la journée.</p>`:''}</section>
+  <section class="card" style="gap:0">${ms.map(m=>{const tk=tasks.find(x=>x.slot===m.slot);const pu=tk?S.punches[tk.key]:null;
+    return`<button class="meal" data-act="recipe" data-ds="${ds}" data-slot="${m.slot}"><span class="lbl">${m.label}${tk?' · '+hm(tk.start):''}</span><span style="min-width:0"><b>${esc(m.r.n)}</b><br><span class="muted num" style="font-size:13px">${Math.round(m.mac.k)} kcal · ${Math.round(m.mac.p)} g prot. · ${m.r.t} min</span></span>${pu&&pu.out?'<span class="stamp st-done">Mangé</span>':ic('arrow')}</button>`}).join('')}</section>
+  <section class="flat"><p style="font-size:13.5px">Eau : <b class="num">${nf(tg.water,1)} L</b> par jour. Légumes à volonté en plus (ils ne sont pas comptés). Les plats marqués batch se cuisinent en 2-3 portions le jour des courses.</p></section>`;
+}
+function recipeSheet(ds,slot){
+  const m=mealsFor(ds).find(x=>x.slot===slot);if(!m)return;const tk=dayTasks(ds).find(x=>x.slot===slot);const pu=tk?S.punches[tk.key]||{}:{};const isT=ds===today();
+  openSheet(`<div class="grab"></div><span class="lbl">${m.label} · ${fmtShort(parseYmd(ds))}${m.r.batch?' · batch':''}</span><h2>${esc(m.r.n)}</h2>
+   <div class="kv"><div><span class="lbl">Énergie</span><b>${Math.round(m.mac.k)} kcal</b></div><div><span class="lbl">Protéines</span><b>${Math.round(m.mac.p)} g</b></div></div>
+   <section class="card" style="gap:0"><span class="lbl" style="margin-bottom:6px">Pour 1 portion (ajustée à tes besoins)</span>${m.r.ing.map(([id,g])=>`<div class="ing" style="grid-template-columns:1fr auto"><span class="nm">${esc(ingName(id))}</span><span class="num">${qtyTxt(id,g*m.f)}</span></div>`).join('')}</section>
+   <section class="stack" style="gap:8px"><span class="lbl">Préparation · ${m.r.t} min</span><ol class="steps">${m.r.steps.map(s=>`<li>${s}</li>`).join('')}</ol></section>
+   ${isT&&tk?(pu.out?'':pu.in?`<button class="btn" data-act="punch" data-k="${tk.key}" data-w="out">${ic('check')} Pointer la fin du repas</button>`:`<button class="btn" data-act="punch" data-k="${tk.key}" data-w="in">${ic('check')} Pointer le début du repas</button>`):''}`);
+}
+const STORES={lidl:['Lidl',.9],aldi:['Aldi',.89],leclerc:['E.Leclerc',.95],auchan:['Auchan',.98],inter:['Intermarché',1],superu:['Super U',1],carrefour:['Carrefour',1.03],monop:['Monoprix',1.22]};
+const SWAP={poulet:'Cuisses de poulet désossées : environ −30 %',boeuf5:'Moitié bœuf, moitié lentilles dans le chili et la bolognaise : −35 %',colin:'Colin ou merlu en promo surgelé, ou thon en boîte',skyr:'Fromage blanc 0 % à la place du skyr : −50 %',fruitsR:'Bananes ou pommes à la place des fruits rouges : −60 %',amandes:'Cacahuètes nature : −55 %',tofu:'Œufs à la place du tofu : −40 %',dinde:'Poulet en gros conditionnement',tortilla:'Pain complet à la place des tortillas'};
+function shopData(){
+  const t=today();const p=S.profile;let mon;
+  if(V.shopNext==null)V.shopNext=dow(new Date())>=4;
+  mon=addDs(mondayOf(t),V.shopNext?7:0);
+  const midIdx=(p.shopDay+3)%7;const mid=addDs(mon,midIdx);
+  const big=p.shopDay===0?mon:addDs(mon,p.shopDay-7);
+  const agg={};
+  for(let i=0;i<7;i++){const ds=addDs(mon,i);for(const m of mealsFor(ds))for(const[id,g]of m.r.ing){const a=agg[id]||(agg[id]={id,g:0,g2:0});a.g+=g*m.f;if(I[id][8]&&i>midIdx)a.g2+=g*m.f}}
+  const sf=STORES[p.store][1];const lines=[];
+  const needTxt=(id,g)=>id==='oeuf'?`${Math.ceil(g/60)} œufs`:id==='lait'?`${nf(g/1000,1)} L`:g>=1000?`${nf(g/1000,1)} kg`:`${Math.max(10,Math.round(g/10)*10)} g`;
+  for(const a of Object.values(agg)){const x=I[a.id];const pantry=PANTRY.includes(a.id),vrac=VRAC.includes(a.id);
+    const push=(g,trip,packs)=>{if(g<=0)return;let cost,buy;
+      if(pantry){cost=g/1000*x[5]*sf;const pct=Math.round(g/x[6]*100);buy=x[7]==='Surgelés'?`1 sachet de ${x[6]>=1000?nf(x[6]/1000,1)+' kg':x[6]+' g'} · ${pct} % utilisé`:`stock · ${pct} % du paquet`}
+      else if(vrac){const kg=Math.max(.1,Math.ceil(g/100)/10);cost=kg*x[5]*sf;buy=`au poids · ${nf(kg,1)} kg`}
+      else{cost=packs*x[6]/1000*x[5]*sf;buy=a.id==='oeuf'?`${packs} boîte${packs>1?'s':''} de 12`:a.id==='lait'?`${packs} × 1 L`:`${packs} × ${x[6]>=1000?nf(x[6]/1000,1)+' kg':x[6]+' g'}`}
+      lines.push({id:a.id+trip,ing:a.id,trip,name:ingName(a.id),ray:x[7],need:needTxt(a.id,g),buy,cost,pantry})};
+    const total=Math.max(1,Math.ceil(a.g/x[6]-.08));
+    if(pantry||!x[8]||a.g2<=0){push(a.g,1,total);continue}
+    if(vrac){push(a.g-a.g2,1);push(a.g2,2);continue}
+    const p2=Math.round(total*a.g2/a.g);
+    if(p2<=0||p2>=total){push(a.g,p2>=total&&a.g2>=a.g?2:1,total);continue}
+    push(a.g-a.g2,1,total-p2);push(a.g2,2,p2)}
+  lines.push({id:'epices1',ing:'epices',trip:1,name:'Épices, ail, sauce soja, vinaigre',ray:'Épicerie',need:'pour la semaine',buy:'placard',cost:1.5,pantry:true});
+  const total=lines.reduce((a,l)=>a+l.cost,0);
+  return{mon,big,mid,lines,total,wk:ymd(parseYmd(mon))};
+}
+function renderCourses(){
+  const p=S.profile,d=shopData();const ck=S.shopChecked[d.wk]||{};const over=d.total>p.budget;
+  const store=STORES[p.store][0];
+  const group=trip=>{const ls=d.lines.filter(l=>l.trip===trip);const rays=[...new Set(ls.map(l=>l.ray))];
+    return rays.map(r=>`<span class="lbl" style="padding-top:12px">${r}</span>${ls.filter(l=>l.ray===r).sort((a,b)=>a.name.localeCompare(b.name)).map(l=>`<button class="ing ${ck[l.id]?'on':''}" data-act="ck" data-v="${l.id}"><span class="ck ${ck[l.id]?'on':''}">${ck[l.id]?ic('check'):''}</span><span class="nm">${esc(l.name)}<small>${l.need} · ${l.buy}</small></span><span class="num">${eur(l.cost)}</span></button>`).join('')}`).join('')};
+  const top=d.lines.filter(l=>SWAP[l.ing]).sort((a,b)=>b.cost-a.cost).slice(0,3);
+  const t1=d.lines.filter(l=>l.trip===1).reduce((a,l)=>a+l.cost,0),t2=d.total-t1;
+  return`<div class="seg"><button class="${!V.shopNext?'on':''}" data-act="shopWk" data-v="0">Cette semaine</button><button class="${V.shopNext?'on':''}" data-act="shopWk" data-v="1">Semaine prochaine</button></div>
+  <section class="card"><div class="row between"><span class="lbl">Budget · semaine du ${fmtShort(parseYmd(d.mon))}</span><span class="stamp ${over?'st-miss':'st-done'}">${over?'Dépassé':'OK'}</span></div>
+   <div class="row" style="align-items:baseline;gap:8px"><span class="num" style="font-size:38px;letter-spacing:-.03em">${eur(d.total)}</span><span class="muted">/ ${eur(p.budget)}</span></div>
+   <div class="bar ${over?'b':'m'}"><i style="width:${clamp(d.total/p.budget,0,1)*100}%"></i></div>
+   <div class="chips">${Object.entries(STORES).map(([k,[n]])=>`<button class="chip sm ${p.store===k?'on':''}" data-act="store" data-v="${k}">${n}</button>`).join('')}</div>
+   <a class="btn ghost sm" style="width:100%" href="https://www.google.com/maps/search/${encodeURIComponent(store)}" target="_blank" rel="noopener">${ic('map')} ${esc(store)} le plus proche</a>
+   <p class="muted" style="font-size:12.5px">Prix moyens estimés (France, automne 2026), ajustés selon l’enseigne. Placard et surgelés (riz, huile, légumes surgelés…) sont comptés au prorata de ce que tu consommes : la première semaine coûte un peu plus, les suivantes moins.</p></section>
+  ${over&&top.length?`<section class="card"><span class="lbl">Pour revenir dans le budget</span>${top.map(l=>`<p style="font-size:14px">${SWAP[l.ing]}</p>`).join('')}</section>`:''}
+  <section class="card" style="gap:0"><div class="row between"><h3>${ic('courses')} Grandes courses · ${fmtShort(parseYmd(d.big))}</h3><span class="num">${eur(t1)}</span></div><p class="muted" style="font-size:13px;padding-top:4px">Tout l’épicerie, les surgelés, et le frais pour lundi → ${DAYS_L[(p.shopDay+3)%7]}.</p>${group(1)}</section>
+  <section class="card" style="gap:0"><div class="row between"><h3>${ic('courses')} Petites courses · ${fmtShort(parseYmd(d.mid))}</h3><span class="num">${eur(t2)}</span></div><p class="muted" style="font-size:13px;padding-top:4px">Le frais pour la fin de semaine : il reste bon jusqu’au dimanche.</p>${group(2)}</section>`;
+}
+function renderCibles(){
+  const tg=targets(),p=S.profile;
+  return`<section class="card"><span class="lbl">Tes cibles quotidiennes</span>
+   <div class="kv"><div><span class="lbl">Calories</span><b>${tg.kcal}</b></div><div><span class="lbl">Protéines</span><b>${tg.prot} g</b></div><div><span class="lbl">Glucides</span><b>${tg.carb} g</b></div><div><span class="lbl">Lipides</span><b>${tg.fat} g</b></div><div><span class="lbl">Fibres</span><b>30-35 g</b></div><div><span class="lbl">Eau</span><b>${nf(tg.water,1)} L</b></div></div></section>
+  <section class="card"><span class="lbl">Comment c’est calculé</span>
+   <div class="ledger"><span>Métabolisme de base (Mifflin-St Jeor, ${tg.a} ans)</span><span class="num">${Math.round(tg.bmr)} kcal</span></div>
+   <div class="ledger"><span>Dépense totale · ${ACT[p.activity][1].toLowerCase()} + sport</span><span class="num">${Math.round(tg.tdee)} kcal</span></div>
+   <div class="ledger"><span>Déficit ${PACE[p.pace][1].toLowerCase()} (−${Math.round(tg.def*100)} %)</span><span class="num">−${Math.round(tg.tdee-tg.kcal)} kcal</span></div>
+   <div class="ledger"><span>Perte attendue</span><span class="num">${nf(tg.lossWk,2)} kg/sem.</span></div>
+   <p style="font-size:13.5px;padding-top:8px">Protéines à environ 2 g par kg de poids visé (${nf(p.goal,0)} kg) : c’est ce qui protège et construit le muscle pendant que tu perds du gras. Lipides à 0,8 g/kg pour les hormones. Le reste en glucides, placés surtout autour de l’entraînement. Les cibles se recalculent à chaque pesée.</p></section>
+  <section class="flat"><p style="font-size:13px">Repères généraux, pas un avis médical. Avec ${nf(tg.w,0)} kg, un bilan chez ton médecin (tension, glycémie, lipides) avant d’accélérer est une bonne idée.</p></section>`;
+}

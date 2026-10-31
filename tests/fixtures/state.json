@@ -1,0 +1,92 @@
+{
+ "v": 1,
+ "onboarded": true,
+ "since": 0,
+ "reset4": 1,
+ "reset5": 1,
+ "sleep2": 1,
+ "omadInit": 1,
+ "omadEve": 1,
+ "profile": {
+  "name": "Test",
+  "sex": "h",
+  "birth": "1995-06-15",
+  "height": 180,
+  "weight": 100,
+  "waist": 0,
+  "goal": 85,
+  "pace": "standard",
+  "activity": "debout",
+  "workDays": [
+   1,
+   2,
+   4,
+   5,
+   6
+  ],
+  "workStart": 885,
+  "workEnd": 1260,
+  "wake": 480,
+  "cycles": 4,
+  "exp": "debutant",
+  "place": "salle",
+  "days": [
+   2,
+   4,
+   6
+  ],
+  "sessionTime": 540,
+  "sessionMin": 60,
+  "injuries": [],
+  "diet": [
+   "halal"
+  ],
+  "meals": 4,
+  "omad": true,
+  "omadTime": 1260,
+  "omadWin": 120,
+  "commute": 30,
+  "budget": 70,
+  "store": "lidl",
+  "shopDay": 0,
+  "rate": 0.02,
+  "payout": "hebdo",
+  "firstReward": "vetements",
+  "firstPrice": 60
+ },
+ "programStart": "2026-11-01",
+ "custom": [],
+ "punches": {},
+ "ledger": [],
+ "payouts": [],
+ "spent": [],
+ "periodStart": 0,
+ "rewards": [],
+ "weights": [
+  {
+   "d": "2026-11-01",
+   "kg": 100
+  }
+ ],
+ "shifts": {},
+ "skips": {},
+ "missed": {},
+ "perfect": {},
+ "streakBonus": {},
+ "wakeOv": {},
+ "bedOv": {},
+ "workOv": {},
+ "lifts": {},
+ "setsDone": {},
+ "shopChecked": {},
+ "ics": [],
+ "meals": {},
+ "nights": [],
+ "settings": {
+  "theme": "auto",
+  "sound": true,
+  "selfieOut": false,
+  "ai": true,
+  "malus": true
+ }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "cadence",
+  "private": true,
+  "description": "Cadence : app de pointage personnelle (tests automatiques)",
+  "scripts": {
+    "test": "TZ=Europe/Paris node tests/run.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "24.1.3"
+  }
+}
