@@ -583,7 +583,8 @@ function dayTasks(ds){
 function dayStats(ds){
   const p=S.profile,cm=p.commute||0;const wake=wakeFor(ds),bed=S.bedOv[ds]??(wakeFor(addDs(ds,1))+1440-465);
   const bl=workBlocks(ds).blocks;const work=bl.reduce((a,b)=>a+b.e-b.s,0);const trips=bl.length?busySpans(bl,cm).length*2*cm:0;
-  const awake=Math.max(0,bed-wake);return{wake,bed,work,trips,awake,free:Math.max(0,awake-work-trips),n:bl.length};
+  let b=bed;const bad=b<wake+360||b>wake+1320;if(bad)b=wakeFor(addDs(ds,1))+1440-465;
+  const awake=Math.max(0,b-wake);return{wake,bed:b,work,trips,awake,free:Math.max(0,awake-work-trips),n:bl.length,fixed:bad};
 }
 
 function status(t){
@@ -807,8 +808,8 @@ const lsGet=(k,d)=>{try{return localStorage.getItem(k)||d}catch(e){return d}};
 const aiProv=()=>lsGet('cadence.ai','gemini');
 const apiKey=(pv)=>lsGet((pv||aiProv())==='claude'?'cadence.apikey':'cadence.gkey','');
 const aiModel=()=>lsGet('cadence.aimodel','claude-haiku-5-5');
-let GEM_MODELS=['gemini-flash-lite-latest','gemini-flash-latest'],GEM_THINK=true;
-try{const gm=localStorage.getItem('cadence.gmodel');if(gm)GEM_MODELS=[gm,...GEM_MODELS.filter(x=>x!==gm)];if(localStorage.getItem('cadence.gthink')==='0')GEM_THINK=false}catch(e){}
+let GEM_MODELS=['gemini-flash-lite-latest','gemini-3.5-flash-lite','gemini-3.1-flash-lite'];
+try{const gm=localStorage.getItem('cadence.gmodel');if(gm&&/lite/.test(gm))GEM_MODELS=[gm,...GEM_MODELS.filter(x=>x!==gm)];else localStorage.removeItem('cadence.gmodel')}catch(e){}
 /* journal technique (pour le test de l'app) */
 let LOGS=[];try{LOGS=JSON.parse(localStorage.getItem('cadence.log')||'[]')}catch(e){}
 function logE(type,msg){const d=new Date();LOGS.push(`${ymd(d)} ${clock(+d)}:${pad(d.getSeconds())} [${type}] ${String(msg).slice(0,300)}`);LOGS=LOGS.slice(-60);try{localStorage.setItem('cadence.log',JSON.stringify(LOGS))}catch(e){}}
@@ -897,31 +898,30 @@ const parseJSON=txt=>{const a=txt.indexOf('{'),b=txt.lastIndexOf('}');if(a<0)thr
 async function aiVision(cv,prompt){
   if(SAMPLE&&SAMPLE_IMG){const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.72));return normAI(await SAMPLE.json(prompt,{images:blob,modelTier:'quick',cache:false}))}
   const data=cv.toDataURL('image/jpeg',.72).split(',')[1];
-  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),20000);
-  const go=async(u,o)=>{const t0=performance.now(),hid0=document.hidden,host=u.split('/')[2],mdl=(u.match(/models\/([^:]+)/)||[])[1]||aiModel();
+  const go=async(u,o,lim)=>{const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),lim||10000);const t0=performance.now(),hid0=document.hidden,host=u.split('/')[2],mdl=(u.match(/models\/([^:]+)/)||[])[1]||aiModel();
     try{const r=await fetch(u,Object.assign({method:'POST',signal:ctl.signal},o));logE('ai',`${host} ${mdl} → HTTP ${r.status} en ${Math.round(performance.now()-t0)} ms · image ${Math.round(data.length*.75/1024)} Ko`);return r}
     catch(e){const ms=Math.round(performance.now()-t0),bg=hid0||document.hidden||(MEAL&&MEAL.hid);logE('ai',`${host} ${mdl} → ÉCHEC ${e&&e.name}: ${e&&e.message} après ${ms} ms${bg?' (app en arrière-plan)':''} · en ligne=${navigator.onLine}`);
-      const err=new Error(e&&e.name==='AbortError'?'L’analyse a pris trop de temps (plus de 20 s). Lance « Tester l’application » dans Réglages.':bg?'Analyse interrompue : l’app est passée en arrière-plan.':!navigator.onLine?'Pas de connexion internet. Réessaie dans un instant.':'La requête vers l’IA a échoué ('+(e&&e.message||'réseau')+'). Lance « Tester l’application » dans Réglages.');err.bg=bg;throw err}};
-  try{
+      const err=new Error(bg?'Analyse interrompue : l’app est passée en arrière-plan.':e&&e.name==='AbortError'?'L’IA met trop de temps à répondre. Réessaie.':!navigator.onLine?'Pas de connexion internet. Réessaie dans un instant.':'La requête vers l’IA a échoué ('+(e&&e.message||'réseau')+').');err.bg=bg;err.slow=e&&e.name==='AbortError'&&!bg;throw err}
+    finally{clearTimeout(to)}};
   if(aiProv()==='gemini'){
-    for(let tryN=0;tryN<3;tryN++){
-      const gc={temperature:.2,maxOutputTokens:400,responseMimeType:'application/json'};if(GEM_THINK)gc.thinkingConfig={thinkingBudget:0};
-      const res=await go(`https://generativelanguage.googleapis.com/v1beta/models/${GEM_MODELS[0]}:generateContent`,{headers:{'content-type':'application/json','x-goog-api-key':apiKey()},
-        body:JSON.stringify({contents:[{role:'user',parts:[{inline_data:{mime_type:'image/jpeg',data}},{text:prompt}]}],generationConfig:gc})});
-      if(res.ok){const j=await res.json();return parseJSON(((j.candidates||[])[0]?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join(''))}
+    let lastErr=null;
+    for(const mdl of GEM_MODELS){
+      let res;try{res=await go(`https://generativelanguage.googleapis.com/v1beta/models/${mdl}:generateContent`,{headers:{'content-type':'application/json','x-goog-api-key':apiKey()},
+        body:JSON.stringify({contents:[{role:'user',parts:[{inline_data:{mime_type:'image/jpeg',data}},{text:prompt}]}],generationConfig:{temperature:.2,maxOutputTokens:400,responseMimeType:'application/json'}})},9000)}
+      catch(e){if(e.slow){lastErr=e;continue}throw e}
+      if(res.ok){const j=await res.json();if(mdl!==GEM_MODELS[0]){GEM_MODELS=[mdl,...GEM_MODELS.filter(x=>x!==mdl)];try{localStorage.setItem('cadence.gmodel',mdl)}catch(e){}}
+        return parseJSON(((j.candidates||[])[0]?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join(''))}
       let m='';try{m=(await res.json()).error?.message||''}catch(e){}
       logE('ai',`détail ${res.status} : ${m}`);
-      if(res.status===400&&/think/i.test(m)&&GEM_THINK){GEM_THINK=false;try{localStorage.setItem('cadence.gthink','0')}catch(e){}continue}
-      if(res.status===404&&GEM_MODELS.length>1){GEM_MODELS.shift();continue}
-      throw new Error(res.status===400&&/key/i.test(m)||res.status===403?'Clé Gemini refusée. Vérifie-la dans Réglages → Analyse des repas.':res.status===429?'Quota gratuit atteint pour le moment. Réessaie dans une minute (ou demain).':res.status===503?'Gemini est surchargé. Réessaie dans une minute.':'Erreur de Gemini ('+res.status+'). '+m)}
-    throw new Error('Gemini ne répond pas correctement. Réessaie.');
+      if(res.status===404||res.status===500||res.status===503||(res.status===400&&!/key/i.test(m))){lastErr=new Error(res.status===503?'Gemini est surchargé. Réessaie dans une minute.':'Erreur de Gemini ('+res.status+'). '+m);continue}
+      throw new Error(res.status===400||res.status===403?'Clé Gemini refusée. Vérifie-la dans Réglages → Analyse des repas.':res.status===429?'Quota gratuit atteint pour le moment. Réessaie dans une minute (ou demain).':'Erreur de Gemini ('+res.status+'). '+m)}
+    throw lastErr||new Error('Gemini ne répond pas. Réessaie.');
   }
   const res=await go('https://api.anthropic.com/v1/messages',{headers:{'content-type':'application/json','x-api-key':apiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:aiModel(),max_tokens:400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data}},{type:'text',text:prompt}]}]})});
+    body:JSON.stringify({model:aiModel(),max_tokens:400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data}},{type:'text',text:prompt}]}]})},15000);
   if(!res.ok){let m='';try{m=(await res.json()).error?.message||''}catch(e){}
     throw new Error(res.status===401?'Clé API refusée. Vérifie-la dans Réglages → Analyse des repas.':res.status===400&&/credit/i.test(m)?'Plus de crédit sur ton compte Anthropic (Billing).':res.status===429||res.status===529?'Le service est surchargé. Réessaie dans une minute.':res.status===404?'Modèle indisponible : choisis l’autre modèle dans Réglages.':'Erreur de l’IA ('+res.status+'). '+m)}
   const j=await res.json();return parseJSON((j.content||[]).map(c=>c.text||'').join(''));
-  }finally{clearTimeout(to)}
 }
 async function handleMealPhoto(file){
   const M=MEAL;if(!M||!file)return;
@@ -990,7 +990,7 @@ async function runDiag(){
   let hasK=false;try{hasK=!!localStorage.getItem('cadence.key')}catch(e){}
   add('Clé de déchiffrement (lien #k=)',hasK?'OK':'KO',hasK?'présente':'absente : rouvre le lien complet');
   // 2. fichiers GitHub
-  await step('GitHub · version publiée',async()=>{const x=await timed('version.json?t='+Date.now());if(!x.r.ok)throw new Error('HTTP '+x.r.status);const v=JSON.parse(x.body).v;return{s:v>APP_VERSION?'!!':'OK',d:`en ligne ${v} · installée ${APP_VERSION}${v>APP_VERSION?' → force la mise à jour':''} · ${x.ms} ms`}});
+  await step('GitHub · version publiée',async()=>{const x=await timed('version.json?t='+Date.now());if(!x.r.ok)throw new Error('HTTP '+x.r.status);const v=JSON.parse(x.body).v;return{s:vNewer(v,APP_VERSION)?'!!':'OK',d:`en ligne ${v} · installée ${APP_VERSION}${vNewer(v,APP_VERSION)?' → force la mise à jour':''} · ${x.ms} ms`}});
   for(const f of ['agenda.enc.json','state.enc.json','secrets.enc.json'])await step('Fichier chiffré · '+f,async()=>{const o=await decFile(f);return{d:f==='agenda.enc.json'?`planning jusqu’au ${o.to}, ${o.shifts.length} services`:f==='secrets.enc.json'?`clé IA ${o.gkey?'présente':'absente'}`:`profil ${o.profile&&o.profile.name?'ok':'?'}`}});
   // 3. IA
   const pv=aiProv(),k=apiKey();
@@ -1004,24 +1004,24 @@ async function runDiag(){
       if(!x.r.ok)throw new Error('HTTP '+x.r.status+' '+x.body.slice(0,180));const ms=(JSON.parse(x.body).models||[]).map(m=>m.name.replace('models/','')).filter(n=>/flash/.test(n)&&!/(tts|image|audio|live|embed|native)/.test(n));
       flash=ms;return{d:`${ms.length} modèles Flash : ${ms.slice(-8).join(', ')} · ${x.ms} ms`}});
     if(D.lines[D.lines.length-1].s==='KO')await step('Gemini · liste des modèles (clé dans l’URL)',async()=>{const x=await timed(G+'?pageSize=50&key='+encodeURIComponent(k));if(!x.r.ok)throw new Error('HTTP '+x.r.status+' '+x.body.slice(0,180));return{s:'!!',d:'marche seulement avec la clé dans l’URL'}});
-    const cands=[...new Set(['gemini-flash-lite-latest','gemini-flash-latest',...flash.filter(n=>!/preview|exp/.test(n)).slice(-3)])].slice(0,5);
-    for(const m of cands)for(const think of [true,false]){
-      const L=await step(`Gemini · texte · ${m}${think?' · sans réflexion':''}`,async()=>{const body=JSON.parse(JSON.stringify(tiny));body.generationConfig={maxOutputTokens:30,temperature:0};if(think)body.generationConfig.thinkingConfig={thinkingBudget:0};
-        const x=await timed(`${G}/${m}:generateContent`,{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':k},body:JSON.stringify(body)});
-        if(!x.r.ok)throw new Error('HTTP '+x.r.status+' '+x.body.slice(0,200));return{s:x.ms>3000?'!!':'OK',d:`${x.ms} ms`,ms:x.ms}});
-      if(L.s!=='KO'){const ms=+(L.d.match(/(\d+) ms/)||[])[1];if(!best||ms<best.ms)best={m,think,ms}}
-      if(L.s!=='KO')break;
+    const cands=[...new Set(['gemini-flash-lite-latest',...flash.filter(n=>/lite/.test(n)&&!/preview|exp/.test(n)).reverse(),'gemini-flash-latest'])].slice(0,4);
+    const working=[];
+    for(const m of cands){
+      const L=await step(`Gemini · texte · ${m}`,async()=>{const body=JSON.parse(JSON.stringify(tiny));body.generationConfig={maxOutputTokens:30,temperature:0};
+        const x=await timed(`${G}/${m}:generateContent`,{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':k},body:JSON.stringify(body)},8000);
+        if(!x.r.ok)throw new Error('HTTP '+x.r.status+' '+x.body.replace(/\s+/g,' ').slice(0,160));return{s:x.ms>3000?'!!':'OK',d:`${x.ms} ms`}});
+      if(L.s!=='KO'){const ms=+(L.d.match(/(\d+) ms/)||[])[1];working.push(m);if(!best||ms<best.ms)best={m,ms}}
     }
+    if(working.length)GEM_MODELS=[...new Set([...(best?[best.m]:[]),...working.filter(x=>/lite/.test(x)),...GEM_MODELS])];
     if(best){
       let data='';try{const cv=document.createElement('canvas');cv.width=640;cv.height=480;const x=cv.getContext('2d');x.fillStyle='#e8e2d6';x.fillRect(0,0,640,480);x.fillStyle='#fff';x.beginPath();x.arc(320,240,200,0,7);x.fill();x.fillStyle='#c8963c';x.fillRect(200,170,140,90);x.fillStyle='#3a8a3a';x.beginPath();x.arc(400,280,60,0,7);x.fill();x.fillStyle='#f0e0b0';x.beginPath();x.arc(300,320,55,0,7);x.fill();
       data=cv.toDataURL('image/jpeg',.72).split(',')[1]}catch(e){add('Génération de la photo test','KO',e.message)}
-      if(data)for(let i=0;i<2;i++)await step(`Gemini · photo test ${i+1}/2 (${Math.round(data.length*.75/1024)} Ko) · ${best.m}`,async()=>{const gc={temperature:.2,maxOutputTokens:400,responseMimeType:'application/json'};if(best.think)gc.thinkingConfig={thinkingBudget:0};
+      if(data)for(let i=0;i<2;i++)await step(`Gemini · photo test ${i+1}/2 (${Math.round(data.length*.75/1024)} Ko) · ${best.m}`,async()=>{const gc={temperature:.2,maxOutputTokens:400,responseMimeType:'application/json'};
         const t=performance.now();const r=await timed(`${G}/${best.m}:generateContent`,{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':k},body:JSON.stringify({contents:[{role:'user',parts:[{inline_data:{mime_type:'image/jpeg',data}},{text:'Décris ce plat. JSON {"plat":"","kcal":0}'}]}],generationConfig:gc})});
         if(!r.r.ok)throw new Error('HTTP '+r.r.status+' '+r.body.slice(0,200));let txt='';try{txt=(JSON.parse(r.body).candidates[0].content.parts||[]).map(p=>p.text||'').join('')}catch(e){}
         return{s:r.ms>5000?'!!':'OK',d:`${r.ms} ms · réponse : ${txt.replace(/\s+/g,' ').slice(0,80)}`}});
-      try{localStorage.setItem('cadence.gmodel',best.m);localStorage.setItem('cadence.gthink',best.think?'1':'0')}catch(e){}
-      GEM_MODELS=[best.m,...GEM_MODELS.filter(x=>x!==best.m)];GEM_THINK=best.think;
-      add('Modèle retenu pour tes repas','OK',`${best.m}${best.think?' sans réflexion':''} (le plus rapide)`);
+      try{if(/lite/.test(best.m))localStorage.setItem('cadence.gmodel',best.m)}catch(e){}
+      add('Modèle retenu pour tes repas','OK',`${GEM_MODELS[0]} · secours : ${GEM_MODELS.slice(1,3).join(', ')}`);
     }else add('Modèle Gemini utilisable','KO','aucun modèle n’a répondu');
   }
   if(pv==='claude'&&k)await step('Claude · texte · '+aiModel(),async()=>{const x=await timed('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:aiModel(),max_tokens:20,messages:[{role:'user',content:'Réponds OK'}]})});if(!x.r.ok)throw new Error('HTTP '+x.r.status+' '+x.body.slice(0,200));return{s:x.ms>3000?'!!':'OK',d:x.ms+' ms'}});
@@ -1034,7 +1034,7 @@ async function runDiag(){
   add('Son (alarmes)',(window.AudioContext||window.webkitAudioContext)?'OK':'KO','');
   add('Chiffrement',crypto&&crypto.subtle?'OK':'KO','');
   // 5. logique de l'app
-  await step('Calculs de la journée',async()=>{const T=dayTasks(today()),st=dayStats(today()),tg=targets();return{d:`${T.length} éléments · travail ${durTxt(st.work)} · libre ${durTxt(st.free)} · cible ${tg.kcal} kcal / ${tg.prot} g prot.`}});
+  await step('Calculs de la journée',async()=>{const t=today(),T=dayTasks(t),st=dayStats(t),tg=targets();return{s:st.fixed?'!!':'OK',d:`${T.length} éléments · éveil ${hm(st.wake)} → ${hm(st.bed)}${S.wakeOv[t]!=null?' (réveil modifié)':''}${S.bedOv[t]!=null?' (coucher modifié '+hm(S.bedOv[t])+')':''}${st.fixed?' · coucher incohérent ignoré':''} · travail ${durTxt(st.work)} · trajets ${durTxt(st.trips)} · libre ${durTxt(st.free)} · cible ${tg.kcal} kcal / ${tg.prot} g prot.`}});
   await step('Planning de travail',async()=>{const W=workBlocks(today());const A=S.agenda;return{s:A&&A.to<today()?'!!':'OK',d:`source ${W.src}${A?' · agenda jusqu’au '+A.to:' · pas d’agenda'}`}});
   await step('Programme sport',async()=>{const w=weekOf(today());const nd=nextSessionDate(today());return{d:`semaine ${w} · prochaine séance ${nd||'?'}`}});
   add('Données',"OK",`${Object.values(S.meals||{}).reduce((a,x)=>a+x.length,0)} repas · ${S.ledger.length} lignes de points · ${(S.nights||[]).length} nuits · ${S.custom.length} tâches perso`);
@@ -1528,9 +1528,10 @@ function rewardSheet(){if(!RW)RW={cat:'vetements',price:60,label:''};
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-10-31.9';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-10-31.91';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
-const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&REMOTE_V.v>APP_VERSION);
+const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
+const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
 function forceUpdate(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}toast('Mise à jour…');setTimeout(()=>location.replace(location.pathname+'?v='+Date.now()+location.hash),300)}
 function settingsSheet(checked){if(!checked&&!upChecking){upChecking=true;checkUpdate().then(()=>{upChecking=false;if(sheetName==='settings')settingsSheet(true)})}
   const s=S.settings,p=S.profile;
