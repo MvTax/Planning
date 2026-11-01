@@ -242,6 +242,25 @@ test('sommeil : rythme 4 cycles puis 5', async () => {
   noErr(a);
 });
 
+test('sommeil : passé l’heure du coucher, le réveil part de maintenant', async () => {
+  const a = await boot({ now: '2026-11-05T03:42:00', agenda: true });
+  a.click('[data-act="tab"][data-v="sommeil"]');
+  assert.match(a.text('.hero'), /03:42/); assert.match(a.text('.hero'), /09:57/); assert.match(a.text('.hero'), /6,0 h/);
+  a.click('[data-act="cyc"][data-v="5"]');
+  assert.match(a.text('.hero'), /11:27/);
+  a.click('.hero [data-act="night"]'); assert.match(a.text('.sheet .stepper'), /11:27/);
+  noErr(a);
+});
+
+test('sommeil : jour de travail, le réveil ne dépasse pas l’heure de départ', async () => {
+  const a = await boot({ now: '2026-11-06T03:42:00', agenda: true });
+  a.ev('S.profile.cycles=6;S.profile.commute=30');
+  const s0 = a.ev('workBlocks(today()).blocks[0].s'); assert.equal(s0, 720);
+  const P = a.ev('sleepPlan()');
+  assert.equal(P.late, true); assert.equal(P.limited, true); assert.equal(P.cycles, 4); assert.equal(P.wake, 597);
+  noErr(a);
+});
+
 test('mode chevet : alarme, 5 minutes de plus, rapport', async () => {
   const a = await boot({ now: '2026-11-04T23:50:00', agenda: true });
   a.click('[data-act="tab"][data-v="sommeil"]');

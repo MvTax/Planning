@@ -135,7 +135,7 @@ function tick(){
   const t=today();if(t!==lastDay){lastDay=t;V.date=t}
   const ch=sweepMissed();if(ch)save();
   for(const x of dayTasks(t)){const st=status(x);if(st==='due'&&!alarmed[x.key]&&!(S.punches[x.key]||{}).in){alarmed[x.key]=1;if(S.settings.sound&&!NIGHT){beep();if(x.type==='reveil')ring()}}}
-  if(!sheetName&&!NIGHT&&V.tab==='jour'&&document.activeElement.tagName!=='INPUT')render();
+  if(!sheetName&&!NIGHT&&(V.tab==='jour'||V.tab==='sommeil')&&document.activeElement.tagName!=='INPUT')render();
 }
 if(S.onboarded&&!S.reset4){resetCounters();save()}
 if(S.onboarded&&!S.reset5){startFresh();save()}
