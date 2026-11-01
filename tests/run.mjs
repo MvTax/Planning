@@ -246,6 +246,8 @@ test('mode chevet : alarme, 5 minutes de plus, rapport', async () => {
   const a = await boot({ now: '2026-11-04T23:50:00', agenda: true });
   a.click('[data-act="tab"][data-v="sommeil"]');
   a.click('.hero [data-act="night"]'); assert.match(a.text('.sheet h2'), /Bonne nuit/);
+  const sh = a.$('.sheet'); a.click('.sheet [data-act="st"][data-o="NS"][aria-label="Plus"]');
+  assert.equal(a.$('.sheet'), sh, 'la fenêtre ne doit pas se recréer au réglage du réveil'); assert.match(a.text('.sheet .stepper'), /08:05/);
   a.click('[data-act="nsTog"][data-v="listen"]'); a.click('[data-act="nightGo"]'); await wait(50);
   assert.ok(a.$('.night'));
   a.ev('NIGHT.alarms[0]=Date.now()-1000;nightTick()');

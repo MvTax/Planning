@@ -54,7 +54,7 @@ function nightSheet(wake){
   if(wake!=null||!NS){const n=nowMin();NS={wake:wake!=null?wake%1440:wakeFor(n<600?today():addDs(today(),1)),listen:S.settings.nightListen!==false,motion:!!S.settings.nightMotion,dawn:S.settings.nightDawn!==false}}
   const al=[0,5,10].map(m=>hm(NS.wake+m));const p=S.profile;
   const tg=(k,l,d)=>`<button class="ing" data-act="nsTog" data-v="${k}" style="grid-template-columns:1fr auto"><span class="nm">${l}<small>${d}</small></span><span class="ck ${NS[k]?'on':''}">${NS[k]?ic('check'):''}</span></button>`;
-  openSheet(`<div class="grab"></div><span class="lbl">Mode chevet</span><h2>Bonne nuit${p.name?', '+esc(p.name):''}</h2>
+  const html=`<div class="grab"></div><span class="lbl">Mode chevet</span><h2>Bonne nuit${p.name?', '+esc(p.name):''}</h2>
   <div class="field"><span class="lbl">Réveil</span>${stepper('NS','wake',5,180,780,'time','big')}<div class="chips">${al.map((t,i)=>`<span class="stamp ${i?'st-up':'st-run'}">${i?'+'+i*5+' min · ':'1er · '}${t}</span>`).join('')}</div></div>
   <section class="card" style="gap:0">${tg('listen','Écouter mon sommeil','Ronflements, paroles, bruits et agitation. Rien n’est enregistré : seuls des compteurs restent sur ton iPhone.')}${tg('motion','Téléphone posé sur le matelas','Détecte aussi tes mouvements avec l’accéléromètre (coin du matelas, près de l’oreiller).')}${tg('dawn','Aube douce','La veilleuse se réchauffe doucement 15 min avant le réveil.')}</section>
   <section class="flat stack" style="gap:6px"><b>Avant de dormir</b><ol class="steps" style="font-size:14px">
@@ -64,7 +64,10 @@ function nightSheet(wake){
    <li>Désactive le <b>mode silencieux</b> (sinon l’alarme de l’app peut rester muette).</li>
    <li><b>Ne verrouille pas</b> l’écran : verrouillé, Safari coupe le micro et l’alarme de l’app.</li></ol></section>
   <div class="field"><span class="lbl">Filet de sécurité · alarmes iPhone</span><div class="chips">${al.map(t=>`<button class="chip sm" data-act="copy" data-v="${t}">Copier <span class="num">${t}</span></button>`).join('')}</div></div>
-  <button class="btn" data-act="nightGo">${ic('coucher')} Lancer · réveil ${al[0]}</button>`,'night');
+  <button class="btn" data-act="nightGo">${ic('coucher')} Lancer · réveil ${al[0]}</button>`;
+  /* déjà ouverte : on met à jour le contenu sur place (sinon l'animation d'ouverture se rejoue à chaque + / −) */
+  const sh=sheetName==='night'&&document.querySelector('#sheetRoot .sheet');
+  if(sh){const x=sh.querySelector('.sheet-x'),sc=sh.scrollTop;sh.innerHTML=(x?x.outerHTML:'')+html;sh.scrollTop=sc}else openSheet(html,'night');
 }
 async function openNight(){
   const o=NS;if(!o)return;unlockAudio();
