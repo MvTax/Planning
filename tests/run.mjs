@@ -268,7 +268,7 @@ test('test complet de l’app (diagnostic)', async () => {
     if (files[f]) return J(files[f]);
     if (f === 'version.json') return J({ v: '2000-01-01.1' });
     if (u.includes('/models?')) return J({ models: [{ name: 'models/gemini-flash-lite-latest' }, { name: 'models/gemini-3.5-flash-lite' }] });
-    if (u.includes('generateContent')) return J({ candidates: [{ content: { parts: [{ text: '{"ok":1}' }] } }] });
+    if (u.includes('generateContent')) return wait(u.includes('flash-lite-latest') ? 150 : 0).then(() => J({ candidates: [{ content: { parts: [{ text: '{"ok":1}' }] } }] }));
     return null; } });
   a.ev('runDiag()');
   for (let i = 0; i < 100 && !a.ev('DIAG&&DIAG.done'); i++) await wait(50);
@@ -277,7 +277,15 @@ test('test complet de l’app (diagnostic)', async () => {
   const bad = rep.split('\n').filter((l) => l.startsWith('[ÉCHEC]') && !/Son \(alarmes\)/.test(l));
   assert.deepEqual(bad, [], bad.join(' // '));
   assert.ok(a.$('[data-act="diagCopy"]'));
+  // modèles rangés du plus rapide au plus lent, et mémorisés pour les prochains repas
+  assert.equal(a.ev('GEM_MODELS[0]'), 'gemini-3.5-flash-lite');
+  assert.match(rep, /Modèle retenu pour tes repas — gemini-3\.5-flash-lite \(\d+ ms\) · secours : gemini-flash-lite-latest \(\d+ ms\)/);
+  const saved = a.w.localStorage.getItem('cadence.gmodels');
+  assert.equal(JSON.parse(saved)[0], 'gemini-3.5-flash-lite');
   noErr(a);
+  const b = await boot({ now: '2026-11-04T12:00:00', ls: { 'cadence.gmodels': saved, 'cadence.gmodel': 'gemini-3.5-flash-lite' } });
+  assert.deepEqual(JSON.parse(b.ev('JSON.stringify(GEM_MODELS)')).slice(0, 2), ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest']);
+  noErr(b);
 });
 
 test('thème du 1er Novembre : seulement ce jour-là', async () => {

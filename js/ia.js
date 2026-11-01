@@ -4,7 +4,10 @@ const aiProv=()=>lsGet('cadence.ai','gemini');
 const apiKey=(pv)=>lsGet((pv||aiProv())==='claude'?'cadence.apikey':'cadence.gkey','');
 const aiModel=()=>lsGet('cadence.aimodel','claude-haiku-5-5');
 let GEM_MODELS=['gemini-flash-lite-latest','gemini-3.5-flash-lite','gemini-3.1-flash-lite'];
-try{const gm=localStorage.getItem('cadence.gmodel');if(gm&&/lite/.test(gm))GEM_MODELS=[gm,...GEM_MODELS.filter(x=>x!==gm)];else localStorage.removeItem('cadence.gmodel')}catch(e){}
+/* ordre mémorisé : dernier modèle qui a répondu (cadence.gmodel), puis les plus rapides mesurés par le test de l'app (cadence.gmodels) */
+try{const gm=localStorage.getItem('cadence.gmodel');let gl=[];try{gl=JSON.parse(localStorage.getItem('cadence.gmodels')||'[]')}catch(e){}
+  gl=(Array.isArray(gl)?gl:[]).filter(x=>typeof x==='string'&&/lite/.test(x));if(gm&&!/lite/.test(gm))localStorage.removeItem('cadence.gmodel');
+  GEM_MODELS=[...new Set([...(gm&&/lite/.test(gm)?[gm]:[]),...gl,...GEM_MODELS])].slice(0,3)}catch(e){}
 /* journal technique (pour le test de l'app) */
 let LOGS=[];try{LOGS=JSON.parse(localStorage.getItem('cadence.log')||'[]')}catch(e){}
 function logE(type,msg){const d=new Date();LOGS.push(`${ymd(d)} ${clock(+d)}:${pad(d.getSeconds())} [${type}] ${String(msg).slice(0,300)}`);LOGS=LOGS.slice(-60);try{localStorage.setItem('cadence.log',JSON.stringify(LOGS))}catch(e){}}

@@ -49,9 +49,11 @@ async function runDiag(){
       const L=await step(`Gemini · texte · ${m}`,async()=>{const body=JSON.parse(JSON.stringify(tiny));body.generationConfig={maxOutputTokens:30,temperature:0};
         const x=await timed(`${G}/${m}:generateContent`,{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':k},body:JSON.stringify(body)},8000);
         if(!x.r.ok)throw new Error('HTTP '+x.r.status+' '+x.body.replace(/\s+/g,' ').slice(0,160));return{s:x.ms>3000?'!!':'OK',d:`${x.ms} ms`}});
-      if(L.s!=='KO'){const ms=+(L.d.match(/(\d+) ms/)||[])[1];working.push(m);if(!best||ms<best.ms)best={m,ms}}
+      if(L.s!=='KO'&&/lite/.test(m))working.push({m,ms:+(L.d.match(/(\d+) ms/)||[])[1]||9999});
     }
-    if(working.length)GEM_MODELS=[...new Set([...(best?[best.m]:[]),...working.filter(x=>/lite/.test(x)),...GEM_MODELS])];
+    // secours rangés du plus rapide au plus lent (mesuré), mémorisés pour les prochains repas
+    working.sort((a,b)=>a.ms-b.ms);best=working[0]||null;const msOf=m=>{const w=working.find(x=>x.m===m);return w?` (${w.ms} ms)`:''};
+    if(working.length){GEM_MODELS=[...new Set([...working.map(x=>x.m),...GEM_MODELS])].slice(0,3);try{localStorage.setItem('cadence.gmodels',JSON.stringify(GEM_MODELS))}catch(e){}}
     if(best){
       let data='';try{const cv=document.createElement('canvas');cv.width=640;cv.height=480;const x=cv.getContext('2d');x.fillStyle='#e8e2d6';x.fillRect(0,0,640,480);x.fillStyle='#fff';x.beginPath();x.arc(320,240,200,0,7);x.fill();x.fillStyle='#c8963c';x.fillRect(200,170,140,90);x.fillStyle='#3a8a3a';x.beginPath();x.arc(400,280,60,0,7);x.fill();x.fillStyle='#f0e0b0';x.beginPath();x.arc(300,320,55,0,7);x.fill();
       data=cv.toDataURL('image/jpeg',.72).split(',')[1]}catch(e){add('Génération de la photo test','KO',e.message)}
@@ -60,7 +62,7 @@ async function runDiag(){
         if(!r.r.ok)throw new Error('HTTP '+r.r.status+' '+r.body.slice(0,200));let txt='';try{txt=(JSON.parse(r.body).candidates[0].content.parts||[]).map(p=>p.text||'').join('')}catch(e){}
         return{s:r.ms>5000?'!!':'OK',d:`${r.ms} ms · réponse : ${txt.replace(/\s+/g,' ').slice(0,80)}`}});
       try{if(/lite/.test(best.m))localStorage.setItem('cadence.gmodel',best.m)}catch(e){}
-      add('Modèle retenu pour tes repas','OK',`${GEM_MODELS[0]} · secours : ${GEM_MODELS.slice(1,3).join(', ')}`);
+      add('Modèle retenu pour tes repas','OK',`${GEM_MODELS[0]}${msOf(GEM_MODELS[0])} · secours : ${GEM_MODELS.slice(1,3).map(m=>m+msOf(m)).join(', ')}`);
     }else add('Modèle Gemini utilisable','KO','aucun modèle n’a répondu');
   }
   if(pv==='claude'&&k)await step('Claude · texte · '+aiModel(),async()=>{const x=await timed('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:aiModel(),max_tokens:20,messages:[{role:'user',content:'Réponds OK'}]})});if(!x.r.ok)throw new Error('HTTP '+x.r.status+' '+x.body.slice(0,200));return{s:x.ms>3000?'!!':'OK',d:x.ms+' ms'}});
@@ -90,7 +92,7 @@ async function runDiag(){
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-11-01.0335';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-11-01.0339';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
