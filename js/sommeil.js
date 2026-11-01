@@ -36,9 +36,9 @@ function renderSommeil(){
    <button class="btn" data-act="alarms" data-bed="${bed}" data-wake="${wake}">${ic('bell')} Alarmes iPhone ${hm(wake)} · ${hm(wake+5)} · ${hm(wake+10)}</button></section>
   <section class="sec"><div class="sec-h"><h2>Mon rythme</h2></div>
    <div class="card" style="gap:12px">
-    <div class="seg">${[4,5,6].map(c=>`<button class="${myC===c?'on':''}" data-act="cyc" data-v="${c}">${nf(c*1.5,1)} h</button>`).join('')}</div>
+    <div class="seg">${[3,4,5,6].map(c=>`<button class="${myC===c?'on':''}" data-act="cyc" data-v="${c}">${nf(c*1.5,1)} h</button>`).join('')}</div>
     <div class="row between"><span class="muted">Réveil habituel</span><div style="width:190px">${stepper('PF','wake',15,300,720,'time')}</div></div>
-    ${myC<5?`<p class="muted" style="font-size:12.5px">6 h, c’est court pour récupérer de la musculation. Si tu es fatigué, passe à 7,5 h.</p>`:''}</div></section>
+    ${myC<5?`<p class="muted" style="font-size:12.5px">${nf(myC*1.5,1)} h, c’est court pour récupérer de la musculation. Si tu es fatigué, passe à 7,5 h.</p>`:''}</div></section>
   <section class="sec"><div class="sec-h"><h2>Mes nuits</h2></div>
    <div class="card" style="gap:12px">${last?`${hypno(last)}${nightStats(last)}`:`<p class="muted" style="font-size:14px">Lance le mode chevet ce soir : demain tu verras ta nuit (phases, ronflements, réveils).</p>`}
     ${nights.length>1?`<span class="lbl" style="padding-top:6px">7 dernières nuits</span>${sleepChart(nights)}`:''}</div></section>`;

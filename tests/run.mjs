@@ -248,6 +248,9 @@ test('sommeil : passé l’heure du coucher, le réveil part de maintenant', asy
   assert.match(a.text('.hero'), /03:42/); assert.match(a.text('.hero'), /09:57/); assert.match(a.text('.hero'), /6,0 h/);
   a.click('[data-act="cyc"][data-v="5"]');
   assert.match(a.text('.hero'), /11:27/);
+  a.click('[data-act="cyc"][data-v="3"]');
+  assert.match(a.text('.hero'), /08:27/); assert.match(a.text('.hero'), /4,5 h/);
+  a.click('[data-act="cyc"][data-v="5"]');
   a.click('.hero [data-act="night"]'); assert.match(a.text('.sheet .stepper'), /11:27/);
   noErr(a);
 });
