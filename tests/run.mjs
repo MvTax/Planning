@@ -332,7 +332,7 @@ test('test complet de l’app (diagnostic)', async () => {
     if (files[f]) return J(files[f]);
     if (f === 'version.json') return J({ v: '2000-01-01.1' });
     if (u.includes('/models?')) return J({ models: [{ name: 'models/gemini-flash-lite-latest' }, { name: 'models/gemini-3.5-flash-lite' }] });
-    if (u.includes('generateContent')) return wait(u.includes('flash-lite-latest') ? 150 : 0).then(() => J({ candidates: [{ content: { parts: [{ text: '{"ok":1}' }] } }] }));
+    if (u.includes('generateContent')) return wait(u.includes('flash-lite-latest') ? 400 : 0).then(() => J({ candidates: [{ content: { parts: [{ text: '{"ok":1}' }] } }] }));
     return null; } });
   a.ev('runDiag()');
   for (let i = 0; i < 100 && !a.ev('DIAG&&DIAG.done'); i++) await wait(50);
@@ -355,6 +355,25 @@ test('test complet de l’app (diagnostic)', async () => {
 test('pas de thème spécial le 1er novembre', async () => {
   const a = await boot({ now: '2026-11-01T10:00:00', agenda: true });
   assert.equal(a.d.documentElement.dataset.fete, undefined); assert.ok(!a.$('.fete'));
+  noErr(a);
+});
+
+test('cagnotte : le bocal se remplit avec l’argent de la période', async () => {
+  const a = await boot({ now: '2026-11-04T12:00:00', agenda: true });
+  a.ev(`S.periodStart=Date.now()-3600e3;S.ledger=[]`);
+  a.click('[data-act="tab"][data-v="cagnotte"]');
+  assert.ok(a.$('.hero .jar'), 'bocal absent'); assert.equal(a.$$('.jar .jar-new').length, 0);
+  assert.match(a.text('.hero'), /rempli à 0 %/);
+  const max = a.ev('periodMax()'); assert.ok(max > 1, 'maximum de la période');
+  a.ev(`addPts(Math.round(periodMax()*.4/S.profile.rate),'test');render()`);
+  const n1 = a.$$('.jar ellipse[fill="url(#jGold)"], .jar rect[fill="var(--bill)"]').length;
+  assert.ok(n1 > 5); assert.match(a.text('.hero'), /rempli à 4\d %/);
+  assert.ok(a.$$('.jar .jar-new').length > 0 && a.$('.jar .jar-coin'), 'les nouvelles pièces doivent tomber');
+  render: { a.ev('render()'); assert.equal(a.$$('.jar .jar-new').length, 0, 'pas de nouvelle animation sans nouveau gain'); }
+  a.ev(`addPts(Math.round(periodMax()*2/S.profile.rate),'test');render()`);
+  assert.match(a.text('.hero'), /rempli à 100 %/);
+  assert.ok(a.$$('.jar ellipse[fill="url(#jGold)"], .jar rect[fill="var(--bill)"]').length > n1);
+  assert.ok(!/\bpts\b/.test(a.text('#main')));
   noErr(a);
 });
 

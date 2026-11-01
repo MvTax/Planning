@@ -5,6 +5,7 @@
   --money:#1E8A5C; --money-soft:#E0F2E9; --warn:#A9417C; --warn-soft:#F7E6F0; --bad:#C0392F; --bad-soft:#F9E3E1;
   --night:#0B0D12; --night-ink:#E9ECF2;
   --c-work:#4A5BD4; --c-sport:#7A57C6; --c-meal:#B9517A; --c-free:#2A9486; --c-trip:#878BA0; --c-perso:#C4568A; --c-pts:#4A47C4; --c-money:#1E8A5C;
+  --gold:#E6C35A; --gold-2:#9C7A24; --gold-3:#FFF3C4; --bill:#9FD3B4; --bill-2:#2B7350; --metal:#D5D8E3; --metal-2:#878BA0; --paper:#F3EAD6; --paper-2:#8A7A5C; --ink-jar:#17181F;
   --shadow:0 1px 2px rgba(23,24,31,.04),0 12px 32px rgba(23,24,31,.07);
   --f-ui:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-num:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -15,13 +16,15 @@
   --accent:#A5AAFF; --accent-ink:#0E0F14; --accent-soft:#232547;
   --money:#5AD39A; --money-soft:#132A20; --warn:#E59AC8; --warn-soft:#2E1D2A; --bad:#FF8A80; --bad-soft:#331B1B;
   --shadow:0 1px 2px rgba(0,0,0,.45),0 12px 32px rgba(0,0,0,.28); color-scheme:dark;
-  --c-work:#93A0FF; --c-sport:#C0A6FF; --c-meal:#F29BBE; --c-free:#6AD6C8; --c-trip:#AEB2C6; --c-perso:#F6A3C7; --c-pts:#A5AAFF; --c-money:#5AD39A; } }
+  --c-work:#93A0FF; --c-sport:#C0A6FF; --c-meal:#F29BBE; --c-free:#6AD6C8; --c-trip:#AEB2C6; --c-perso:#F6A3C7; --c-pts:#A5AAFF; --c-money:#5AD39A;
+  --gold:#E9C866; --gold-2:#94731F; --gold-3:#FFF3C4; --bill:#8CC7A4; --bill-2:#24684A; --metal:#C9CCD8; --metal-2:#6E7287; --paper:#EFE4CC; --paper-2:#7E6E50; --ink-jar:#17181F; } }
 :root[data-theme="dark"]{
   --bg:#0E0F14; --surface:#16171F; --surface-2:#1D1F29; --ink:#ECEDF3; --muted:#9093A3; --line:#272936;
   --accent:#A5AAFF; --accent-ink:#0E0F14; --accent-soft:#232547;
   --money:#5AD39A; --money-soft:#132A20; --warn:#E59AC8; --warn-soft:#2E1D2A; --bad:#FF8A80; --bad-soft:#331B1B;
   --shadow:0 1px 2px rgba(0,0,0,.45),0 12px 32px rgba(0,0,0,.28); color-scheme:dark;
-  --c-work:#93A0FF; --c-sport:#C0A6FF; --c-meal:#F29BBE; --c-free:#6AD6C8; --c-trip:#AEB2C6; --c-perso:#F6A3C7; --c-pts:#A5AAFF; --c-money:#5AD39A; }
+  --c-work:#93A0FF; --c-sport:#C0A6FF; --c-meal:#F29BBE; --c-free:#6AD6C8; --c-trip:#AEB2C6; --c-perso:#F6A3C7; --c-pts:#A5AAFF; --c-money:#5AD39A;
+  --gold:#E9C866; --gold-2:#94731F; --gold-3:#FFF3C4; --bill:#8CC7A4; --bill-2:#24684A; --metal:#C9CCD8; --metal-2:#6E7287; --paper:#EFE4CC; --paper-2:#7E6E50; --ink-jar:#17181F; }
 
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px)}
 html{-webkit-text-size-adjust:100%}
@@ -207,6 +210,14 @@ p{margin:0}
 @keyframes fade{from{opacity:0}}
 
 
+/* Cagnotte : bocal qui se remplit */
+.cg-top{display:grid;grid-template-columns:minmax(0,1fr) 124px;gap:10px;align-items:center}
+.cg-pct{font-size:12.5px!important}
+.jar{width:124px;height:auto;overflow:visible;display:block}
+.jar-new{animation:jarDrop .55s cubic-bezier(.35,1.35,.55,1) both}
+@keyframes jarDrop{from{transform:translateY(-150px);opacity:0}35%{opacity:1}}
+.jar-coin{animation:jarCoin .7s cubic-bezier(.5,0,.9,.6) both}
+@keyframes jarCoin{from{transform:translateY(-30px);opacity:0}30%{opacity:1}80%{transform:translateY(22px);opacity:1}to{transform:translateY(28px);opacity:0}}
 /* micro réponse repas */
 .mic{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:20px;border-radius:20px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:17px}
 .mic .ico{width:26px;height:26px}
