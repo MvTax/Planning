@@ -423,6 +423,38 @@ svg.chart text{fill:var(--muted);font-family:var(--f-num);font-size:10px}
 .ag-fab .ico{width:28px;height:28px;stroke-width:2.2}
 
 /* ===== Agent Sommeil : ajouter ici les nouveaux styles du sommeil ===== */
+/* onglet Sommeil : mode chevet (choix des cycles) + « me réveiller à… » */
+:root{--sl-1:#2E2F7A;--sl-2:#4B2E6E}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--sl-1:#282A6E;--sl-2:#432862}}
+:root[data-theme="dark"]{--sl-1:#282A6E;--sl-2:#432862}
+.sl-hero{--hc:var(--sl-1);--hc2:var(--sl-2);gap:16px}
+.sl-cyc{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sl-cyc button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 0 10px;border-radius:16px;background:rgba(255,255,255,.14);color:#fff;transition:transform .15s,background .15s}
+.sl-cyc button b{font-size:28px;line-height:1;font-weight:700}
+.sl-cyc button small{font-size:12px;opacity:.8}
+.sl-cyc button.on{background:#fff;color:var(--sl-1)}
+.sl-cyc button:active{transform:scale(.95)}
+.sl-wake{gap:4px}
+.sl-wake .big{font-size:38px}
+.sl-wake .meta b{color:#fff}
+.sl-row2{display:flex;gap:8px}
+.sl-row2 .btn{flex:1}
+.sl-go{font-size:17px;padding-block:16px}
+.sl-step{display:grid;grid-template-columns:56px 1fr 56px;align-items:center;gap:10px;background:var(--surface-2);border-radius:18px;padding:6px}
+.sl-step button{height:52px;border-radius:14px;background:var(--surface);box-shadow:var(--shadow);font-size:24px;color:var(--ink)}
+.sl-step span{text-align:center;font-size:40px;font-weight:600;letter-spacing:-.03em;color:var(--ink)}
+.sl-beds{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sl-bed{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:14px;border-radius:18px;background:var(--surface);box-shadow:var(--shadow);color:var(--ink);text-align:left;position:relative}
+.sl-bed b{font-size:30px;line-height:1.1;font-weight:600}
+.sl-bed span:last-of-type{font-size:13px;color:var(--muted)}
+.sl-bed em{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);margin-top:4px}
+.sl-bed.best{background:var(--accent);color:var(--accent-ink)}
+.sl-bed.best span,.sl-bed.best em,.sl-bed.best .lbl{color:var(--accent-ink)}
+.sl-bed.past{opacity:.45}
+.sl-bed.past em{color:var(--muted)}
+.sl-night{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line);text-align:left;color:var(--ink);width:100%}
+.sl-night:first-child{border-top:0}
+.sl-night small{display:block;font-size:12px;color:var(--muted)}
 
 /* ===== Agent Sport : ajouter ici les nouveaux styles du sport ===== */
 

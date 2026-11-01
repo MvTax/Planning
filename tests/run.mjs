@@ -246,45 +246,44 @@ test('IA : bascule sur un modèle de secours', async () => {
   noErr(a);
 });
 
-test('sommeil : rythme 4 cycles puis 5', async () => {
-  const a = await boot({ now: '2026-11-04T12:00:00', agenda: true });
+test('sommeil : 4 cycles à 23:00 → réveil 05:15, puis « me réveiller à 08:00 »', async () => {
+  const a = await boot({ now: '2026-11-04T23:00:00', agenda: true });
   a.click('[data-act="tab"][data-v="sommeil"]');
-  assert.match(a.text('.hero'), /01:45/); assert.match(a.text('.hero'), /08:00/);
-  a.click('[data-act="cyc"][data-v="5"]');
-  assert.match(a.text('.hero'), /00:15/);
+  assert.equal(a.ev('slCyc()'), 4);
+  assert.match(a.text('.sl-wake'), /Réveil à 05:15/); assert.match(a.text('.sl-wake'), /6 h de sommeil/);
+  a.click('[data-act="slCyc"][data-v="5"]'); assert.match(a.text('.sl-wake'), /06:45/);
+  a.click('[data-act="slCyc"][data-v="4"]');
+  a.click('[data-act="slWake"]'); assert.match(a.text('.sheet h2'), /Me réveiller à/);
+  assert.match(a.text('.sl-step'), /08:00/);
+  assert.match(a.text('[data-act="slPick"][data-v="4"]'), /01:45/);
+  assert.match(a.text('[data-act="slPick"][data-v="5"]'), /00:15/);
+  assert.match(a.$('[data-act="slPick"][data-v="5"]').className, /best/, 'le coucher le plus proche sans être passé');
+  assert.match(a.$('[data-act="slPick"][data-v="6"]').className, /past/);
+  a.click('[data-act="slAt"][data-v="15"]'); assert.match(a.text('.sl-step'), /08:15/);
+  a.click('[data-act="slAt"][data-v="-15"]');
+  a.click('[data-act="slPick"][data-v="4"]');
+  assert.match(a.text('.sl-wake'), /Réveil à 08:00/); assert.match(a.text('.sl-wake'), /Au lit à 01:45/);
+  a.click('[data-act="slNow"]'); assert.match(a.text('.sl-wake'), /05:15/);
   noErr(a);
 });
 
-test('sommeil : passé l’heure du coucher, le réveil part de maintenant', async () => {
+test('sommeil : les cycles choisis lancent le mode chevet et sont mémorisés', async () => {
   const a = await boot({ now: '2026-11-05T03:42:00', agenda: true });
   a.click('[data-act="tab"][data-v="sommeil"]');
-  assert.match(a.text('.hero'), /03:42/); assert.match(a.text('.hero'), /09:57/); assert.match(a.text('.hero'), /6,0 h/);
-  a.click('[data-act="cyc"][data-v="5"]');
-  assert.match(a.text('.hero'), /11:27/);
-  a.click('[data-act="cyc"][data-v="3"]');
-  assert.match(a.text('.hero'), /08:27/); assert.match(a.text('.hero'), /4,5 h/);
-  a.click('[data-act="cyc"][data-v="5"]');
-  a.click('.hero [data-act="night"]'); assert.match(a.text('.sheet .stepper'), /11:27/);
-  noErr(a);
-});
-
-test('sommeil : jour de travail, réveil selon la durée choisie et avertissement', async () => {
-  const a = await boot({ now: '2026-11-06T03:42:00', agenda: true });
-  a.ev('S.profile.cycles=6;S.profile.commute=30');
-  const s0 = a.ev('workBlocks(today()).blocks[0].s'); assert.equal(s0, 720);
-  const P = a.ev('sleepPlan()');
-  assert.equal(P.late, true); assert.equal(P.cycles, 6); assert.equal(P.wake, 777);
-  assert.equal(P.workWake, 597); assert.equal(P.workCycles, 4);
-  a.click('[data-act="tab"][data-v="sommeil"]'); assert.match(a.text('.hero'), /12:57/); assert.match(a.text('.hero'), /au plus tard à 09:57/);
+  assert.match(a.text('.sl-wake'), /09:57/);
+  a.click('[data-act="slCyc"][data-v="3"]'); assert.match(a.text('.sl-wake'), /08:27/); assert.match(a.text('.sl-wake'), /4,5 h/);
+  a.click('[data-act="slGo"]'); assert.match(a.text('.sheet h2'), /Bonne nuit/); assert.match(a.text('.sheet .stepper'), /08:27/);
+  assert.equal(a.ev('S.profile.cycles'), 3);
+  assert.ok(!a.$('[data-act="cyc"]'), 'plus de réglages en double dans l’onglet');
   noErr(a);
 });
 
 test('mode chevet : alarme, 5 minutes de plus, rapport', async () => {
   const a = await boot({ now: '2026-11-04T23:50:00', agenda: true });
   a.click('[data-act="tab"][data-v="sommeil"]');
-  a.click('.hero [data-act="night"]'); assert.match(a.text('.sheet h2'), /Bonne nuit/);
+  a.click('[data-act="slGo"]'); assert.match(a.text('.sheet h2'), /Bonne nuit/);
   const sh = a.$('.sheet'); a.click('.sheet [data-act="st"][data-o="NS"][aria-label="Plus"]');
-  assert.equal(a.$('.sheet'), sh, 'la fenêtre ne doit pas se recréer au réglage du réveil'); assert.match(a.text('.sheet .stepper'), /08:05/);
+  assert.equal(a.$('.sheet'), sh, 'la fenêtre ne doit pas se recréer au réglage du réveil'); assert.match(a.text('.sheet .stepper'), /06:10/);
   a.click('[data-act="nsTog"][data-v="listen"]'); a.click('[data-act="nightGo"]'); await wait(50);
   assert.ok(a.$('.night'));
   a.ev('NIGHT.alarms[0]=Date.now()-1000;nightTick()');

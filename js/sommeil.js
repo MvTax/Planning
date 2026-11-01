@@ -1,48 +1,57 @@
 /* SOMMEIL : onglet Sommeil, mode chevet (veilleuse, 3 alarmes), écoute et analyse des nuits. Propriétaire : « Agent Sommeil ». */
 /* ---------- SOMMEIL ---------- */
-let SL={mode:'now',wakeAt:null};
-/* Plan de la nuit. Avant l'heure du coucher : réveil prévu (habituel ou avancé pour le travail).
-   Déjà passé l'heure du coucher : réveil = maintenant + 15 min d'endormissement + la durée choisie.
-   Jour de travail : si ce réveil dépasse l'heure de départ (début - trajet - 75 min), on prévient (workWake) sans rien imposer. */
-function sleepPlan(){
-  const p=S.profile,t=today(),n=nowMin(),C=p.cycles||5;
-  let wd=n<600?t:addDs(t,1),W=wakeFor(wd);
-  if(n<600&&n>=W){wd=addDs(t,1);W=wakeFor(wd)}
-  const nowR=wd===t?n+1440:n,WR=W+1440;/* minutes depuis minuit, la veille du réveil */
-  const plan={wd,wake:W,bed:W-sleepNeed(),asleep:W-C*90,cycles:C,late:false,early:W!==p.wake};
-  if(nowR<=WR-sleepNeed()||nowR>=WR)return plan;
-  const wR=nowR+15+C*90,b=workBlocks(wd).blocks,lim=b.length?Math.max(W,b[0].s-(p.commute||0)-75)+1440:Infinity;
-  const out={wd,wake:wR%1440,bed:n,asleep:(nowR+15)%1440,cycles:C,late:true,early:false};
-  if(wR>lim){let c=C;while(c>1&&nowR+15+c*90>lim)c--;out.workWake=Math.min(lim,nowR+15+c*90)%1440;out.workCycles=c}
-  return out;
+/* L'onglet a deux parties : 1) mode chevet (combien de cycles, ou « me réveiller à… »), 2) analyse des nuits.
+   SL.cycles : cycles choisis (par défaut S.profile.cycles) · SL.wake : réveil fixé par « me réveiller à… » (null = calcul depuis maintenant)
+   SL.wakeAt : heure réglée dans la fenêtre « me réveiller à… ». */
+let SL={mode:'now',cycles:null,wake:null,wakeAt:null};
+const slCyc=()=>SL.cycles||S.profile.cycles||4;
+const slH=c=>{const h=c*1.5;return(h%1?nf(h,1):h)+' h'};
+/* réveil si je m'endors maintenant : maintenant + 15 min d'endormissement + cycles × 90 min */
+const slWakeNow=(c,n=nowMin())=>(n+15+c*90)%1440;
+/* heure du coucher pour se réveiller à w avec c cycles : réveil − 15 min − cycles × 90 min */
+const slBedFor=(w,c)=>((w-15-c*90)%1440+1440)%1440;
+/* lignes de « me réveiller à… » : la mise en avant = coucher le plus proche de maintenant sans être passé */
+function slBedRows(w,n=nowMin()){
+  const dw=((w-n)%1440+1440)%1440||1440;
+  const rows=[6,5,4,3].map(c=>({c,bed:slBedFor(w,c),left:dw-15-c*90}));
+  let best=null;for(const r of rows)if(r.left>=0&&(!best||r.left<best.left))best=r;
+  rows.forEach(r=>{r.best=r===best;r.past=r.left<0});return rows;
 }
 function renderSommeil(){
-  const n=nowMin(),P=sleepPlan(),myC=S.profile.cycles||5;
-  const {wake,bed,asleep,early}=P,shown=P.cycles;
-  const lateTxt=P.late?' · calculé depuis maintenant':'';
+  const n=nowMin(),c=slCyc(),fixed=SL.wake!=null,wake=fixed?SL.wake:slWakeNow(c,n);
+  const sub=fixed?`Au lit à <b class="num">${hm(slBedFor(wake,c))}</b> · ${slH(c)} de sommeil`:`${slH(c)} de sommeil · endormi vers <span class="num">${hm(n+15)}</span>`;
   const nights=(S.nights||[]).filter(r=>!r.short&&r.asleep).slice(0,7).reverse().map(r=>({d:r.d,h:r.asleep/60}));
-  const last=(S.nights||[])[0];
-  const cyc=`<div class="cycles" aria-hidden="true" style="height:10px"><i class="lat" style="background:rgba(255,255,255,.25)"></i>${Array.from({length:shown},()=>'<i style="background:rgba(255,255,255,.55)"></i>').join('')}</div>`;
+  const hist=(S.nights||[]).slice(0,7);
   return`<header class="top"><div class="stack" style="gap:4px"><span class="lbl">${n<600?'Cette nuit':'Ce soir'}</span><h1>Sommeil</h1></div></header>
-  <section class="hero col" style="--hc:#2E2F7A;--hc2:#4B2E6E;gap:18px">
-   <div class="row between" style="align-items:flex-end">
-    <div class="stack" style="gap:2px"><span class="lbl">${P.late?'Couché maintenant':'Au lit'}</span><span class="big" style="font-size:40px">${hm(bed)}</span></div>
-    <span class="meta" style="padding-bottom:8px">${ic('arrow')}</span>
-    <div class="stack" style="gap:2px;text-align:right"><span class="lbl">Réveil</span><span class="big" style="font-size:40px">${hm(wake)}</span></div></div>
-   ${cyc}
-   <p class="meta">Endormi vers ${hm(asleep)} · ${shown} cycle${shown>1?'s':''} · ${nf(((wake-asleep)%1440+1440)%1440/60,1)} h${early?' · réveil avancé pour ton travail':''}${lateTxt}</p>
-   ${P.workWake!=null?`<p class="meta"><b>Attention, tu travailles :</b> pour partir à l’heure, lève-toi au plus tard à ${hm(P.workWake)} (${P.workCycles} cycle${P.workCycles>1?'s':''}).</p>`:''}
-   <button class="btn go" data-act="night" data-wake="${wake}">${ic('coucher')} Lancer le mode chevet</button>
-   <button class="btn" data-act="alarms" data-bed="${bed}" data-wake="${wake}">${ic('bell')} Alarmes iPhone ${hm(wake)} · ${hm(wake+5)} · ${hm(wake+10)}</button></section>
-  <section class="sec"><div class="sec-h"><h2>Mon rythme</h2></div>
-   <div class="card" style="gap:12px">
-    <div class="seg">${[3,4,5,6].map(c=>`<button class="${myC===c?'on':''}" data-act="cyc" data-v="${c}">${nf(c*1.5,1)} h</button>`).join('')}</div>
-    <div class="row between"><span class="muted">Réveil habituel</span><div style="width:190px">${stepper('PF','wake',15,300,720,'time')}</div></div>
-    ${myC<5?`<p class="muted" style="font-size:12.5px">${nf(myC*1.5,1)} h, c’est court pour récupérer de la musculation. Si tu es fatigué, passe à 7,5 h.</p>`:''}</div></section>
-  <section class="sec"><div class="sec-h"><h2>Mes nuits</h2></div>
-   <div class="card" style="gap:12px">${last?`${hypno(last)}${nightStats(last)}`:`<p class="muted" style="font-size:14px">Lance le mode chevet ce soir : demain tu verras ta nuit (phases, ronflements, réveils).</p>`}
-    ${nights.length>1?`<span class="lbl" style="padding-top:6px">7 dernières nuits</span>${sleepChart(nights)}`:''}</div></section>`;
+  <section class="hero col sl-hero">
+   <span class="lbl">Mode chevet · combien de cycles ?</span>
+   <div class="sl-cyc">${[3,4,5,6].map(x=>`<button class="${x===c?'on':''}" data-act="slCyc" data-v="${x}" aria-pressed="${x===c}"><b class="num">${x}</b><small>${slH(x)}</small></button>`).join('')}</div>
+   <div class="stack sl-wake"><span class="lbl">${fixed?'Réveil choisi':'Si tu t’endors maintenant'}</span><span class="big">Réveil à <span class="num">${hm(wake)}</span></span><span class="meta">${sub}</span></div>
+   <div class="sl-row2"><button class="btn" data-act="slWake" data-pop>${ic('bell')} Me réveiller à…</button>${fixed?`<button class="btn" data-act="slNow">Depuis maintenant</button>`:''}</div>
+   <button class="btn go sl-go" data-act="slGo" data-pop>${ic('coucher')} Lancer le mode chevet</button></section>
+  <section class="sec"><div class="sec-h"><h2>Analyse du sommeil</h2></div>
+   ${lastNightCard()}
+   ${nights.length>1?`<section class="card"><span class="lbl">7 dernières nuits</span>${sleepChart(nights)}</section>`:''}
+   ${hist.length>1?`<section class="card sl-hist" style="gap:0">${hist.map((r,i)=>`<button class="sl-night" data-act="slNight" data-v="${i}" data-pop><span>${fmtShort(new Date(r.start))}<small>${clock(r.start)} → ${clock(r.end)}</small></span><span class="num">${r.short?'—':durTxt(r.asleep)}</span><span class="muted num">${r.short?'courte':r.score+'/100'}</span></button>`).join('')}</section>`:''}
+  </section>`;
 }
+function slWakeSheet(){
+  if(SL.wakeAt==null)SL.wakeAt=SL.wake!=null?SL.wake:(S.profile.wake||480);
+  const w=SL.wakeAt,rows=slBedRows(w);
+  openSheet(`<div class="grab"></div><span class="lbl">Mode chevet</span><h2>Me réveiller à…</h2>
+  <div class="sl-step"><button data-act="slAt" data-v="-15" aria-label="15 min plus tôt">−</button><span class="num">${hm(w)}</span><button data-act="slAt" data-v="15" aria-label="15 min plus tard">+</button></div>
+  <p class="muted" style="font-size:14px">Endors-toi à l’une de ces heures (15 min pour t’endormir comprises). Touche celle que tu choisis.</p>
+  <div class="sl-beds">${rows.map(r=>`<button class="sl-bed${r.best?' best':''}${r.past?' past':''}" data-act="slPick" data-v="${r.c}"><span class="lbl">Au lit à</span><b class="num">${hm(r.bed)}</b><span>${r.c} cycles · ${slH(r.c)}</span>${r.best?'<em>Le plus proche</em>':r.past?'<em>Passé</em>':''}</button>`).join('')}</div>`,'slWake');
+}
+Object.assign(ACT,{
+  slCyc:(el,v)=>{SL.cycles=Number(v);render()},
+  slNow:()=>{SL.wake=null;render()},
+  slWake:()=>slWakeSheet(),
+  slAt:(el,v)=>{SL.wakeAt=((SL.wakeAt+Number(v))%1440+1440)%1440;slWakeSheet()},
+  slPick:(el,v)=>{SL.cycles=Number(v);SL.wake=SL.wakeAt;closeSheet();render()},
+  slGo:()=>{const c=slCyc(),w=SL.wake!=null?SL.wake:slWakeNow(c);S.profile.cycles=c;save();NS=null;nightSheet(w)},
+  slNight:(el,v)=>{const r=(S.nights||[])[Number(v)];if(r)nightReport(r)}
+});
 function sleepChart(n){
   const W=320,H=150,pl=26,pb=22,max=10,bw=(W-pl)/7;
   const y=h=>H-pb-(h/max)*(H-pb-8);
@@ -67,7 +76,7 @@ function beep(force,vol){if(!actx||(!S.settings.sound&&!force))return;const v=vo
 function ring(){if(ringT)return;if(NIGHT)stopListening();try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}unlockAudio();let k=0;const b=()=>{beep(!!NIGHT,Math.min(.95,.3+k*.06));k++};b();ringT=setInterval(b,1800)}
 function stopRing(){clearInterval(ringT);ringT=null}
 function nightSheet(wake){
-  if(wake!=null||!NS){NS={wake:wake!=null?wake%1440:sleepPlan().wake,listen:S.settings.nightListen!==false,motion:!!S.settings.nightMotion,dawn:S.settings.nightDawn!==false}}
+  if(wake!=null||!NS){NS={wake:wake!=null?wake%1440:slWakeNow(slCyc()),listen:S.settings.nightListen!==false,motion:!!S.settings.nightMotion,dawn:S.settings.nightDawn!==false}}
   const al=[0,5,10].map(m=>hm(NS.wake+m));const p=S.profile;
   const tg=(k,l,d)=>`<button class="ing" data-act="nsTog" data-v="${k}" style="grid-template-columns:1fr auto"><span class="nm">${l}<small>${d}</small></span><span class="ck ${NS[k]?'on':''}">${NS[k]?ic('check'):''}</span></button>`;
   const html=`<div class="grab"></div><span class="lbl">Mode chevet</span><h2>Bonne nuit${p.name?', '+esc(p.name):''}</h2>
