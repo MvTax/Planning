@@ -130,11 +130,11 @@ function render(){
 /* ============ feuilles ============ */
 let sheetName=null;
 /* fenêtre déjà ouverte : on remplace seulement son contenu (pas de nouvelle animation = pas de clignotement) */
-function openSheet(html,name){const same=sheetName===(name||'x');sheetName=name||'x';const r=$('#sheetRoot');const was=r.querySelector('.sheet');
+function openSheet(html,name){const same=sheetName===(name||'x');sheetName=name||'x';const r=$('#sheetRoot');const was=r.querySelector('.scrim:not(.out) .sheet');
   const inner=`<button class="sheet-x" data-act="close" aria-label="Fermer">${ic('x')}</button>${html}`;
   if(was){const sc=was.scrollTop;was.innerHTML=inner;was.scrollTop=same?sc:0;return}
   r.innerHTML=`<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true">${inner}</div></div>`}
-function closeSheet(){if(sheetName==='diag'&&DIAG&&!DIAG.done)return;stopVoice();$('#sheetRoot').innerHTML='';sheetName=null;MEAL=null;pending=null;NT=null;WO=null;PLW=null;RW=null;WG=null;rstConfirm=false}
+function closeSheet(){if(sheetName==='diag'&&DIAG&&!DIAG.done)return;stopVoice();const sc=$('#sheetRoot .scrim:not(.out)');if(sc){sc.classList.add('out');sc.removeAttribute('data-act');setTimeout(()=>sc.remove(),220)}sheetName=null;MEAL=null;pending=null;NT=null;WO=null;PLW=null;RW=null;WG=null;rstConfirm=false}
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
 const CTX={get PF(){return S.profile},get NS(){return NS},get OB(){return OB},get NT(){return NT},get WO(){return WO},get SL(){return SL},get RW(){return RW},get WG(){return WG}};
 function rerenderCtx(o){if(o==='PF'){save();render();if(sheetName==='settings')settingsSheet()}else if(o==='NS')nightSheet();else if(o==='OB')render();else if(o==='NT')addTaskSheet();else if(o==='WO')dayEditSheet(WO.ds);else if(o==='SL')render();else if(o==='RW')rewardSheet();else if(o==='WG')drawWeigh()}

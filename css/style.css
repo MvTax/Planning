@@ -178,14 +178,23 @@ p{margin:0}
 .tabs button.on .ico{background:var(--accent-soft);border-radius:10px;width:44px;padding:3px 10px;box-sizing:content-box;margin:0 -10px}
 
 /* sheet */
-.scrim{position:fixed;inset:0;background:rgba(8,10,14,.45);z-index:40;display:flex;align-items:flex-end;justify-content:center;animation:fade .2s}
+/* le fond sombre (::before) s'assombrit seul : la fenêtre reste opaque et glisse depuis le bas */
+.scrim{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.scrim::before{content:'';position:absolute;inset:0;background:rgba(8,10,14,.45);animation:fade .24s ease-out}
+.scrim.out{pointer-events:none}
+.scrim.out::before{animation:fadeOut .2s ease-in forwards}
+.scrim.out .sheet{animation:sheetDown .2s cubic-bezier(.4,0,1,1) forwards}
 .sheet{background:var(--bg);width:100%;max-width:560px;max-height:calc(100% - env(safe-area-inset-top,0px) - 24px);position:relative;overflow-y:auto;border-radius:26px 26px 0 0;
   padding:10px max(18px,env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));
-  display:flex;flex-direction:column;gap:16px;animation:up .26s cubic-bezier(.2,.8,.2,1)}
+  display:flex;flex-direction:column;gap:16px;animation:sheetUp .34s cubic-bezier(.32,.72,0,1);backface-visibility:hidden}
 .grab{width:40px;height:5px;border-radius:9px;background:var(--line);margin:0 auto 4px}
 .sheet-x{position:sticky;top:0;align-self:flex-end;margin:-6px -4px -50px 0;width:40px;height:40px;border-radius:50%;background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center;color:var(--ink);z-index:3;flex:none}
 .sheet-x .ico{width:20px;height:20px;stroke-width:2.2}
 @keyframes up{from{transform:translateY(40px);opacity:.4}}
+@keyframes sheetUp{from{transform:translate3d(0,100%,0)}}
+@keyframes sheetDown{to{transform:translate3d(0,100%,0)}}
+@keyframes fadeOut{to{opacity:0}}
+@keyframes toastIn{from{transform:translate(-50%,40px);opacity:0}}
 @keyframes fade{from{opacity:0}}
 
 
@@ -279,7 +288,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
 svg.chart{width:100%;height:auto;display:block}
 svg.chart text{fill:var(--muted);font-family:var(--f-num);font-size:10px}
 .empty{padding:18px;border:1.5px dashed var(--line);border-radius:16px;color:var(--muted);font-size:14px;text-align:center}
-.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:14px;font-weight:600;font-size:14px;z-index:80;animation:up .25s;max-width:calc(100% - 32px);text-align:center}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:14px;font-weight:600;font-size:14px;z-index:80;animation:toastIn .25s;max-width:calc(100% - 32px);text-align:center}
 .reward{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
 .reward:first-child{border-top:0}
 .reward .bar{grid-column:1/-1}

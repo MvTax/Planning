@@ -269,6 +269,14 @@ test('Réglages : la fenêtre ne se referme pas et ne se rouvre pas (pas de clig
   assert.ok(a.ev(`document.querySelector('#sheetRoot .sheet')===window._sh`), 'fenêtre recréée après un réglage');
   assert.match(a.text('.sheet h2'), /Réglages/);
   assert.equal(a.$$('.sheet .sheet-x').length, 1);
+  // fermeture en douceur : la fenêtre glisse puis disparaît, et une nouvelle peut s'ouvrir aussitôt
+  a.click('.sheet [data-act="close"]');
+  assert.equal(a.ev('sheetName'), null);
+  assert.ok(a.$('#sheetRoot .scrim.out'), 'pas d’animation de fermeture');
+  await wait(260);
+  assert.equal(a.$$('#sheetRoot .scrim').length, 0);
+  a.click('header [data-act="settings"]'); a.ev('closeSheet()'); a.click('header [data-act="settings"]');
+  assert.equal(a.$$('#sheetRoot .scrim:not(.out)').length, 1); assert.match(a.text('#sheetRoot .scrim:not(.out) h2'), /Réglages/);
   noErr(a);
 });
 
