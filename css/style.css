@@ -28,7 +28,7 @@
 
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px)}
 html{-webkit-text-size-adjust:100%}
-body{margin:0}
+body{margin:0;overflow-x:hidden}
 img{max-width:100%}
 [hidden]{display:none!important}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -190,6 +190,11 @@ p{margin:0}
 .sheet{background:var(--bg);width:100%;max-width:560px;max-height:calc(100% - env(safe-area-inset-top,0px) - 24px);position:relative;overflow-y:auto;border-radius:26px 26px 0 0;
   padding:10px max(18px,env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));
   display:flex;flex-direction:column;gap:16px;animation:sheetUp .34s cubic-bezier(.32,.72,0,1);backface-visibility:hidden}
+/* Onglets : arrivée de la page après un toucher ou un glissement */
+.tab-in-r{animation:tabInR .26s cubic-bezier(.2,.8,.2,1)}
+.tab-in-l{animation:tabInL .26s cubic-bezier(.2,.8,.2,1)}
+@keyframes tabInR{from{transform:translateX(56px);opacity:0}}
+@keyframes tabInL{from{transform:translateX(-56px);opacity:0}}
 /* Réglages : parties séparées */
 .set-sec{gap:12px}
 .set-h{display:flex;align-items:center;gap:10px}

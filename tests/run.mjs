@@ -333,6 +333,26 @@ test('Réglages : parties séparées, clé IA repliée quand elle marche', async
   noErr(b);
 });
 
+test('glisser à gauche / à droite pour changer d’onglet', async () => {
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true });
+  const swipe = async (sel, dx, dy = 0) => {
+    const el = a.$(sel); const ev = (type, x, y) => { const e = new a.w.Event(type, { bubbles: true, cancelable: true }); Object.defineProperty(e, 'touches', { value: type === 'touchend' ? [] : [{ clientX: x, clientY: y }] }); el.dispatchEvent(e); };
+    ev('touchstart', 200, 300); ev('touchmove', 200 + dx / 3, 300 + dy / 3); ev('touchmove', 200 + dx, 300 + dy); ev('touchend'); await wait(200);
+  };
+  assert.equal(a.ev('V.tab'), 'jour');
+  await swipe('#main h1', 60); assert.equal(a.ev('V.tab'), 'jour', 'rien avant Jour');
+  await swipe('#main h1', -120); assert.equal(a.ev('V.tab'), 'sommeil');
+  await swipe('#main h1', -120); assert.equal(a.ev('V.tab'), 'sport');
+  await swipe('#main h1', 120); assert.equal(a.ev('V.tab'), 'sommeil');
+  await swipe('#main h1', -20, 200); assert.equal(a.ev('V.tab'), 'sommeil', 'un défilement vertical ne change pas d’onglet');
+  a.ev(`openSheet('<h2>x</h2>','x')`); await swipe('#main h1', -120); assert.equal(a.ev('V.tab'), 'sommeil', 'pas de glissement sous une fenêtre'); a.ev('closeSheet()');
+  a.ev(`document.querySelector('#main').insertAdjacentHTML('beforeend','<input id="swIn">')`); await swipe('#swIn', -120); assert.equal(a.ev('V.tab'), 'sommeil', 'pas de glissement sur un champ');
+  a.click('[data-act="tab"][data-v="cagnotte"]'); assert.equal(a.ev('V.tab'), 'cagnotte'); assert.ok(a.$('#main.tab-in-r'));
+  await swipe('#main h1', -120); assert.equal(a.ev('V.tab'), 'cagnotte', 'rien après Cagnotte');
+  assert.equal(a.ev(`document.querySelector('#main').style.transform`), '');
+  noErr(a);
+});
+
 test('test complet de l’app (diagnostic)', async () => {
   const raw = webcrypto.getRandomValues(new Uint8Array(32));
   const b64u = Buffer.from(raw).toString('base64url');
