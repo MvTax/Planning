@@ -258,6 +258,20 @@ test('mode chevet : alarme, 5 minutes de plus, rapport', async () => {
   noErr(a);
 });
 
+test('Réglages : la fenêtre ne se referme pas et ne se rouvre pas (pas de clignotement)', async () => {
+  const J = (o) => ({ ok: true, status: 200, json: async () => o, text: async () => JSON.stringify(o) });
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true, fetch: (u) => u.includes('version.json') ? wait(30).then(() => J({ v: '2000-01-01.1' })) : null });
+  a.click('header [data-act="settings"]');
+  a.ev(`window._sc=document.querySelector('#sheetRoot .scrim');window._sh=document.querySelector('#sheetRoot .sheet')`);
+  await wait(120); // la vérification de mise à jour revient et rafraîchit la fenêtre
+  assert.ok(a.ev(`document.querySelector('#sheetRoot .scrim')===window._sc&&document.querySelector('#sheetRoot .sheet')===window._sh`), 'fenêtre recréée après la vérification de mise à jour');
+  a.click('[data-act="setTog"][data-v="sound"]');
+  assert.ok(a.ev(`document.querySelector('#sheetRoot .sheet')===window._sh`), 'fenêtre recréée après un réglage');
+  assert.match(a.text('.sheet h2'), /Réglages/);
+  assert.equal(a.$$('.sheet .sheet-x').length, 1);
+  noErr(a);
+});
+
 test('test complet de l’app (diagnostic)', async () => {
   const raw = webcrypto.getRandomValues(new Uint8Array(32));
   const b64u = Buffer.from(raw).toString('base64url');
