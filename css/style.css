@@ -183,7 +183,7 @@ p{margin:0}
 /* sheet */
 /* le fond sombre (::before) s'assombrit seul : la fenêtre reste opaque et glisse depuis le bas */
 .scrim{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center}
-.scrim::before{content:'';position:absolute;inset:0;background:rgba(8,10,14,.45);animation:fade .24s ease-out}
+.scrim::before{content:'';position:absolute;inset:0;background:rgba(8,10,14,.45);animation:fade .24s ease-out;opacity:var(--dim,1)}
 .scrim.out{pointer-events:none}
 .scrim.out::before{animation:fadeOut .2s ease-in forwards}
 .scrim.out .sheet{animation:sheetDown .2s cubic-bezier(.4,0,1,1) forwards}

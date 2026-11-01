@@ -238,3 +238,20 @@ Object.assign(ACT,{
     NT={type:c.type,title:c.title,day:c.date,start:c.start,dur:c.dur,pts:c.pts,repeat:c.repeat};CR=null;addTaskSheet()},
   crMore:()=>{CR={step:'listen',said:[],mode:CR&&CR.mode||'voice',text:''};if(CR.mode==='text')createSheet();else crListen()}
 });
+
+/* tirer une fenêtre vers le bas pour la fermer (seulement quand son contenu est déjà tout en haut) */
+(()=>{let P=null;
+  const busy=()=>typeof AGT!=='undefined'&&AGT&&AGT.drag;
+  document.addEventListener('touchstart',e=>{P=null;const sh=e.target.closest&&e.target.closest('#sheetRoot .scrim:not(.out) .sheet');
+    if(!sh||e.touches.length!==1||e.target.closest('input,textarea,select,[data-nopull]')||(sheetName==='diag'&&DIAG&&!DIAG.done))return;
+    const t=e.touches[0];P={sh,x:t.clientX,y:t.clientY,y0:null,dy:0,t:0,on:false}},{passive:true});
+  document.addEventListener('touchmove',e=>{if(!P)return;if(busy()){P=null;return}const t=e.touches[0],sh=P.sh;
+    if(!P.on){const dx=t.clientX-P.x,dy=t.clientY-P.y;if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>8){P=null;return}
+      if(dy>4&&sh.scrollTop<=0){P.on=true;P.y0=t.clientY;P.t=Date.now();sh.style.transition='none'}else{if(dy<0)P.y=t.clientY;return}}
+    e.preventDefault();P.dy=Math.max(0,t.clientY-P.y0);const k=P.dy<140?P.dy:140+(P.dy-140)*.45;
+    sh.style.transform=`translate3d(0,${k.toFixed(1)}px,0)`;sh.parentNode.style.setProperty('--dim',Math.max(.25,1-P.dy/420).toFixed(2))},{passive:false});
+  const end=()=>{if(!P||!P.on){P=null;return}const{sh,dy,t}=P;P=null;const fast=dy>60&&Date.now()-t<260;
+    if(dy>130||fast){closeSheet();return}
+    sh.style.transition='transform .25s cubic-bezier(.2,.8,.2,1)';sh.style.transform='';sh.parentNode.style.removeProperty('--dim');setTimeout(()=>{sh.style.transition=''},260)};
+  document.addEventListener('touchend',end,{passive:true});document.addEventListener('touchcancel',end,{passive:true});
+})();

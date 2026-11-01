@@ -504,6 +504,22 @@ test('page plein écran : openSheet(…, {full:true})', async () => {
   noErr(a);
 });
 
+test('tirer une fenêtre vers le bas pour la fermer', async () => {
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true });
+  const pull = async (sel, dy, slow) => {
+    const el = a.$(sel); const ev = (type, y) => { const e = new a.w.Event(type, { bubbles: true, cancelable: true }); Object.defineProperty(e, 'touches', { value: type === 'touchend' ? [] : [{ clientX: 100, clientY: y }] }); el.dispatchEvent(e); };
+    ev('touchstart', 100); ev('touchmove', 110); if (slow) await wait(300); ev('touchmove', 100 + dy); ev('touchend'); await wait(30);
+  };
+  a.ev(`openSheet('<h2>Planning détaillé</h2><p>x</p>','plan',{full:true})`);
+  await pull('.sheet h2', 50, true); assert.equal(a.ev('sheetName'), 'plan', 'un petit glissement ne ferme pas');
+  assert.equal(a.ev(`document.querySelector('.sheet').style.transform`), '');
+  await pull('.sheet h2', 200); assert.equal(a.ev('sheetName'), null, 'tirer franchement ferme la fenêtre');
+  // contenu déjà défilé : on fait défiler, on ne ferme pas
+  a.ev(`openSheet('<h2>x</h2>','x')`); a.ev(`document.querySelector('.sheet').scrollTop=0;Object.defineProperty(document.querySelector('.sheet'),'scrollTop',{value:120})`);
+  await pull('.sheet h2', 200); assert.equal(a.ev('sheetName'), 'x');
+  noErr(a);
+});
+
 test('test complet de l’app (diagnostic)', async () => {
   const raw = webcrypto.getRandomValues(new Uint8Array(32));
   const b64u = Buffer.from(raw).toString('base64url');
