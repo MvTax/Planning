@@ -33,7 +33,7 @@ document.addEventListener('click',e=>{
    settings:()=>settingsSheet(),
    theme:()=>{S.settings.theme=v;save();applyTheme();settingsSheet()},
    setTog:()=>{S.settings[v]=!S.settings[v];save();settingsSheet()},
-   reonboard:()=>{closeSheet();OB=JSON.parse(JSON.stringify(S.profile));OB.weight=curWeight();V.obStep=0;V.reob=true;render();window.scrollTo(0,0)},
+   reonboard:()=>{closeSheet(true);OB=JSON.parse(JSON.stringify(S.profile));OB.weight=curWeight();V.obStep=0;V.reob=true;render();window.scrollTo(0,0)},
    reset:()=>{rstConfirm=true;settingsSheet()},resetCancel:()=>{rstConfirm=false;settingsSheet()},
    resetDo:()=>{S=defaultState();OB=null;try{localStorage.removeItem(LS)}catch(e){};save();closeSheet();render()},
    obNext:()=>{obCapture();if(V.obStep<OB_STEPS.length-1){V.obStep++;render();window.scrollTo(0,0)}else{V.reob=false;obFinish()}},
@@ -54,7 +54,7 @@ document.addEventListener('click',e=>{
    copy:()=>{const txt=v;const done=()=>toast(`${txt} copié`);try{navigator.clipboard.writeText(txt).then(done,()=>toast(txt))}catch(err){toast(txt)}},
    sportSub:()=>{V.sportSub=v;saveView();render()},
    sportDate:()=>{V.sportDate=v;V.sportSub='seance';render();window.scrollTo(0,0)},
-   gosport:()=>{closeSheet();V.tab='sport';V.sportSub='seance';V.sportDate=v;render();window.scrollTo(0,0)},
+   gosport:()=>{closeSheet(true);V.tab='sport';V.sportSub='seance';V.sportDate=v;render();window.scrollTo(0,0)},
    progWeek:()=>{V.progWeek=Number(v);render()},
    set:()=>{const k=el.dataset.k,j=Number(el.dataset.j),n=Number(el.dataset.n);const arr=S.setsDone[k]||(S.setsDone[k]=Array(n).fill(false));arr[j]=!arr[j];
      S.lifts[el.dataset.ex+'_ok']=arr.filter(Boolean).length>=n;save();render();if(arr[j]&&S.settings.sound){unlockAudio()}},
@@ -66,7 +66,7 @@ document.addEventListener('click',e=>{
    foodSub:()=>{V.foodSub=v;saveView();render()},
    foodDate:()=>{V.foodDate=v;render()},
    recipe:()=>recipeSheet(el.dataset.ds,el.dataset.slot),
-   goshop:()=>{closeSheet();V.tab='repas';V.foodSub='courses';render();window.scrollTo(0,0)},
+   goshop:()=>{closeSheet(true);V.tab='repas';V.foodSub='courses';render();window.scrollTo(0,0)},
    shopWk:()=>{V.shopNext=v==='1';render()},
    store:()=>{S.profile.store=v;save();render()},
    ck:()=>{const wk=shopData().wk;const c=S.shopChecked[wk]||(S.shopChecked[wk]={});c[v]=!c[v];const keys=Object.keys(S.shopChecked).sort();while(keys.length>4)delete S.shopChecked[keys.shift()];save();render()},
@@ -133,7 +133,7 @@ let lastDay=today();const alarmed={};
 /* ============ onglets : toucher ou glisser à gauche / à droite ============ */
 const TABS=['jour','sommeil','sport','repas','cagnotte'];
 function goTab(v,dir){const i=TABS.indexOf(V.tab),j=TABS.indexOf(v);if(dir==null)dir=i<0||j<0||i===j?0:j>i?1:-1;
-  closeSheet();V.tab=v;if(v==='sport')V.sportDate=null;saveView();render();window.scrollTo(0,0);
+  closeSheet(true);V.tab=v;if(v==='sport')V.sportDate=null;saveView();render();window.scrollTo(0,0);
   const m=$('#main');m.style.transform='';m.style.opacity='';m.style.transition='';m.classList.remove('tab-in-l','tab-in-r');
   if(dir){void m.offsetWidth;m.classList.add(dir>0?'tab-in-r':'tab-in-l')}}
 $('#main').addEventListener('animationend',e=>{if(e.target.id==='main')e.target.classList.remove('tab-in-l','tab-in-r')});

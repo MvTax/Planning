@@ -80,7 +80,7 @@ async function decFile(name){let key=null;try{key=localStorage.getItem('cadence.
   const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(j.iv)},k,b64(j.ct));return JSON.parse(new TextDecoder().decode(pt))}
 async function loadAgendaFile(manual){
   try{const a=await decFile('agenda.enc.json');
-    if(!S.agenda||(a.updatedAt||0)>(S.agenda.updatedAt||0)){S.agenda=a;save();render();if(sheetName==='plan')planSheet();if(manual)toast(`Planning mis à jour jusqu’au ${fmtShort(parseYmd(a.to))}`)}
+    if(!S.agenda||(a.updatedAt||0)>(S.agenda.updatedAt||0)){S.agenda=a;save();render();if(sheetName==='semaine')planSheet();if(manual)toast(`Planning mis à jour jusqu’au ${fmtShort(parseYmd(a.to))}`)}
     else if(manual)toast('Planning déjà à jour');return true}
   catch(e){if(manual)agendaHelp(e&&e.code==='nokey'?'nokey':'err');return false}}
 async function loadSeed(){if(S.onboarded)return;try{const r=await decFile('state.enc.json');if(r&&r.onboarded&&!S.onboarded){S=Object.assign(defaultState(),r);if(!S.reset4)resetCounters();if(!S.omadInit){S.profile.omad=true;S.omadInit=1}if(!S.sleep2){S.profile.wake=480;S.profile.cycles=4;S.sleep2=1}if(!S.reset5)startFresh();if(!S.omadEve){S.profile.omadTime=1260;S.profile.omadWin=120;S.omadEve=1}S.profile=Object.assign(defaultState().profile,r.profile||{});S.settings=Object.assign(defaultState().settings,r.settings||{});save();render();toast('Ton profil a été récupéré')}}catch(e){}}

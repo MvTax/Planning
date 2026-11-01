@@ -357,43 +357,100 @@ test('planning : onglet « Planning », bouton +, fenêtre qui s’ouvre depuis 
   const a = await boot({ now: '2026-11-04T10:00:00', agenda: true });
   assert.match(a.text('#tabs button[data-v="jour"]'), /Planning/);
   assert.equal(a.$('#fab').hidden, false);
-  a.click('.ag-b[data-act="task"][data-pop]'); assert.ok(a.$('#sheetRoot .scrim.pop'), 'la tâche doit s’ouvrir en petite fenêtre'); a.ev('closeSheet()');
+  a.click('[data-act="agFull"]'); a.click('.ag-b[data-act="task"][data-pop]');
+  assert.ok(a.$('#sheetRoot .scrim.pop:not(.full)'), 'la tâche doit s’ouvrir en petite fenêtre'); assert.ok(a.$('#sheetRoot .scrim.full'), 'le planning reste dessous');
+  a.ev('closeSheet()'); assert.equal(a.ev('sheetName'), 'plan', 'retour au planning détaillé'); a.ev('closeSheet()'); assert.equal(a.ev('sheetName'), null);
   a.click('[data-act="tab"][data-v="sport"]'); assert.equal(a.$('#fab').hidden, true, 'le + seulement sur le planning');
   a.click('[data-act="tab"][data-v="jour"]'); assert.equal(a.$('#fab').hidden, false);
   noErr(a);
 });
 
-test('accueil : planning heure par heure, un bloc par tâche à la bonne heure', async () => {
+test('accueil en résumé : pas de zone qui défile, « Ma journée » avec frise et prochaines tâches', async () => {
   const a = await boot({ now: '2026-11-04T16:00:00', agenda: true });
+  assert.ok(!a.$('#main .ag'), 'pas de planning qui défile sur l’accueil'); assert.ok(!a.$('#main .ag-b'));
+  const card = a.$('#main .ags[data-act="agFull"][data-pop]'); assert.ok(card, 'carte « Ma journée »');
+  assert.equal(a.$$('.ags-track i').length, a.ev(`dayTasks(today()).length`), 'un segment par tâche dans la frise');
+  assert.ok(a.$('.ags-now'), 'repère « maintenant »');
+  const n = a.$$('.ags-r').length; assert.ok(n >= 1 && n <= 4);
+  assert.match(a.text('.ags-list'), /Repas OMAD/, 'le repas du soir est dans la liste');
+  noErr(a);
+});
+
+test('planning détaillé plein écran : un bloc par tâche à la bonne heure', async () => {
+  const a = await boot({ now: '2026-11-04T16:00:00', agenda: true });
+  a.click('.ags[data-act="agFull"]');
+  assert.ok(a.$('#sheetRoot .scrim.full'), 'page plein écran'); assert.equal(a.ev('sheetName'), 'plan');
   const check = (ds) => {
-    const T = JSON.parse(a.ev(`JSON.stringify(dayTasks('${ds}').map(x=>({k:x.key,s:x.start,d:x.dur,meal:!!x.meal})))`));
-    const lo = +a.$('#agScroll').dataset.lo, px = a.ev('AG_PX');
-    assert.equal(a.$$('.ag-b').length, T.length, 'un bloc par tâche');
+    const T = JSON.parse(a.ev(`JSON.stringify(dayTasks('${ds}').map(x=>({k:x.key,s:x.start,d:x.dur})))`));
+    const lo = +a.$('#agPage .ag-grid').dataset.lo, px = a.ev('AG_PX');
+    assert.equal(a.$$('#agPage .ag-b').length, T.length, 'un bloc par tâche');
     for (const t of T) {
-      const el = a.$(`.ag-b[data-k="${t.k}"]`); assert.ok(el, 'bloc manquant : ' + t.k);
+      const el = a.$(`#agPage .ag-b[data-k="${t.k}"]`); assert.ok(el, 'bloc manquant : ' + t.k);
       assert.ok(Math.abs(parseFloat(el.style.top) - (t.s - lo) * px) < 0.2, 'mauvaise heure : ' + t.k);
-      assert.ok(parseFloat(el.style.height) >= Math.min(t.d * px, 26) - 0.2, 'hauteur trop petite : ' + t.k);
+      assert.ok(parseFloat(el.style.height) >= Math.min(t.d * px, a.ev('AG_MIN')) - 0.2, 'hauteur trop petite : ' + t.k);
       assert.ok(el.hasAttribute('data-pop'));
     }
-    return T;
   };
-  const T = check('2026-11-04');
-  assert.equal(a.$$('.ag-b.k-work').length, 1, 'un seul service de travail');
-  assert.ok(a.$('.ag-b.k-meal.meal'), 'repas OMAD avec sa fenêtre');
-  assert.match(a.text('.ag-b.meal'), new RegExp('Fenêtre ' + a.ev(`hm(dayTasks(today()).find(x=>x.meal).start)`)));
-  const now = a.$('.ag-now'); assert.ok(now, 'ligne « maintenant »');
-  assert.ok(Math.abs(parseFloat(now.style.top) - (960 - +a.$('#agScroll').dataset.lo) * a.ev('AG_PX')) < 0.2);
-  // repas OMAD -> fenêtre du repas ; travail -> détail, en petite fenêtre
-  a.click('.ag-b.meal'); assert.equal(a.ev('sheetName'), 'meal'); assert.ok(a.$('#sheetRoot .scrim.pop')); a.ev('closeSheet()');
-  a.click('.ag-b.k-work'); assert.match(a.text('.sheet h2'), /Travail/); assert.ok(a.$('#sheetRoot .scrim.pop')); a.ev('closeSheet()');
-  // pas de bouton + sur l'accueil (le bouton flottant suffit), marge pour ne pas le cacher
-  assert.ok(!a.$('#main [data-act="addtask"]')); assert.ok(a.$('#main .ag-sec'));
-  // la bande des 7 jours change de jour ; pas de ligne « maintenant » un autre jour
-  a.click('.week [data-v="2026-11-06"]'); assert.equal(a.ev('V.date'), '2026-11-06');
-  check('2026-11-06'); assert.ok(!a.$('.ag-now'));
-  a.ev('tick()'); assert.equal(a.ev('V.date'), '2026-11-06', 'le rafraîchissement ne ramène pas à aujourd’hui');
-  a.click('#main .chip[data-act="date"]'); assert.equal(a.ev('V.date'), '2026-11-04');
-  assert.ok(T.length >= 2);
+  check('2026-11-04');
+  assert.equal(a.$$('#agPage .ag-b.k-work').length, 1, 'un seul service de travail');
+  assert.match(a.text('#agPage .ag-b.meal'), new RegExp('Fenêtre ' + a.ev(`hm(dayTasks(today()).find(x=>x.meal).start)`)));
+  const now = a.$('#agPage .ag-now'); assert.ok(now, 'ligne « maintenant »');
+  assert.ok(Math.abs(parseFloat(now.style.top) - (960 - +a.$('#agPage .ag-grid').dataset.lo) * a.ev('AG_PX')) < 0.2);
+  assert.ok(a.$('#sheetRoot .ag-fab[data-act="create"]'), 'bouton + dans la page');
+  // repas OMAD -> fenêtre du repas, par-dessus le planning
+  a.click('#agPage .ag-b.meal'); assert.equal(a.ev('sheetName'), 'meal'); assert.ok(a.$('#sheetRoot .scrim.pop:not(.full)')); a.ev('closeSheet()');
+  assert.equal(a.ev('sheetName'), 'plan');
+  // la bande des 7 jours change de jour dans la page ; pas de ligne « maintenant » un autre jour
+  a.click('#agPage .week [data-v="2026-11-06"]'); assert.equal(a.ev('V.date'), '2026-11-06'); assert.equal(a.ev('sheetName'), 'plan');
+  check('2026-11-06'); assert.ok(!a.$('#agPage .ag-now'));
+  a.click('#agPage .chip[data-act="date"]'); assert.equal(a.ev('V.date'), '2026-11-04');
+  // aller sur un autre onglet ferme tout
+  a.ev(`goTab('sport')`); assert.ok(!a.$('#sheetRoot .scrim:not(.out)')); assert.equal(a.ev('sheetName'), null);
+  noErr(a);
+});
+
+test('planning détaillé : double-toucher puis glisser crée une tâche sur le créneau', async () => {
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true });
+  a.click('.ags[data-act="agFull"]');
+  a.ev('window.__ca=[];createAt=(d,s,e)=>__ca.push([d,s,e])');
+  const g = a.$('#agPage .ag-grid'), lo = +g.dataset.lo, px = a.ev('AG_PX');
+  const Y = (m) => (m - lo) * px + 2; // la grille commence en haut (jsdom : position 0)
+  const ev = (type, y, el = g) => { const e = new a.w.Event(type, { bubbles: true, cancelable: true }); Object.defineProperty(e, 'touches', { value: type === 'touchend' ? [] : [{ clientX: 150, clientY: y }] }); el.dispatchEvent(e); return e; };
+  const created = () => JSON.parse(a.ev('JSON.stringify(__ca)'));
+  // un simple toucher, un simple défilement : rien
+  ev('touchstart', Y(840)); ev('touchend'); await wait(450);
+  ev('touchstart', Y(840)); ev('touchmove', Y(900)); ev('touchmove', Y(1000)); ev('touchend'); await wait(450);
+  assert.deepEqual(created(), []);
+  // double-toucher à 14:00 puis glisser jusqu'à 15:30
+  ev('touchstart', Y(840)); ev('touchend');
+  const st = ev('touchstart', Y(840)); assert.ok(st.defaultPrevented, 'pas de zoom ni de défilement');
+  assert.ok(a.$('#agPage .ag-ghost'), 'bloc fantôme');
+  const mv = ev('touchmove', Y(880)); assert.ok(mv.defaultPrevented, 'la page ne défile pas pendant le geste');
+  ev('touchmove', Y(930)); assert.match(a.text('#agPage .ag-ghost'), /14:00 → 15:30/);
+  ev('touchend');
+  assert.deepEqual(created(), [['2026-11-04', 840, 930]]);
+  assert.ok(!a.$('#agPage .ag-ghost'));
+  // double-toucher sans glisser = 1 h ; sur un bloc = rien
+  await wait(450); ev('touchstart', Y(1080)); ev('touchend'); ev('touchstart', Y(1080)); ev('touchend');
+  assert.deepEqual(created()[1], ['2026-11-04', 1080, 1140]);
+  const b = a.$('#agPage .ag-b'); await wait(450); ev('touchstart', 10, b); ev('touchend', 0, b); ev('touchstart', 10, b); ev('touchend', 0, b);
+  assert.equal(created().length, 2);
+  noErr(a);
+});
+
+test('planning détaillé : la vraie création met la page à jour', async () => {
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true });
+  a.click('.ags[data-act="agFull"]'); const n0 = a.$$('#agPage .ag-b').length;
+  const g = a.$('#agPage .ag-grid'), Y = (m) => (m - +g.dataset.lo) * a.ev('AG_PX') + 2;
+  const ev = (type, y) => { const e = new a.w.Event(type, { bubbles: true, cancelable: true }); Object.defineProperty(e, 'touches', { value: type === 'touchend' ? [] : [{ clientX: 150, clientY: y }] }); g.dispatchEvent(e); };
+  ev('touchstart', Y(840)); ev('touchend'); ev('touchstart', Y(840)); ev('touchmove', Y(900)); ev('touchmove', Y(930)); ev('touchend');
+  assert.match(a.text('#sheetRoot .scrim:last-child .sheet h2'), /de 14:00 à 15:30/);
+  assert.ok(a.$('#sheetRoot .scrim.full'), 'la question s’ouvre par-dessus le planning');
+  a.ev(`document.querySelector('#crIn').value='réviser mon code'`); a.click('[data-act="crSend"]'); await wait(50);
+  assert.match(a.text('#sheetRoot .scrim:last-child .sheet h2'), /Tâche ajoutée/);
+  a.click(a.$('#sheetRoot .scrim:last-child [data-act="close"]'));
+  assert.ok(a.$('#sheetRoot .scrim.full:not(.out)'), 'le planning est là');
+  assert.equal(a.$$('#agPage .ag-b').length, n0 + 1, 'la nouvelle tâche apparaît');
   noErr(a);
 });
 

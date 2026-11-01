@@ -134,12 +134,16 @@ function render(){
 let sheetName=null;
 /* fenêtre déjà ouverte : on remplace seulement son contenu (pas de nouvelle animation = pas de clignotement) */
 /* openSheet(html, nom, {full:true}) : page plein écran (tout l'écran défile, pas de zone qui défile dans la page) */
-function openSheet(html,name,o){o=o||{};const same=sheetName===(name||'x');sheetName=name||'x';const r=$('#sheetRoot');const was=r.querySelector('.scrim:not(.out) .sheet');
+/* Touché depuis une page plein écran (élément data-pop dans la page) : la fenêtre s'ouvre par-dessus et la page reste dessous. */
+function openSheet(html,name,o){o=o||{};name=name||'x';const same=sheetName===name;sheetName=name;const r=$('#sheetRoot');
+  const L=r.querySelectorAll('.scrim:not(.out)'),top=L[L.length-1],was=top&&top.querySelector('.sheet');
   const inner=`<button class="sheet-x" data-act="close" aria-label="Fermer">${ic('x')}</button>${html}`;
-  if(was){const sc=was.scrollTop;was.innerHTML=inner;was.parentNode.classList.toggle('full',!!o.full);was.scrollTop=same?sc:0;return}
   const src=TAP&&Date.now()-TAP.t<700&&TAP.el.isConnected&&TAP.el.closest('[data-pop]');
-  r.innerHTML=`<div class="scrim${src?' pop':''}${o.full?' full':''}" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true">${inner}</div></div>`;
-  if(src)popFrom(r.querySelector('.sheet'),src.getBoundingClientRect())}
+  const stack=was&&!o.full&&src&&top.classList.contains('full')&&top.contains(src);
+  if(was&&!stack){const sc=was.scrollTop;was.innerHTML=inner;top.classList.toggle('full',!!o.full);top.dataset.name=name;was.scrollTop=same?sc:0;return}
+  const h=`<div class="scrim${src?' pop':''}${o.full?' full':''}" data-act="scrim" data-name="${name}"><div class="sheet" role="dialog" aria-modal="true">${inner}</div></div>`;
+  if(stack)r.insertAdjacentHTML('beforeend',h);else r.innerHTML=h;
+  if(src)popFrom(r.lastElementChild.querySelector('.sheet'),src.getBoundingClientRect())}
 /* petite fenêtre qui s'ouvre depuis l'élément touché (ajoute data-pop sur l'élément) */
 let TAP=null;
 function popFrom(sh,a){const b=sh.getBoundingClientRect();if(!a.width||!b.width)return;
@@ -147,7 +151,10 @@ function popFrom(sh,a){const b=sh.getBoundingClientRect();if(!a.width||!b.width)
   sh.style.transform=`translate(${(a.left-b.left).toFixed(1)}px,${(a.top-b.top).toFixed(1)}px) scale(${(a.width/b.width).toFixed(3)},${(a.height/b.height).toFixed(3)})`;
   void sh.offsetWidth;sh.style.transition='transform .36s cubic-bezier(.3,1.12,.4,1),opacity .18s ease-out';sh.style.transform='';sh.style.opacity='';
   setTimeout(()=>{sh.style.transition='';sh.style.transformOrigin=''},400)}
-function closeSheet(){if(sheetName==='diag'&&DIAG&&!DIAG.done)return;stopVoice();const sc=$('#sheetRoot .scrim:not(.out)');if(sc){sc.classList.add('out');sc.removeAttribute('data-act');setTimeout(()=>sc.remove(),220)}sheetName=null;MEAL=null;pending=null;NT=null;WO=null;PLW=null;RW=null;WG=null;rstConfirm=false;SETAI=false;crStop();CR=null}
+/* closeSheet() ferme la fenêtre du dessus (on revient à la page plein écran dessous) ; closeSheet(true) ferme tout */
+function closeSheet(all){if(sheetName==='diag'&&DIAG&&!DIAG.done)return;stopVoice();const L=[...document.querySelectorAll('#sheetRoot .scrim:not(.out)')];
+  for(const sc of all===true?L:L.slice(-1)){sc.classList.add('out');sc.removeAttribute('data-act');setTimeout(()=>sc.remove(),220)}
+  const rest=all===true?null:L[L.length-2];sheetName=rest?rest.dataset.name:null;MEAL=null;pending=null;NT=null;WO=null;PLW=null;RW=null;WG=null;rstConfirm=false;SETAI=false;crStop();CR=null}
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
 const CTX={get PF(){return S.profile},get NS(){return NS},get OB(){return OB},get NT(){return NT},get WO(){return WO},get SL(){return SL},get RW(){return RW},get WG(){return WG}};
 function rerenderCtx(o){if(o==='PF'){save();render();if(sheetName==='settings')settingsSheet()}else if(o==='NS')nightSheet();else if(o==='OB')render();else if(o==='NT')addTaskSheet();else if(o==='WO')dayEditSheet(WO.ds);else if(o==='SL')render();else if(o==='RW')rewardSheet();else if(o==='WG')drawWeigh()}
