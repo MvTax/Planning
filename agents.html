@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Agents Cadence</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Agents">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--bg:#F3F3F7;--surface:#FFFFFF;--surface-2:#F6F6FA;--ink:#17181F;--muted:#6B6E7D;--line:#E3E3EB;--accent:#4A47C4;--accent-soft:#ECEBFB;--money:#1E8A5C;
+  --c-work:#4A5BD4;--c-sleep:#2E2F7A;--c-sport:#7A57C6;--c-meal:#B9517A;--c-gen:#2A9486;--c-plan:#878BA0;--shadow:0 1px 2px rgba(23,24,31,.04),0 12px 32px rgba(23,24,31,.07);
+  --f:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0E0F14;--surface:#16171F;--surface-2:#1D1F29;--ink:#ECEDF3;--muted:#9093A3;--line:#272936;--accent:#A5AAFF;--accent-soft:#232547;--money:#5AD39A;
+  --c-work:#93A0FF;--c-sleep:#9EA6FF;--c-sport:#C0A6FF;--c-meal:#F29BBE;--c-gen:#6AD6C8;--c-plan:#AEB2C6;--shadow:0 1px 2px rgba(0,0,0,.45),0 12px 32px rgba(0,0,0,.28);color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:15.5px;line-height:1.5;
+  padding:calc(28px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+main{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:26px}
+h1{font-size:30px;line-height:1.1;letter-spacing:-.03em;margin:0;text-wrap:balance}
+h2{font-size:20px;letter-spacing:-.02em;margin:0;text-wrap:balance}
+p{margin:0}
+.lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.muted{color:var(--muted)}
+.hero{border-radius:24px;padding:22px;color:#fff;background:linear-gradient(150deg,#3F3C9C,#7A3D8E);box-shadow:0 14px 34px rgba(63,60,156,.3);display:flex;flex-direction:column;gap:12px}
+.hero .lbl{color:rgba(255,255,255,.8)}
+.hero p{color:rgba(255,255,255,.88)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:16px;padding:15px 18px;font:inherit;font-weight:700;font-size:16px;cursor:pointer;text-decoration:none;width:100%}
+.btn.white{background:#fff;color:#3F3C9C}
+.btn.ghost{background:var(--surface-2);color:var(--ink)}
+.btn.copy{background:var(--c);color:var(--surface)}
+.btn.done{background:var(--money)!important}
+.steps{display:flex;flex-direction:column;gap:10px;counter-reset:s}
+.step{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;background:var(--surface);border-radius:18px;padding:14px;box-shadow:var(--shadow)}
+.step::before{counter-increment:s;content:counter(s);width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--accent);color:var(--surface);font-weight:800}
+.step b{display:block}
+.step span{color:var(--muted);font-size:14px}
+.agents{display:flex;flex-direction:column;gap:14px}
+details.agent{background:var(--surface);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+details.agent summary{list-style:none;display:grid;grid-template-columns:42px 1fr auto;gap:12px;align-items:center;padding:14px 16px;cursor:pointer}
+details.agent summary::-webkit-details-marker{display:none}
+.badge{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:var(--c);color:var(--surface)}
+.badge svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.chev{color:var(--muted);transition:transform .2s}
+details[open] .chev{transform:rotate(90deg)}
+.body{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.txt{background:color-mix(in srgb,var(--c) 9%,var(--surface));border-radius:14px;padding:14px;font-size:14px;line-height:1.55;white-space:pre-wrap;-webkit-user-select:all;user-select:all}
+.ex{font-size:13.5px;color:var(--muted)}
+.ex b{color:var(--ink);font-weight:600}
+.tips{background:var(--surface);border-radius:20px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px}
+.tip{display:grid;grid-template-columns:auto 1fr;gap:10px;font-size:14.5px}
+.tip i{font-style:normal;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:13px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:14px;font-weight:600;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+ <header style="display:flex;flex-direction:column;gap:6px">
+  <span class="lbl">Cadence · mode d’emploi</span>
+  <h1>Mes agents</h1>
+  <p class="muted">Une conversation Claude par catégorie. Chaque agent ne touche qu’à sa partie de l’app.</p>
+ </header>
+
+ <section class="hero">
+  <span class="lbl">Créer un agent</span>
+  <h2 style="color:#fff">4 gestes, une seule fois par agent</h2>
+  <p>Ensuite, tu reviens simplement dans sa conversation.</p>
+  <a class="btn white" href="https://claude.ai/code/new" target="_blank" rel="noopener">Ouvrir une nouvelle session Claude Code</a>
+ </section>
+
+ <section class="steps" aria-label="Étapes">
+  <div class="step"><div><b>Copie le texte de l’agent</b><span>Plus bas, touche l’agent voulu puis « Copier le texte ».</span></div></div>
+  <div class="step"><div><b>Ouvre une nouvelle session</b><span>Bouton blanc ci-dessus, ou app Claude → <b style="display:inline">Code</b> → ＋.</span></div></div>
+  <div class="step"><div><b>Choisis le dépôt MvTax/Planning</b><span>Dans le sélecteur de dépôt près du champ de texte, branche main.</span></div></div>
+  <div class="step"><div><b>Colle, ajoute ta demande, envoie</b><span>Écris ce que tu veux juste après « Ma demande : », puis touche la flèche.</span></div></div>
+ </section>
+
+ <section class="agents" aria-label="Agents">
+  <div class="lbl">Les agents · touche pour ouvrir</div>
+ </section>
+
+ <section class="tips">
+  <div class="lbl">Ensuite</div>
+  <div class="tip"><i>↺</i><span><b>Reprendre un agent :</b> app Claude → Code → touche sa conversation dans la liste et écris ta demande. Pas besoin de recoller le texte.</span></div>
+  <div class="tip"><i>↓</i><span><b>Voir les changements :</b> dans Cadence, Réglages → Forcer la mise à jour (1 à 2 min après la publication).</span></div>
+  <div class="tip"><i>!</i><span><b>Un bug :</b> Réglages → Tester l’application → Copier le rapport, puis colle-le dans la conversation de l’agent concerné.</span></div>
+  <div class="tip"><i>1</i><span><b>Règle d’or :</b> un seul agent à la fois par catégorie, et tout ce qui touche plusieurs parties passe par l’agent Général.</span></div>
+ </section>
+ <a class="btn ghost" href="./">Retour à Cadence</a>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const BASE=(nom,fichiers)=>`Tu es l'Agent ${nom} de mon app Cadence (dépôt MvTax/Planning). Lis CLAUDE.md et respecte-le : ${fichiers}. Après chaque changement : npm install si besoin, npm test, ./bump.sh "…", puis commit et push sur main et gh-pages comme indiqué dans le guide. Ma demande : `;
+const I={
+ jour:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M5 19l1.4-1.4M17.6 6.4 19 5"/>',
+ sommeil:'<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/>',
+ sport:'<path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/>',
+ repas:'<path d="M5 3v8a2 2 0 0 0 2 2v8M9 3v8M7 3v8M17 21V3c-2.5 1.5-3 5-3 9h3"/>',
+ gen:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+ plan:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'
+};
+const A=[
+ {id:'jour',nom:'Jour',c:'--c-work',d:'Page d’accueil, tâches, planning de travail',t:BASE('Jour','tu ne modifies que js/jour.js et le bloc « Agent Jour » de css/style.css'),ex:'ajoute un bouton pour décaler une tâche de 30 minutes.'},
+ {id:'sommeil',nom:'Sommeil',c:'--c-sleep',d:'Rythme, mode chevet, alarmes, analyse des nuits',t:BASE('Sommeil','tu ne modifies que js/sommeil.js et le bloc « Agent Sommeil » de css/style.css'),ex:'affiche ma moyenne de sommeil de la semaine.'},
+ {id:'sport',nom:'Sport',c:'--c-sport',d:'Programme, jours de salle, séances, photo de la salle',t:BASE('Sport','tu ne modifies que js/sport.js et le bloc « Agent Sport » de css/style.css'),ex:'ajoute un minuteur de repos entre les séries.'},
+ {id:'repas',nom:'Repas',c:'--c-meal',d:'OMAD, photo du plat, sucres interdits, courses',t:BASE('Repas','tu ne modifies que js/repas.js et le bloc « Agent Repas » de css/style.css'),ex:'propose-moi 3 idées de plat OMAD halal pour ce soir.'},
+ {id:'gen',nom:'Général',c:'--c-gen',d:'Design, cagnotte, réglages, IA, plusieurs parties à la fois',t:BASE('Général','tu t’occupes des fichiers communs (core, ia, planning, cagnotte, reglages, app, index.html, style global, outils, tests)'),ex:'change le montant gagné pour une séance à 2 €.'},
+ {id:'plan',nom:'Planning de travail',c:'--c-plan',d:'À envoyer dans la conversation de l’agent Jour, chaque fin de semaine',t:'Mets à jour mon planning de travail depuis mon agenda de travail (agenda de mon iPhone, de J-7 à J+90) avec tools/agenda.mjs. Voici mon lien avec la clé : ',ex:'colle ton signet Cadence complet (celui qui finit par #k=…) juste après le texte.',icon:'plan'}
+];
+const box=document.querySelector('.agents');
+for(const a of A){const d=document.createElement('details');d.className='agent';d.style.setProperty('--c',`var(${a.c})`);
+ d.innerHTML=`<summary><span class="badge"><svg viewBox="0 0 24 24" aria-hidden="true">${I[a.icon||a.id]}</svg></span><span><b style="display:block;font-size:16.5px">${a.id==='plan'?'':'Agent '}${a.nom}</b><span class="muted" style="font-size:13.5px">${a.d}</span></span><span class="chev" aria-hidden="true">›</span></summary>
+ <div class="body"><div class="txt" id="t-${a.id}"></div><button class="btn copy" type="button" data-id="${a.id}">Copier le texte</button><p class="ex">${a.id==='plan'?'<b>Puis :</b> ':'<b>Exemple de demande à ajouter :</b> '}${a.ex}</p></div>`;
+ box.appendChild(d);d.querySelector('.txt').textContent=a.t}
+const toast=m=>{const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),2200)};
+document.addEventListener('click',e=>{const b=e.target.closest('button[data-id]');if(!b)return;const a=A.find(x=>x.id===b.dataset.id);
+ const ok=()=>{b.textContent='Copié ✓';b.classList.add('done');toast('Copié : colle-le dans la nouvelle session');setTimeout(()=>{b.textContent='Copier le texte';b.classList.remove('done')},2500)};
+ const sel=()=>{const el=document.getElementById('t-'+a.id);const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Texte sélectionné : touche Copier')};
+ try{navigator.clipboard.writeText(a.t).then(ok,sel)}catch(err){sel()}});
+</script>
+</body>
+</html>
