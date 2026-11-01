@@ -115,6 +115,107 @@ test('sucres interdits', async () => {
   noErr(a);
 });
 
+const typeIn = (a, sel, v) => { const e = a.$(sel); e.value = v; e.dispatchEvent(new a.w.Event('input', { bubbles: true })); };
+
+test('listes d’aliments : par défaut, emojis, sans sucre interdit, enregistrées', async () => {
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true });
+  const L = JSON.parse(a.ev('JSON.stringify(foodLists())'));
+  assert.deepEqual(L.day.map((f) => f.n), ['Café', 'Thé', 'Tisane', 'Eau', 'Eau gazeuse']);
+  assert.ok(L.omad.length >= 60, 'liste du soir trop courte');
+  for (const c of ['feculents', 'proteines', 'legumes', 'fruits', 'laitiers', 'gras', 'epices']) assert.ok(L.omad.some((f) => f.c === c), 'catégorie vide : ' + c);
+  for (const n of ['Banane', 'Fromage', 'Œufs', 'Poulet', 'Thon', 'Riz', 'Pâtes', 'Pain', 'Pommes de terre', 'Lentilles', 'Yaourt nature', 'Tomates', 'Salade', 'Avocat', 'Huile d’olive']) assert.ok(L.omad.some((f) => f.n === n), 'manque : ' + n);
+  for (const f of [...L.day, ...L.omad]) assert.equal(a.ev(`sugarHit({plat:${JSON.stringify(f.n)},ing:[]},[])`), null, 'sucre interdit : ' + f.n);
+  assert.equal(new Set(L.omad.map((f) => f.id)).size, L.omad.length, 'identifiants en double');
+  const emo = (n) => a.ev(`suggestEmoji(${JSON.stringify(n)})`);
+  assert.equal(emo('Banane'), '🍌'); assert.equal(emo('Pommes de terre'), '🥔'); assert.equal(emo('Pomme'), '🍎');
+  assert.equal(emo('Eau gazeuse'), '🫧'); assert.equal(emo('Œufs brouillés'), '🥚'); assert.equal(emo('Café'), '☕'); assert.equal(emo('Cerises'), '🍒');
+  assert.equal(emo('Tempeh'), '');
+  assert.ok(a.ev(`foodIcon({n:'Tempeh',e:''})`).includes('fd-pas'), 'pastille attendue');
+  // onglet Repas → Aliments
+  a.click('[data-act="tab"][data-v="repas"]'); a.click('[data-act="foodSub"][data-v="aliments"]');
+  assert.equal(a.$$('#foodGrid .fd-tile').length, 5);
+  a.click('[data-act="foodList"][data-v="omad"]');
+  assert.ok(a.$$('#foodGrid .fd-tile').length >= 60);
+  assert.match(a.text('#foodGrid'), /Féculents/); assert.match(a.text('#foodGrid'), /🍌/);
+  typeIn(a, '#foodQ', 'pom');
+  assert.deepEqual(a.$$('#foodGrid .fd-n').map((e) => e.textContent), ['Pommes de terre', 'Pomme']);
+  // ajouter : emoji et catégorie proposés tout seuls
+  typeIn(a, '#foodQ', ''); a.click('[data-act="fdAdd"][data-l="omad"]');
+  typeIn(a, '#fdName', 'Cerises');
+  assert.match(a.text('#fdPrev'), /🍒/); assert.equal(a.ev('FD.c'), 'fruits');
+  a.click('[data-act="fdAddSave"]');
+  assert.ok(a.ev(`foodLists().omad.some(f=>f.n==='Cerises'&&f.e==='🍒'&&f.c==='fruits'&&f.k>0)`));
+  // sucre interdit refusé
+  a.click('[data-act="fdAdd"][data-l="omad"]'); typeIn(a, '#fdName', 'Nutella'); a.click('[data-act="fdAddSave"]');
+  assert.ok(!a.ev(`foodLists().omad.some(f=>f.n==='Nutella')`));
+  a.ev('closeSheet()');
+  // retirer
+  a.click('[data-act="fdEdit"]'); a.click('[data-act="fdDel"][data-v="banane"]');
+  assert.ok(!a.ev(`foodLists().omad.some(f=>f.id==='banane')`));
+  // enregistré avec le reste des données
+  const saved = JSON.parse(a.w.localStorage.getItem('cadence.v1'));
+  assert.ok(saved.foodLists.omad.some((f) => f.n === 'Cerises')); assert.ok(!saved.foodLists.omad.some((f) => f.id === 'banane'));
+  // les Réglages ne voient que les 3 niveaux d'activité
+  assert.equal(a.ev('Object.keys(ACT).length'), 3); assert.equal(typeof a.ev('ACT.fdLog'), 'function');
+  noErr(a);
+});
+
+test('journée : café pointé sans casser l’OMAD, banane = avertissement', async () => {
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true });
+  assert.ok(a.$('.fd-dayrow'), 'raccourci « dans la journée » absent de l’accueil');
+  a.click('.fd-dayrow'); assert.match(a.text('.sheet h2'), /Dans la journée/);
+  a.click('#dfGrid [data-act="fdLog"][data-v="cafe"]');
+  assert.deepEqual(JSON.parse(a.ev('JSON.stringify(S.foodLog[today()].map(x=>[x.n,x.ok]))')), [['Café', true]]);
+  assert.match(a.text('.sheet'), /OMAD respecté/);
+  typeIn(a, '#dfQ', 'banane');
+  a.click('#dfGrid [data-act="fdOther"][data-v="banane"]');
+  assert.match(a.text('.sheet h2'), /casse ton OMAD/);
+  a.click('[data-act="fdBack"]'); assert.equal(a.ev('S.foodLog[today()].length'), 1);
+  typeIn(a, '#dfQ', 'banane'); a.click('#dfGrid [data-act="fdOther"][data-v="banane"]'); a.click('[data-act="fdBreak"]');
+  assert.deepEqual(JSON.parse(a.ev('JSON.stringify(S.foodLog[today()].map(x=>[x.n,x.ok]))')), [['Café', true], ['Banane', false]]);
+  assert.match(a.text('.sheet'), /Jeûne rompu/);
+  // aliment libre (pas dans les listes) : même avertissement
+  typeIn(a, '#dfQ', 'Coca'); a.click('#dfGrid [data-act="fdOther"][data-n="Coca"]');
+  assert.match(a.text('.sheet h2'), /casse ton OMAD/); assert.match(a.text('.sheet'), /sucre interdit/);
+  assert.equal(a.ev('dayPts(today())'), 0);
+  noErr(a);
+});
+
+test('repas composé avec la liste : validé, puis trop léger = à corriger', async () => {
+  const a = await boot({ now: '2026-11-04T22:00:00', agenda: true });
+  a.ev('S.profile.omadTime=nowMin()-10');
+  a.ev('openMeal()'); a.click('[data-act="mealMode"][data-v="pick"]');
+  assert.match(a.text('.sheet h2'), /compose/);
+  a.click('[data-act="fdPick"][data-v="riz"]');
+  a.click('[data-act="pickGo"]');
+  assert.match(a.text('.sheet'), /À CORRIGER/); assert.match(a.text('.sheet'), /Ajoute/);
+  a.click('[data-act="mealRedo"]');
+  for (const [id, n] of [['riz', 2], ['poulet', 2], ['brocoli', 1], ['huile_d_olive', 2], ['oeufs', 1], ['fromage', 1], ['banane', 1], ['avocat', 1]]) for (let i = 0; i < n; i++) a.click(`[data-act="fdPick"][data-v="${id}"]`);
+  const kc = a.ev('Math.round(plateTot(plateItems()).k)');
+  a.click('[data-act="pickGo"]');
+  assert.match(a.text('.sheet'), /VALIDÉ/);
+  const m = JSON.parse(a.ev('JSON.stringify(S.meals[today()][0])'));
+  assert.equal(m.src, 'pick'); assert.equal(m.kcal, kc); assert.equal(m.tries, 2);
+  assert.equal(a.ev('dayPts(today())'), 40);
+  noErr(a);
+});
+
+test('repas écrit : même analyse que la photo (IA + sucres interdits)', async () => {
+  const prompts = []; let n = 0;
+  const a = await boot({ now: '2026-11-04T22:00:00', agenda: true, ls: { 'cadence.gkey': 'AQ.test' }, fetch: (u, o) => { if (!u.includes('generateContent')) return null; prompts.push(JSON.parse(o.body).contents[0].parts[1].text); return gemini(++n === 1 ? okAI : { ...okAI, plat: 'Riz poulet' }); } });
+  a.ev('S.profile.omadTime=nowMin()-10');
+  a.ev('openMeal()'); a.click('[data-act="mealMode"][data-v="text"]');
+  typeIn(a, '#ansIn', 'Une crêpe au nutella'); a.click('[data-act="txtGo"]'); await wait(50);
+  assert.match(prompts[0], /crêpe au nutella/); assert.match(prompts[0], /Pas de photo/);
+  assert.match(a.text('.sheet'), /INTERDIT/); assert.equal(a.ev('dayPts(today())'), 0);
+  a.click('[data-act="mealRedo"]');
+  typeIn(a, '#ansIn', '250 g de riz, 300 g de poulet, brocoli, huile d’olive'); a.click('[data-act="txtGo"]'); await wait(50);
+  assert.match(a.text('.sheet'), /VALIDÉ/);
+  assert.equal(a.ev('S.meals[today()][0].src'), 'text');
+  assert.equal(a.ev('dayPts(today())'), 40);
+  noErr(a);
+});
+
 test('IA : bascule sur un modèle de secours', async () => {
   const calls = [];
   const a = await boot({ now: '2026-11-04T22:00:00', agenda: true, ls: { 'cadence.gkey': 'AQ.test' }, fetch: (u) => {

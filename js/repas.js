@@ -101,7 +101,7 @@ function mealCard(){
       info=`<div class="row between" style="background:var(--surface);border-radius:14px;padding:10px 12px;gap:10px"><span><b>Fenêtre ${hm(o.start)} → ${hm(o.end)}</b>${o.t.moved?'<br><span class="muted" style="font-size:12px">décalée autour de ton travail</span>':''}</span><span class="pill p-${o.done?'done':st==='open'?'run':st==='late'?'due':'up'}">${o.done?'Repas pris à '+clock(o.first.t):st==='open'?'Ouverte':st==='late'?'Pas encore mangé':'Dans '+durTxt(o.start-n)}</span></div>
       ${!o.done&&st==='late'?`<div class="banner"><span class="grow">Ta fenêtre est passée et tu n’as pas mangé. Ne saute pas ton seul repas : prends-le maintenant (${M$(OMAD_PTS/2,false)} au lieu de ${M$(OMAD_PTS,false)}).</span></div>`:''}
       ${!o.done&&y&&!y.done&&y.t.ds>=ymd(new Date(S.since))?`<p class="muted" style="font-size:13px">Hier tu n’as pas mangé : fais un repas complet aujourd’hui, sans doubler les portions.</p>`:''}
-      ${st==='before'?`<p class="muted" style="font-size:13px">En attendant : eau, café ou thé sans sucre.</p>`:''}`}}
+      ${st==='before'||st==='done'?dayRow():''}`}}
   else{const skip=Object.keys(slotShares()).filter(s=>n>SLOT_END[s]&&!ms.some(m=>m.slot===s));
     if(skip.length)info=`<p class="muted" style="font-size:13px">${skip.map(s=>SLOT_L[s]).join(', ')} : pas pointé, donc pas mangé. Les calories sont reportées sur tes prochains repas.</p>`}
   return`<section class="sec"><div class="sec-h"><span class="badge k-meal">${ic('repas')}</span><h2>${p.omad?'Repas unique · OMAD':'Repas du jour'}</h2><span class="pill k-meal" style="--pc:var(--c-meal)">${ms.length}/${mealsN()} ${p.omad?'repas':'validés'}</span></div>
@@ -110,25 +110,43 @@ function mealCard(){
    <div class="stack" style="gap:6px"><div class="bar" style="height:10px"><i style="width:${clamp(k/tg.kcal,0,1)*100}%;background:${k>tg.kcal*1.05?'var(--bad)':'var(--c-meal)'}"></i></div><div class="bar" style="height:10px"><i style="width:${clamp(pr/tg.prot,0,1)*100}%;background:var(--c-money)"></i></div></div>
    ${info}
    ${ms.length?`<div class="stack" style="gap:0;background:var(--surface);border-radius:14px;padding:4px 12px">${ms.map(m=>`<div class="ledger"><span style="min-width:0"><b>${SLOT_L[m.slot]||'Repas'}</b> · ${esc(m.nom)}<br><span class="muted num" style="font-size:12px">${clock(m.t)}${m.tries>1?' · validé au '+m.tries+'e essai':''}</span></span><span class="num">${Math.round(m.kcal)} kcal</span></div>`).join('')}</div>`:''}
-   ${canEat?`<button class="btn btn-meal" data-act="meal">${ic('cam')} Photographier mon plat</button>`:''}</div></section>`;
+   ${canEat?`<button class="btn btn-meal" data-act="meal">${ic('repas')} Pointer mon repas</button>`:''}</div></section>`;
 }
+/* ligne « dans la journée » de la carte repas : ce qui a été pointé hors repas */
+function dayRow(){const lg=(S.foodLog||{})[today()]||[],bad=lg.some(x=>!x.ok);
+  return`<button class="fd-dayrow${bad?' bad':''}" data-act="dayFood"><span class="fd-grow">${lg.length?lg.slice(-8).map(x=>x.e?esc(x.e):'<b>'+esc(x.n.charAt(0).toUpperCase())+'</b>').join(' '):'<span class="muted">Café, thé, tisane, eau…</span>'}<small>${bad?'Jeûne rompu aujourd’hui':'Pointer hors repas · ne casse pas l’OMAD'}</small></span><span class="fd-plus">${ic('plus')}</span></button>`}
 let MEAL=null,mealTok=0;
 
-function openMeal(){
+function openMeal(mode,pre){
   if(!started()){openSheet(`<div class="grab"></div><span class="lbl">Bientôt</span><h2>Ça commence demain</h2><p class="muted">Les pointages de repas démarrent le dimanche 1er novembre.</p><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}
   if(S.profile.omad){const o=omadInfo(today()),n=nowMin();
-    if(o&&n<o.start-30){openSheet(`<div class="grab"></div><span class="lbl">OMAD</span><h2>Pas encore</h2><section class="card" style="border:2px solid var(--bad);gap:8px"><span class="lbl" style="color:var(--bad)">Hors de ta fenêtre</span><p style="font-size:15px">Ton repas du jour est à <b>${hm(o.start)}</b> (dans ${durTxt(o.start-n)}). D’ici là : eau, café ou thé sans sucre.</p></section><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}
-    if(o&&o.done&&n>o.end+30){openSheet(`<div class="grab"></div><span class="lbl">OMAD</span><h2>Repas déjà pris</h2><section class="card" style="border:2px solid var(--bad);gap:8px"><span class="lbl" style="color:var(--bad)">Hors de ta fenêtre</span><p style="font-size:15px">Tu as mangé à ${clock(o.first.t)}. Prochain repas demain vers ${hm(o.start)}. Eau, café ou thé sans sucre sont OK.</p></section><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}}
-  warmAI();MEAL={slot:guessSlot(),tries:[],state:'idle',notes:[],asks:0,answer:'',picks:[],askMode:'voice'};mealSheet();if(aiReady())try{$('#mealCam').click()}catch(e){}}
+    if(o&&n<o.start-30){openSheet(`<div class="grab"></div><span class="lbl">OMAD</span><h2>Pas encore</h2><section class="card" style="border:2px solid var(--bad);gap:8px"><span class="lbl" style="color:var(--bad)">Hors de ta fenêtre</span><p style="font-size:15px">Ton repas du jour est à <b>${hm(o.start)}</b> (dans ${durTxt(o.start-n)}). D’ici là : ${esc(dayAllowedTxt())}.</p></section><button class="btn" data-act="dayFood">Pointer un café, un thé, de l’eau…</button><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}
+    if(o&&o.done&&n>o.end+30){openSheet(`<div class="grab"></div><span class="lbl">OMAD</span><h2>Repas déjà pris</h2><section class="card" style="border:2px solid var(--bad);gap:8px"><span class="lbl" style="color:var(--bad)">Hors de ta fenêtre</span><p style="font-size:15px">Tu as mangé à ${clock(o.first.t)}. Prochain repas demain vers ${hm(o.start)}. En attendant : ${esc(dayAllowedTxt())}.</p></section><button class="btn ghost" data-act="close">Compris</button>`,'meal');return}}
+  warmAI();MEAL={slot:guessSlot(),tries:[],state:'idle',src:null,notes:[],asks:0,answer:'',picks:[],askMode:'voice',plate:{},pq:'',desc:''};
+  const M=MEAL;
+  if(mode==='pick'){M.state='pick';if(pre)M.plate[pre]=1}
+  else if(mode==='text'){M.answer=pre||'';M.want='text';M.state=aiReady()?'text':'key'}
+  mealSheet()}
+/* ce qui s'affiche à la place de la photo (texte écrit ou assiette composée) */
+function mealVisual(M){
+  if(M.src==='pick')return`<div class="fd-plate">${plateItems().map(({f,n})=>`<span class="row" style="gap:2px">${foodIcon(f)}${n>1?`<small>×${n}</small>`:''}</span>`).join('')}</div>`;
+  if(M.src==='text')return`<div class="fd-quote">« ${esc(M.desc)} »</div>`;
+  return M.img?`<img src="${M.img}" alt="Ton plat" style="width:100%;max-height:260px;object-fit:cover;border-radius:16px">`:'';
+}
+/* bouton « refaire » selon la façon de pointer */
+function mealRedoBtn(M,n,cls){const t=` (essai ${n+1})`;
+  if(M.src==='pick')return`<button class="btn ${cls||''}" data-act="mealRedo">${ic('repas')} Modifier mon assiette${t}</button>`;
+  if(M.src==='text')return`<button class="btn ${cls||''}" data-act="mealRedo">${ic('pen')} Corriger ma description${t}</button>`;
+  return''}
 function mealSheet(){
   const M=MEAL;if(!M)return;
-  if(!aiReady()){openSheet(`<div class="grab"></div><h2>Activer l’analyse des plats</h2>${keySetup()}`,'meal');return}
+  if(M.state==='key'){if(!aiReady()){openSheet(`<div class="grab"></div><h2>Activer l’analyse des plats</h2>${keySetup()}<button class="btn ghost" data-act="mealMode" data-v="pick">${ic('repas')} Composer plutôt avec ma liste (sans IA)</button>`,'meal');return}M.state=M.want==='text'?'text':'idle'}
   const chips=Object.keys(slotShares()).map(k=>`<button class="chip sm ${M.slot===k?'on':''}" data-act="mealSlot" data-v="${k}">${SLOT_L[k]}</button>`).join('');
-  const img=M.img?`<img src="${M.img}" alt="Ton plat" style="width:100%;max-height:260px;object-fit:cover;border-radius:16px">`:'';
+  const img=mealVisual(M);const photo=M.src!=='text'&&M.src!=='pick';
   let body='';const r=M.res;const n=M.tries.length;
-  if(M.state==='busy')body=`${img}<div class="row" style="justify-content:center;padding:8px"><span class="spin"></span><span class="muted">Analyse${n?' du plat corrigé':''}… <span class="num" id="aiT">0,0 s</span></span></div><p class="muted" style="font-size:12.5px;text-align:center">Garde l’app ouverte pendant l’analyse.</p>`;
+  if(M.state==='busy')body=`${img}<div class="row" style="justify-content:center;padding:8px"><span class="spin"></span><span class="muted">Analyse${n?(photo?' du plat corrigé':' corrigée'):photo?'':' de ta description'}… <span class="num" id="aiT">0,0 s</span></span></div><p class="muted" style="font-size:12.5px;text-align:center">Garde l’app ouverte pendant l’analyse.</p>`;
   else if(M.state==='retry')body=`${img}<div class="banner info"><span class="grow">Analyse interrompue quand l’app est passée en arrière-plan. Elle repart toute seule maintenant.</span></div>`;
-  else if(M.state==='error')body=`${img}<div class="banner bad"><span class="grow">${esc(M.err)}</span></div>${M.cv?`<button class="btn" data-act="mealRetry">Réessayer avec la même photo</button>`:''}<label for="mealCam" class="btn ghost">${ic('cam')} Reprendre la photo</label>`;
+  else if(M.state==='error')body=`${img}<div class="banner bad"><span class="grow">${esc(M.err)}</span></div>${photo?`${M.cv?`<button class="btn" data-act="mealRetry">Réessayer avec la même photo</button>`:''}<label for="mealCam" class="btn ghost">${ic('cam')} Reprendre la photo</label>`:`<button class="btn" data-act="mealRetry">Réessayer</button>${mealRedoBtn(M,n,'ghost')}`}`;
   else if(M.state==='ask'){
     const sug=[...new Set([...(M.askSug||[]),'Mayonnaise','Fromage','Sauce','Beurre'])].slice(0,10);
     body=`${img}<section class="card" style="gap:12px"><span class="lbl">Question</span><h3 style="font-size:18px;text-wrap:balance">${esc(M.askQ||'Qu’est-ce qu’il y a dedans ?')}</h3>
@@ -145,31 +163,80 @@ function mealSheet(){
   else if(M.state==='result'&&r){
     const ok=r.verdict==='valide',np=r.verdict==='pas_un_plat';
     if(r.verdict==='interdit'){body=`<div style="position:relative">${img}<span class="bigstamp" style="color:var(--bad);bottom:12px;font-size:22px">INTERDIT</span></div>
-      <section class="card" style="gap:8px;border:2px solid var(--bad)"><span class="lbl" style="color:var(--bad)">Sucre interdit</span><h3 style="font-size:20px">${esc(r.bad.charAt(0).toUpperCase()+r.bad.slice(1))}</h3><p style="font-size:14.5px">Pas de sucre rapide dans ton plan. Remplace-le, puis reprends la photo.</p></section>
-      <label for="mealCam" class="btn danger" style="font-size:17px;padding:18px">${ic('cam')} Reprendre la photo</label>`;}
+      <section class="card" style="gap:8px;border:2px solid var(--bad)"><span class="lbl" style="color:var(--bad)">Sucre interdit</span><h3 style="font-size:20px">${esc(r.bad.charAt(0).toUpperCase()+r.bad.slice(1))}</h3><p style="font-size:14.5px">Pas de sucre rapide dans ton plan. Remplace-le, puis ${photo?'reprends la photo':M.src==='pick'?'modifie ton assiette':'corrige ta description'}.</p></section>
+      ${photo?`<label for="mealCam" class="btn danger" style="font-size:17px;padding:18px">${ic('cam')} Reprendre la photo</label>`:mealRedoBtn(M,n,'danger')}<button class="btn ghost" data-act="close">Annuler ce repas</button>`;}
     else
     body=`<div style="position:relative">${img}<span class="bigstamp" style="color:${ok?'var(--money)':np?'var(--muted)':'var(--warn)'};bottom:12px">${ok?'VALIDÉ':np?'PAS UN PLAT':'À CORRIGER'}</span></div>
-     ${np?`<p>${esc(r.resume||'Je ne vois pas de repas sur cette photo.')}</p>`:`
+     ${np?`<p>${esc(r.resume||(photo?'Je ne vois pas de repas sur cette photo.':'Je ne reconnais pas de repas dans ta description.'))}</p>`:`
      <div class="row between" style="align-items:baseline;gap:12px"><h3 style="min-width:0">${esc(r.plat||'Ton plat')}</h3><span class="num" style="font-size:30px;white-space:nowrap">${Math.round(r.kcal||0)}<small class="muted" style="font-size:13px"> kcal</small></span></div>
      <p class="num muted" style="font-size:13.5px">Protéines ${Math.round(r.prot||0)} g · Glucides ${Math.round(r.gluc||0)} g · Lipides ${Math.round(r.lip||0)} g</p>
      ${r.resume?`<p style="font-size:15px">${esc(r.resume)}</p>`:''}
      ${!ok&&(r.fix||[]).length?`<section class="card" style="gap:10px"><span class="lbl" style="color:var(--warn)">Avant de manger</span>${r.fix.map(x=>`<div class="row" style="gap:10px;align-items:flex-start"><b style="color:var(--warn);flex:none">→</b><span>${esc(x)}</span></div>`).join('')}</section>`:''}`}
      ${M.ms?`<p class="muted num" style="font-size:12px;text-align:right">Analysé en ${nf(M.ms/1000,1)} s</p>`:''}
      ${ok?`<div class="banner info">${ic('check')}<span class="grow">Repas pointé${M.gain?' · '+M$(M.gain)+' dans la cagnotte':' · complément ajouté'}${n>1?' · validé au '+n+'e essai':''}</span></div><button class="btn" data-act="close">Bon appétit</button>`:
-      `<label for="mealCam" class="btn">${ic('cam')} ${np?'Reprendre la photo':'J’ai corrigé · reprendre la photo'} (essai ${n+1})</label>${np?'':`<button class="describe" data-act="fixIng">${ic('pen')} Ce n’est pas ça · préciser les ingrédients</button>`}<button class="btn ghost" data-act="close">Annuler ce repas</button>`}`;
-  }else body=`<div class="cam" style="border-radius:20px;width:100%;height:180px">${ic('repas')}</div><label for="mealCam" class="btn">${ic('cam')} Photographier mon plat</label><p class="muted" style="font-size:12.5px;text-align:center">Tout le plat dans le cadre, vu d’au-dessus, avec la boisson. L’IA estime les calories et te dit quoi ajuster.</p>`;
-  openSheet(`<div class="grab"></div><div class="stack" style="gap:8px"><span class="lbl">Pointage repas${n?' · essai '+(M.state==='busy'?n+1:n):''}</span><h2>${M.state==='result'&&r&&r.verdict==='valide'?'C’est validé':M.state==='ask'?'Une précision':'Mon plat'}</h2>${(M.state==='idle'||!n)&&M.state!=='ask'?`<div class="chips">${chips}</div>`:''}</div>${body}`,'meal');
+      photo?`<label for="mealCam" class="btn">${ic('cam')} ${np?'Reprendre la photo':'J’ai corrigé · reprendre la photo'} (essai ${n+1})</label>${np?'':`<button class="describe" data-act="fixIng">${ic('pen')} Ce n’est pas ça · préciser les ingrédients</button>`}<button class="btn ghost" data-act="close">Annuler ce repas</button>`
+      :`${mealRedoBtn(M,n)}<button class="btn ghost" data-act="close">Annuler ce repas</button>`}`;
+  }
+  else if(M.state==='text')body=`<section class="card" style="gap:12px"><span class="lbl">Ton repas en quelques mots</span>
+      <textarea id="ansIn" class="ans" placeholder="Ex. : 200 g de riz, 150 g de poulet, une salade avec 1 cuillère d’huile d’olive, 1 banane">${esc(M.answer)}</textarea>
+      <button class="describe" data-act="voice">${ic('mic')} ${M.listening?'Je t’écoute… touche pour arrêter':'Dicter à la voix'}</button>
+      ${M.voiceErr?`<p class="muted" style="font-size:13px">${esc(M.voiceErr)}</p>`:''}
+      <p class="muted" style="font-size:12.5px">Donne les quantités si tu les connais, et la boisson. L’IA estime les calories et vérifie les sucres interdits, comme avec une photo.</p>
+      <button class="btn btn-meal" data-act="txtGo">${ic('arrow')} Analyser et pointer</button></section>
+      <button class="btn ghost" data-act="mealMode" data-v="idle">Changer de méthode</button>`;
+  else if(M.state==='pick')body=pickBody(M);
+  else body=`<div class="fd-modes">
+      ${aiReady()?`<label for="mealCam" class="fd-mode">`:`<button class="fd-mode" data-act="mealMode" data-v="photo">`}${ic('cam')}<b>Photo</b><small>L’IA regarde ton plat</small>${aiReady()?'</label>':'</button>'}
+      <button class="fd-mode" data-act="mealMode" data-v="text">${ic('pen')}<b>L’écrire</b><small>Décris ce que tu manges</small></button>
+      <button class="fd-mode" data-act="mealMode" data-v="pick">${ic('repas')}<b>Composer</b><small>Touche les aliments de ta liste</small></button></div>
+    <p class="muted" style="font-size:12.5px;text-align:center">Les trois façons comptent pareil : calories, validation et sucres interdits. Photo : tout le plat dans le cadre, vu d’au-dessus, avec la boisson.</p>`;
+  const h2=M.state==='result'&&r&&r.verdict==='valide'?'C’est validé':M.state==='ask'?'Une précision':M.state==='text'?'J’écris mon repas':M.state==='pick'?'Je compose mon repas':'Mon repas';
+  openSheet(`<div class="grab"></div><div class="stack" style="gap:8px"><span class="lbl">Pointage repas${n?' · essai '+(M.state==='busy'?n+1:n):''}</span><h2>${h2}</h2>${(['idle','text','pick'].includes(M.state)||!n)&&M.state!=='ask'&&Object.keys(slotShares()).length>1?`<div class="chips">${chips}</div>`:''}</div>${body}`,'meal');
 }
+/* composer le repas avec la liste « Mon repas OMAD du soir » */
+function plateItems(){const L=foodLists().omad,P=(MEAL&&MEAL.plate)||{};return Object.entries(P).filter(([,n])=>n>0).map(([id,n])=>{const f=L.find(x=>x.id===id);return f?{f,n}:null}).filter(Boolean)}
+function plateTot(it){return it.reduce((a,{f,n})=>({k:a.k+(+f.k||0)*n,p:a.p+(+f.p||0)*n,g:a.g+(+f.g||0)*n,l:a.l+(+f.l||0)*n}),{k:0,p:0,g:0,l:0})}
+function plateName(it){const xs=[...it].sort((a,b)=>b.f.k*b.n-a.f.k*a.n).slice(0,3).map(x=>x.f.n);const s=xs.map((x,i)=>i?x.toLowerCase():x).join(', ');return(s+(it.length>3?'…':'')).slice(0,60)}
+function pickGrid(){const M=MEAL;if(!M)return'';const L=foodLists().omad,q=M.pq||'',xs=filterFoods(L,q);
+  return xs.length?groupTiles(xs,'fdPick',{cnt:M.plate}):`<p class="empty">Rien de tel dans ta liste.</p><button class="describe" data-act="mealMode" data-v="text">${ic('pen')} L’écrire plutôt</button>`}
+function pickBody(M){
+  const it=plateItems(),t=plateTot(it),b=mealBudget();
+  const lines=it.map(({f,n})=>`<div class="fd-line">${foodIcon(f,'sm')}<span class="fd-grow"><b>${esc(f.n)}</b><small>${n} × ${esc(f.q||'portion')} · ${Math.round(f.k*n)} kcal · ${Math.round(f.p*n)} g prot.</small></span><button class="fd-stp" data-act="pickDec" data-v="${esc(f.id)}" aria-label="Une portion de moins">−</button><span class="num">${n}</span><button class="fd-stp" data-act="pickInc" data-v="${esc(f.id)}" aria-label="Une portion de plus">+</button></div>`).join('');
+  return`<section class="card tint k-meal" style="gap:10px"><div class="row between"><span class="lbl">Ton assiette</span><span class="num" style="font-size:13px">${Math.round(t.k)} / ${b.bk} kcal · ${Math.round(t.p)} / ${b.bp} g prot.</span></div>
+    <div class="bar"><i style="width:${clamp(t.k/b.bk,0,1)*100}%;background:${t.k>b.bk*b.hi?'var(--bad)':'var(--c-meal)'}"></i></div>
+    ${it.length?`<div class="fd-lines">${lines}</div>`:`<p class="muted" style="font-size:13.5px">Touche les aliments ci-dessous : chaque touche ajoute une portion.</p>`}</section>
+   <input id="pkQ" class="fd-in" type="search" placeholder="Chercher un aliment" value="${esc(M.pq)}" autocomplete="off">
+   <div id="pickGrid" class="stack" style="gap:8px">${pickGrid()}</div>
+   <div class="fd-go"><button class="btn btn-meal" data-act="pickGo">${ic('check')} Valider mon repas${it.length?' · '+Math.round(t.k)+' kcal':''}</button></div>
+   <button class="btn ghost" data-act="mealMode" data-v="idle">Changer de méthode</button>`}
+/* analyse d'une assiette composée : mêmes règles que celles données à l'IA (budget, protéines, sucres interdits) */
+function evalPlate(){
+  const it=plateItems(),t=plateTot(it),b=mealBudget(),L=foodLists().omad;
+  const r={verdict:'valide',plat:plateName(it),kcal:Math.round(t.k),prot:Math.round(t.p),gluc:Math.round(t.g),lip:Math.round(t.l),resume:'',fix:[],ing:it.map(x=>(x.n>1?x.n+' × ':'')+x.f.n),question:'',suggestions:[],bad:''};
+  const lo=b.bk*b.lo,hi=b.bk*b.hi,r10=x=>Math.max(10,Math.round(x/10)*10),low=s=>s.toLowerCase();
+  if(t.k<lo){const f=it.map(x=>x.f).filter(f=>f.c==='feculents').sort((a,b)=>b.k-a.k)[0]||L.filter(f=>f.c==='feculents').sort((a,b)=>b.k-a.k)[0];
+    r.fix.push(`Ajoute environ ${r10(lo-t.k)} kcal${f?` : par exemple 1 portion de ${low(f.n)} (${f.q}, +${Math.round(f.k)} kcal)`:''}`)}
+  else if(t.k>hi){const x=[...it].sort((a,b)=>b.f.k-a.f.k)[0];r.fix.push(`Retire environ ${r10(t.k-hi)} kcal : par exemple 1 portion de ${low(x.f.n)} (−${Math.round(x.f.k)} kcal)`)}
+  if(t.p<b.bp*.9){const f=it.map(x=>x.f).filter(f=>f.p>=10).sort((a,b)=>b.p-a.p)[0]||L.filter(f=>f.c==='proteines').sort((a,b)=>b.p-a.p)[0];
+    r.fix.push(`Ajoute ${Math.ceil(b.bp-t.p)} g de protéines${f?` : par exemple 1 portion de ${low(f.n)} (${f.q}, +${Math.round(f.p)} g)`:''}`)}
+  if(r.fix.length){r.verdict='a_corriger';r.resume=t.k>hi?'Assiette trop copieuse pour ton objectif.':'Il manque de quoi faire un vrai repas complet.'}
+  else r.resume=b.omad?'Repas complet et dans ton budget : bon appétit.':'Dans ton budget, protéines correctes.';
+  return r}
 
-function mealPrompt(){
-  const M=MEAL,p=S.profile,tg=targets(),sh=slotShares();const ms=(S.meals||{})[today()]||[];
+/* budget du repas : le même pour l'IA (photo, texte) et pour l'assiette composée */
+function mealBudget(){
+  const p=S.profile,tg=targets(),sh=slotShares();const ms=(S.meals||{})[today()]||[];const slot=MEAL&&sh[MEAL.slot]!=null?MEAL.slot:Object.keys(sh)[0];
   const ek=ms.reduce((a,m)=>a+m.kcal,0);
-  const n=nowMin(),left=Math.max(0,tg.kcal-ek),rem=Object.keys(sh).filter(k=>k===M.slot||(!ms.some(m=>m.slot===k)&&n<(SLOT_END[k]||1440))).reduce((a,k)=>a+sh[k],0)||sh[M.slot];
+  const n=nowMin(),left=Math.max(0,tg.kcal-ek),rem=Object.keys(sh).filter(k=>k===slot||(!ms.some(m=>m.slot===k)&&n<(SLOT_END[k]||1440))).reduce((a,k)=>a+sh[k],0)||sh[slot];
   const ep=ms.reduce((a,m)=>a+m.prot,0),omad=p.omad;
-  const bk=omad?Math.round(Math.max(300,left)/10)*10:Math.round(Math.max(150,Math.min(tg.kcal*sh[M.slot]*1.6,left*sh[M.slot]/rem))/10)*10;const bp=omad?Math.max(25,Math.round((tg.prot-ep)*.8)):Math.round(tg.prot*sh[M.slot]/rem*.85);
+  const bk=omad?Math.round(Math.max(300,left)/10)*10:Math.round(Math.max(150,Math.min(tg.kcal*sh[slot]*1.6,left*sh[slot]/rem))/10)*10;const bp=omad?Math.max(25,Math.round((tg.prot-ep)*.8)):Math.round(tg.prot*sh[slot]/rem*.85);
+  return{bk,bp,omad,ms,lo:omad?.75:.8,hi:omad?1.15:1.2}}
+function mealPrompt(){
+  const M=MEAL,p=S.profile,{bk,bp,omad,ms}=mealBudget();
   const diet=(p.diet||[]).map(d=>({halal:'halal',sansporc:'sans porc',vegetarien:'végétarien',pescetarien:'pescétarien',sanslactose:'sans lactose'}[d])).join(', ');
   const last=M.tries[M.tries.length-1];const noQ=M.notes.length||M.asks>=2||M.skipped;
-  return`Coach nutrition. Photo d’un plat avant de le manger. Objectif : perte de gras, garder le muscle.${diet?' Régime '+diet+'.':''}
+  const src=M.src==='text'?`Pas de photo (ignore l’image vide) : l’utilisateur décrit par écrit le plat qu’il va manger : « ${String(M.desc||'').replace(/[«»"]/g,'')} ».`:'Photo d’un plat avant de le manger.';
+  return`Coach nutrition. ${src} Objectif : perte de gras, garder le muscle.${diet?' Régime '+diet+'.':''}
 ${omad?`Mode OMAD : c’est le SEUL repas de la journée${ms.length?' (complément du repas déjà validé)':''}. Il doit être copieux et complet : protéines, légumes, féculents. Budget ${bk} kcal : valide entre 75 % et 115 % du budget ; s’il en manque beaucoup, demande d’ajouter (fix). Au moins ${bp} g de protéines.`:`Repas : ${SLOT_L[M.slot]}. Budget ${bk} kcal (±20 %), au moins ${bp} g de protéines.`}${last?` Essai précédent : ${Math.round(last.kcal||0)} kcal, demandé : ${(last.fix||[]).join(' ; ')||'rien'}. Si c’est corrigé et dans le budget, valide.`:''}${M.notes.length?` Ingrédients donnés par l’utilisateur (à utiliser) : ${M.notes.join(' ; ')}.`:''}${M.skipped?' Ingrédients cachés inconnus : prends les plus probables.':''}
 Estime les quantités et les calories. Verdict v :
 "interdit" EN PRIORITÉ si tu vois un aliment ou une boisson très sucré, même en petite quantité : crêpe, gaufre, donut, muffin, cookie, brownie, gâteau, pâtisserie, viennoiserie sucrée, bonbons, chocolat, glace, chantilly, pâte à tartiner, céréales sucrées, soda ou canette sucrée, jus de fruits, ice tea, limonade, sirop, boisson énergisante, milkshake, frappé, café ou thé sucré aromatisé, bubble tea. Mets l’élément dans bad. Les boissons zéro sucre sont autorisées ;
@@ -193,29 +260,43 @@ function sugarHit(r,notes){const txt=normTxt([r.plat,...(r.ing||[]),r.bad,...(no
   return null}
 
 async function aiVision(cv,prompt){return normAI(await aiRaw(cv,prompt,400))}
+/* repas écrit : pas de photo. aiRaw a besoin d'une image : on envoie une petite image vide (le prompt dit de l'ignorer).
+   Si « Général » ajoute un jour aiText(prompt, maxTokens) dans ia.js, il est utilisé à la place. */
+function blankCv(){const c=document.createElement('canvas');c.width=c.height=16;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,16,16);return c}
+async function aiMeal(M,prompt){
+  if(M.src==='text')return normAI(typeof aiText==='function'?await aiText(prompt,400):await aiRaw(blankCv(),prompt,400));
+  return aiVision(M.cv,prompt)}
 
 async function handleMealPhoto(file){
-  const M=MEAL;if(!M||!file)return;
+  const M=MEAL;if(!M||!file)return;M.src='photo';
   if(Date.now()-(file.lastModified||Date.now())>5*6e4){M.state='error';M.err='Cette photo ne vient pas d’être prise. Utilise l’appareil photo, pas la galerie.';mealSheet();return}
   let im;try{im=await loadImg(file)}catch(e){M.state='error';M.err='Impossible de lire la photo.';mealSheet();return}
   const sc=Math.min(1,640/Math.max(im.width,im.height));const cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
   M.img=cv.toDataURL('image/jpeg',.7);M.cv=cv;return analyzeMeal();
 }
+/* photo ou texte : analyse par l'IA */
 async function analyzeMeal(){
-  const M=MEAL;if(!M||!M.cv)return;stopVoice();M.state='busy';M.res=null;M.ms=0;M.hid=false;mealSheet();const tok=++mealTok;const t0=performance.now();
+  const M=MEAL;if(!M)return;if(M.src==='pick')return finishMeal(evalPlate());if(M.src!=='text'&&!M.cv)return;
+  stopVoice();M.state='busy';M.res=null;M.ms=0;M.hid=false;mealSheet();const tok=++mealTok;const t0=performance.now();
   const tick=setInterval(()=>{const el=$('#aiT');if(el)el.textContent=nf((performance.now()-t0)/1000,1)+' s'},100);
-  try{const r=await aiVision(M.cv,mealPrompt());clearInterval(tick);M.ms=Math.round(performance.now()-t0);if(MEAL!==M||tok!==mealTok)return;
-    const hit=r.verdict==='interdit'?(r.bad||sugarHit(r,M.notes)||'sucre'):sugarHit(r,M.notes);
-    if(hit&&r.verdict!=='pas_un_plat'){r.verdict='interdit';r.bad=r.bad||hit;M.res=r;M.tries.push({verdict:'interdit',kcal:r.kcal,fix:[]});M.state='result';logE('repas','interdit : '+r.bad);mealSheet();return}
-    if(r.verdict==='question'&&M.asks<2&&!M.skipped){M.asks++;M.askQ=r.question;M.askSug=(r.suggestions||[]).map(x=>String(x).slice(0,30)).slice(0,8);M.answer='';M.picks=[];M.askMode='voice';M.voiceErr='';M.state='ask';mealSheet();return}
-    if(r.verdict==='question')r.verdict='a_corriger';
-    M.res=r;M.tries.push({verdict:r.verdict,kcal:r.kcal,fix:r.fix});M.state='result';
-    if(r.verdict==='valide'){const ds=today();S.meals=S.meals||{};(S.meals[ds]=S.meals[ds]||[]).push({id:'m'+Date.now().toString(36),t:Date.now(),slot:M.slot,nom:String(r.plat||'Repas').slice(0,60),kcal:+r.kcal||0,prot:+r.prot||0,gluc:+r.gluc||0,lip:+r.lip||0,tries:M.tries.length});
-      const nm=nowMin(),o=S.profile.omad?omadInfo(ds):null;const first=S.meals[ds].length===1;M.gain=o?(first?(nm<=o.end+30?OMAD_PTS:Math.round(OMAD_PTS/2)):0):MEAL_PTS;
-      if(M.gain)addPts(M.gain,(o&&nm>o.end+30?'Repas en retard · ':'Repas validé · ')+String(r.plat||SLOT_L[M.slot]).slice(0,40),'meal');checkPerfect(ds);save();render()}
+  try{const r=await aiMeal(M,mealPrompt());clearInterval(tick);M.ms=Math.round(performance.now()-t0);if(MEAL!==M||tok!==mealTok)return;
+    return finishMeal(r);
   }catch(e){clearInterval(tick);if(MEAL!==M)return;
     if(e&&e.bg&&(M.bgRetry||0)<2){M.bgRetry=(M.bgRetry||0)+1;M.hid=false;if(document.hidden){M.state='retry';mealSheet();return}logE('ai','relance automatique après arrière-plan');return analyzeMeal()}
     M.state='error';M.err=e&&e.message?e.message:'L’analyse a échoué. Réessaie.'}
+  mealSheet();
+}
+/* suite commune aux trois façons de pointer (photo, texte, assiette composée) : sucres interdits, question, validation, cagnotte */
+function finishMeal(r){
+  const M=MEAL;if(!M)return;const notes=[...M.notes,M.src==='text'?M.desc:''].filter(Boolean);
+  const hit=r.verdict==='interdit'?(r.bad||sugarHit(r,notes)||'sucre'):sugarHit(r,notes);
+  if(hit&&r.verdict!=='pas_un_plat'){r.verdict='interdit';r.bad=r.bad||hit;M.res=r;M.tries.push({verdict:'interdit',kcal:r.kcal,fix:[]});M.state='result';logE('repas','interdit : '+r.bad);mealSheet();return}
+  if(r.verdict==='question'&&M.asks<2&&!M.skipped&&M.src!=='pick'){M.asks++;M.askQ=r.question;M.askSug=(r.suggestions||[]).map(x=>String(x).slice(0,30)).slice(0,8);M.answer='';M.picks=[];M.askMode='voice';M.voiceErr='';M.state='ask';mealSheet();return}
+  if(r.verdict==='question')r.verdict='a_corriger';
+  M.res=r;M.tries.push({verdict:r.verdict,kcal:r.kcal,fix:r.fix});M.state='result';
+  if(r.verdict==='valide'){const ds=today();S.meals=S.meals||{};(S.meals[ds]=S.meals[ds]||[]).push({id:'m'+Date.now().toString(36),t:Date.now(),slot:M.slot,nom:String(r.plat||'Repas').slice(0,60),kcal:+r.kcal||0,prot:+r.prot||0,gluc:+r.gluc||0,lip:+r.lip||0,tries:M.tries.length,src:M.src||'photo'});
+    const nm=nowMin(),o=S.profile.omad?omadInfo(ds):null;const first=S.meals[ds].length===1;M.gain=o?(first?(nm<=o.end+30?OMAD_PTS:Math.round(OMAD_PTS/2)):0):MEAL_PTS;
+    if(M.gain)addPts(M.gain,(o&&nm>o.end+30?'Repas en retard · ':'Repas validé · ')+String(r.plat||SLOT_L[M.slot]).slice(0,40),'meal');checkPerfect(ds);save();render()}
   mealSheet();
 }
 /* dictée vocale (Safari : reconnaissance vocale d'Apple) */
@@ -229,7 +310,7 @@ function toggleVoice(){
   rec.onresult=e=>{let tmp='';for(let i=e.resultIndex;i<e.results.length;i++){const x=e.results[i];if(x.isFinal)fin=(fin+' '+x[0].transcript).trim();else tmp+=x[0].transcript}
     M.answer=fin;const el=$('#ansIn');if(el)el.value=(fin+' '+tmp).trim();else if(fin||tmp){M.answer=(fin+' '+tmp).trim();mealSheet()}};
   rec.onerror=e=>{if(REC!==rec)return;M.voiceErr=e.error==='not-allowed'||e.error==='service-not-allowed'?'Micro ou dictée refusés : autorise le micro pour ce site (aA → Réglages du site) et active Siri et Dictée dans Réglages.':e.error==='no-speech'?'Je n’ai rien entendu. Réessaie ou décris par écrit.':'La dictée a coupé. Réessaie ou décris par écrit.'};
-  rec.onend=()=>{if(REC===rec)REC=null;M.listening=false;if(MEAL===M&&M.state==='ask')mealSheet()};
+  rec.onend=()=>{if(REC===rec)REC=null;M.listening=false;if(MEAL===M&&(M.state==='ask'||M.state==='text'))mealSheet()};
   try{rec.start();M.listening=true;M.voiceErr=''}catch(e){M.voiceErr='Impossible de démarrer la dictée.'}mealSheet();
 }
 
@@ -255,8 +336,8 @@ const qtyTxt=(id,g)=>id==='oeuf'?`${Math.max(1,Math.round(g/60))} œuf${Math.rou
 function renderRepas(){
   const sub=V.foodSub;
   return`<header class="top"><div class="stack" style="gap:4px"><span class="lbl">Alimentation · courses · budget</span><h1>Repas</h1></div></header>
-  <div class="seg">${[['menu','Menu'],['courses','Courses'],['cibles','Objectifs']].map(([k,l])=>`<button class="${sub===k?'on':''}" data-act="foodSub" data-v="${k}">${l}</button>`).join('')}</div>
-  ${sub==='courses'?renderCourses():sub==='cibles'?renderCibles():renderMenu()}`;
+  <div class="seg">${[['menu','Menu'],['aliments','Aliments'],['courses','Courses'],['cibles','Objectifs']].map(([k,l])=>`<button class="${sub===k?'on':''}" data-act="foodSub" data-v="${k}">${l}</button>`).join('')}</div>
+  ${sub==='courses'?renderCourses():sub==='cibles'?renderCibles():sub==='aliments'?renderAliments():renderMenu()}`;
 }
 function renderMenu(){
   const t=today(),ds=V.foodDate||t,mon=mondayOf(ds),tg=targets();const ms=mealsFor(ds);
@@ -337,3 +418,245 @@ function renderCibles(){
    <p style="font-size:13.5px;padding-top:8px">Protéines à environ 2 g par kg de poids visé (${nf(p.goal,0)} kg) : c’est ce qui protège et construit le muscle pendant que tu perds du gras. Lipides à 0,8 g/kg pour les hormones. Le reste en glucides, placés surtout autour de l’entraînement. Les cibles se recalculent à chaque pesée.</p></section>
   <section class="flat"><p style="font-size:13px">Repères généraux, pas un avis médical. Avec ${nf(tg.w,0)} kg, un bilan chez ton médecin (tension, glycémie, lipides) avant d’accélérer est une bonne idée.</p></section>`;
 }
+
+
+/* ============ listes d'aliments (enregistrées dans S.foodLists) ============ */
+// 1. « Autorisé pendant la journée » (hors repas OMAD) · 2. « Mon repas OMAD du soir » (par catégorie, valeurs pour une portion)
+const FCAT={feculents:['Féculents','🍚'],proteines:['Protéines','🍗'],legumes:['Légumes','🥦'],fruits:['Fruits','🍎'],laitiers:['Produits laitiers','🧀'],gras:['Matières grasses','🫒'],epices:['Épices et sauces','🌶️'],boissons:['Boissons','💧']};
+// valeurs proposées pour un aliment ajouté : [portion, kcal, prot, gluc, lip]
+const FCAT_DEF={feculents:['75 g cru',260,8,52,2],proteines:['150 g',200,30,0,8],legumes:['150 g',40,2,6,.5],fruits:['1 fruit',80,1,18,.3],laitiers:['1 portion',100,8,5,5],gras:['1 c. à soupe',90,0,0,10],epices:['1 c. à café',10,0,1,.5],boissons:['1 verre',0,0,0,0]};
+const FOOD_DAY=[['☕','Café','sans sucre'],['🍵','Thé','sans sucre'],['🫖','Tisane','sans sucre'],['💧','Eau',''],['🫧','Eau gazeuse','']];
+// [emoji ('' = pastille), nom, catégorie, portion, kcal, prot, gluc, lip]
+const FOOD_OMAD=[
+ ['🍚','Riz','feculents','75 g cru',265,6,58,1],['🍝','Pâtes','feculents','80 g cru',285,10,57,1.5],['🍞','Pain','feculents','2 tranches (60 g)',150,5,28,1.5],
+ ['🥖','Baguette','feculents','¼ de baguette',160,5,33,.8],['🥔','Pommes de terre','feculents','250 g',195,5,43,.3],['🍠','Patate douce','feculents','200 g',170,3,40,.2],
+ ['🫘','Lentilles','feculents','70 g cru',240,17,36,1],['🫘','Pois chiches','feculents','150 g (boîte)',180,10,24,4],['🫘','Haricots rouges','feculents','150 g (boîte)',165,12,22,1],
+ ['🌾','Quinoa','feculents','70 g cru',255,10,45,4],['🌾','Semoule','feculents','70 g cru',250,9,50,1],['🌾','Boulgour','feculents','70 g cru',240,9,48,1],
+ ['🌾','Flocons d’avoine','feculents','50 g',185,6.5,30,3.5],['🌯','Tortilla','feculents','1 galette',180,5,30,4.5],['🍜','Nouilles','feculents','80 g cru',285,9,58,1.5],
+ ['🌽','Maïs','feculents','100 g',80,3,14,1.5],
+ ['🥚','Œufs','proteines','2 œufs',145,12.5,.8,10],['🍗','Poulet','proteines','150 g',165,35,0,2.5],['🍗','Dinde','proteines','150 g',160,35,0,2],
+ ['🥩','Bœuf (steak)','proteines','150 g',190,32,0,7],['🥩','Bœuf haché 5 %','proteines','125 g',160,26,0,6],['🍖','Agneau','proteines','120 g',280,25,0,20],
+ ['🐟','Thon','proteines','1 boîte (110 g)',125,28,0,1],['🐟','Saumon','proteines','125 g',250,25,0,16],['🐟','Cabillaud','proteines','150 g',120,27,0,1],
+ ['🐟','Sardines','proteines','1 boîte (100 g)',210,24,0,12],['🍤','Crevettes','proteines','150 g',140,30,0,1.5],['🍖','Jambon de dinde','proteines','4 tranches',85,16,1,2],
+ ['🧆','Falafels','proteines','4 pièces',330,13,32,18],['','Tofu','proteines','150 g',190,20,3,11],
+ ['🍅','Tomates','legumes','150 g',27,1.3,5,.3],['🥬','Salade','legumes','1 bol',12,1,1.5,.2],['🥒','Concombre','legumes','150 g',18,1,3,.2],
+ ['🥕','Carottes','legumes','150 g',55,1.3,11,.3],['🥦','Brocoli','legumes','200 g',70,5.6,9,.8],['🥒','Courgettes','legumes','200 g',34,2.4,5,.6],
+ ['🫛','Haricots verts','legumes','200 g',62,3.6,10,.4],['🥬','Épinards','legumes','200 g',46,5.8,2.8,.8],['🫑','Poivron','legumes','150 g',40,1.5,7.5,.5],
+ ['🍆','Aubergine','legumes','200 g',50,2,9,.4],['🍄','Champignons','legumes','150 g',33,4.5,3,.5],['🥦','Chou-fleur','legumes','200 g',50,4,8,.6],
+ ['🫛','Petits pois','legumes','150 g',120,8,16,.6],['🧅','Oignon','legumes','½ oignon',20,.6,4.5,.1],['🧄','Ail','legumes','1 gousse',4,.2,1,0],
+ ['🍌','Banane','fruits','1 banane',105,1.3,25,.4],['🍎','Pomme','fruits','1 pomme',78,.4,19,.3],['🍐','Poire','fruits','1 poire',90,.6,22,.2],
+ ['🍊','Orange','fruits','1 orange',70,1.4,16,.2],['🍊','Clémentines','fruits','2 clémentines',55,1,13,.2],['🥝','Kiwis','fruits','2 kiwis',90,1.7,20,.8],
+ ['🍓','Fraises','fruits','150 g',50,1,11,.5],['🫐','Myrtilles','fruits','100 g',57,.7,14,.3],['🍇','Raisin','fruits','125 g',85,.9,20,.2],
+ ['🥭','Mangue','fruits','150 g',90,1.2,22,.6],['🍍','Ananas','fruits','150 g',75,.8,18,.2],['🍑','Pêche','fruits','1 pêche',60,1.4,14,.4],
+ ['🍉','Pastèque','fruits','250 g',75,1.5,19,.4],['🍋','Citron','fruits','½ citron',5,.2,1.5,0],
+ ['🧀','Fromage','laitiers','30 g',110,7,.3,9],['🧀','Mozzarella','laitiers','½ boule',150,11,1,11],['🧀','Feta','laitiers','40 g',105,5.6,1.6,8.5],
+ ['🥛','Yaourt nature','laitiers','1 pot (125 g)',65,5,6,2],['🥛','Skyr nature','laitiers','150 g',95,16.5,6,.3],['🥛','Fromage blanc 0 %','laitiers','200 g',96,15,8,.4],
+ ['🥛','Lait','laitiers','1 verre (200 ml)',92,6.6,9.6,3.2],
+ ['🫒','Huile d’olive','gras','1 c. à soupe',90,0,0,10],['🧈','Beurre','gras','10 g',75,0,0,8.3],['🥑','Avocat','gras','½ avocat',130,1.5,1.5,13],
+ ['🥜','Amandes','gras','30 g',180,6.3,2.7,15.6],['🌰','Noix','gras','30 g',200,4.5,2,19.5],['🥜','Cacahuètes','gras','30 g',170,7.5,3,14.5],
+ ['🫒','Olives','gras','40 g',60,.4,1,6],['','Crème fraîche','gras','2 c. à soupe',90,.7,.8,9],
+ ['🧂','Sel','epices','1 pincée',0,0,0,0],['','Poivre','epices','1 pincée',0,0,0,0],['🌶️','Épices (cumin, paprika…)','epices','1 c. à café',8,.3,1,.3],
+ ['🌿','Herbes fraîches','epices','1 poignée',3,.3,.5,0],['🫚','Gingembre','epices','1 c. à café',2,0,.4,0],['🍛','Curry','epices','1 c. à café',7,.3,1.2,.3],
+ ['🥫','Sauce tomate','epices','100 g',35,1.5,6,.5],['🌶️','Harissa','epices','1 c. à café',10,.3,1,.6],['','Moutarde','epices','1 c. à café',8,.4,.3,.6],
+ ['','Sauce soja','epices','1 c. à soupe',10,1,1,0],['','Vinaigre','epices','1 c. à soupe',3,0,.1,0],['','Mayonnaise','epices','1 c. à soupe',95,.2,.1,10.5],
+ ['💧','Eau','boissons','1 verre',0,0,0,0],['🫧','Eau gazeuse','boissons','1 verre',0,0,0,0],['🍵','Thé','boissons','sans sucre',0,0,0,0],['☕','Café','boissons','sans sucre',2,.1,0,0]
+];
+const normFood=t=>normTxt(t).replace(/œ/g,'oe').replace(/æ/g,'ae');
+const fidOf=n=>normFood(n).replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'x';
+const mkDay=([e,n,q])=>({id:fidOf(n),n,e,q,c:'boissons'});
+const mkOmad=([e,n,c,q,k,p,g,l])=>({id:fidOf(n),n,e,c,q,k,p,g,l});
+function foodLists(){let L=S.foodLists;if(!L||!Array.isArray(L.day)||!Array.isArray(L.omad))L=S.foodLists={v:1,day:FOOD_DAY.map(mkDay),omad:FOOD_OMAD.map(mkOmad)};return L}
+const filterFoods=(list,q)=>{const k=normFood(q).trim();return k?list.filter(f=>normFood(f.n).includes(k)):list};
+const sameFood=(list,n)=>list.find(f=>normFood(f.n).trim()===normFood(n).trim());
+const dayAllowedTxt=()=>{const d=foodLists().day.map(f=>f.n.toLowerCase());return d.length?(d.length>1?d.slice(0,-1).join(', ')+' ou '+d[d.length-1]:d[0])+' sans sucre':'eau, café ou thé sans sucre'};
+
+/* emoji : proposé automatiquement d'après le nom (mots sans accents, du plus précis au plus général) ; sinon pastille avec l'initiale */
+const EMO=[
+ ['eau (gazeuse|petillante)|perrier|badoit|san pellegrino|eau de seltz','🫧','boissons'],['glacons?','🧊','boissons'],
+ ['tisanes?|infusions?|verveine|camomille|tilleul|rooibos','🫖','boissons'],['the|the vert|the noir|matcha','🍵','boissons'],
+ ['cafe|expresso|espresso|cappuccino|latte|ristretto|americano','☕','boissons'],
+ ['lait de coco|noix de coco|coco','🥥','fruits'],['beurre de cacahuetes?|cacahuetes?|arachides?|amandes?|noisettes?|pistaches?|cajou','🥜','gras'],
+ ['eau','💧','boissons'],['sodas?|coca|cola|limonade|jus|smoothie|milkshake|ice tea|sprite|fanta|orangina','🥤',''],['bieres?','🍺',''],['vins?','🍷',''],
+ ['fromage blanc|yaourts?|yogourts?|yoghourts?|skyr|petits? suisses?|kefir|leben|lben|raib|faisselle','🥛','laitiers'],['lait','🥛','laitiers'],
+ ['fromages?|emmental|comte|mozzarella|feta|chevre|camembert|parmesan|gruyere|raclette|cheddar|ricotta|brie|roquefort|burrata|halloumi|babybel|kiri','🧀','laitiers'],
+ ['oeufs?|omelette','🥚','proteines'],['bacon|lardons?','🥓','proteines'],['saucisses?|merguez|hot dog|knacki|chipolatas?','🌭','proteines'],
+ ['burgers?|hamburgers?|cheeseburgers?','🍔',''],['frites','🍟','feculents'],['pizzas?','🍕',''],['sandwichs?|panini|croque','🥪',''],
+ ['kebab|pitas?|pittas?|shawarma|chawarma|durum','🥙',''],['tacos?','🌮',''],['wraps?|burritos?|tortillas?|fajitas?','🌯','feculents'],['falafels?','🧆','proteines'],
+ ['sushis?|makis?|sashimis?','🍣','proteines'],['crevettes?|gambas','🍤','proteines'],['crabes?|surimi','🦀','proteines'],['homards?|langoustes?|langoustines?','🦞','proteines'],
+ ['calamars?|encornets?|poulpes?|seiches?','🦑','proteines'],['huitres?|moules?|saint jacques','🦪','proteines'],
+ ['poulet|dinde|volaille|pilons?|nuggets?|escalopes?','🍗','proteines'],['steaks?|boeuf|veau|viande|bavette|entrecote|rumsteck|hache|roti|kefta|kofta','🥩','proteines'],
+ ['agneau|mouton|cotelettes?|jambon|gigot|cordon bleu','🍖','proteines'],
+ ['thon|saumon|poissons?|cabillaud|colin|merlu|sardines?|maquereaux?|truites?|dorade|daurade|lieu|sole|tilapia|harengs?|anchois|loup|pangasius|morue','🐟','proteines'],
+ ['patates? douces?','🍠','feculents'],['pommes? de terre|patates?|puree','🥔','feculents'],['riz|risotto','🍚','feculents'],['curry|dahl|dal|masala|tikka','🍛','epices'],
+ ['pates|spaghettis?|tagliatelles?|penne|macaronis?|lasagnes?|fusilli|coquillettes?|raviolis?|gnocchis?','🍝','feculents'],['nouilles?|ramen|udon|soba|vermicelles?','🍜','feculents'],
+ ['soupe|potage|veloute|bouillon|chorba|harira|ragout|pot au feu|tajine|couscous|chili con carne','🍲',''],['salade composee|salade cesar|salade nicoise|taboule|poke','🥗',''],
+ ['brocolis?|chou fleur|choux fleurs|romanesco','🥦','legumes'],['salades?|laitue|roquette|mache|choux?|epinards?|blettes?|endives?|cresson|kale|mesclun','🥬','legumes'],
+ ['sauce tomate|coulis|concasse|conserves?','🥫','epices'],['tomates?','🍅','legumes'],['concombres?|cornichons?|courgettes?','🥒','legumes'],['carottes?','🥕','legumes'],
+ ['poivrons?','🫑','legumes'],['piments?|harissa|epices?|paprika|cumin|tabasco|sriracha|cayenne|ras el hanout|curcuma|cannelle','🌶️','epices'],
+ ['mais','🌽','feculents'],['aubergines?','🍆','legumes'],['champignons?|cepes?|girolles?','🍄','legumes'],['ail','🧄','legumes'],['oignons?|echalotes?|poireaux?','🧅','legumes'],
+ ['haricots? verts?|petits? pois|pois gourmands?|feves?|edamame','🫛','legumes'],['haricots?|lentilles?|pois chiches?|flageolets?|houmous|hummus','🫘','feculents'],
+ ['noix|chataignes?|marrons?','🌰','gras'],['avocats?|guacamole','🥑','gras'],['olives?|huile','🫒','gras'],['beurre|margarine|ghee','🧈','gras'],['sel','🧂','epices'],
+ ['herbes?|persil|basilic|coriandre|menthe|thym|romarin|ciboulette|aneth|laurier|origan','🌿','epices'],['gingembre','🫚','epices'],
+ ['baguettes?','🥖','feculents'],['croissants?','🥐',''],['bagels?','🥯','feculents'],['bretzels?','🥨',''],['crepes?|galettes?|pancakes?|blinis?','🥞',''],
+ ['pain|toasts?|biscottes?|naan|chapati|matlouh|khobz','🍞','feculents'],
+ ['avoine|quinoa|semoule|boulgour|ble|cereales?|epeautre|sarrasin|millet|orge|muesli|polenta|farine','🌾','feculents'],
+ ['bananes?','🍌','fruits'],['pommes?','🍎','fruits'],['poires?','🍐','fruits'],['oranges?|clementines?|mandarines?|pamplemousses?','🍊','fruits'],['citrons?','🍋','fruits'],
+ ['raisins?','🍇','fruits'],['fraises?|framboises?','🍓','fruits'],['myrtilles?|cassis|mures?|fruits rouges','🫐','fruits'],['cerises?','🍒','fruits'],
+ ['peches?|nectarines?|abricots?|brugnons?','🍑','fruits'],['mangues?','🥭','fruits'],['ananas','🍍','fruits'],['kiwis?','🥝','fruits'],['melons?','🍈','fruits'],['pasteques?','🍉','fruits'],
+ ['chocolat','🍫',''],['bonbons?','🍬',''],['glaces?|sorbets?','🍨',''],['gateaux?|tartes?|patisseries?','🍰',''],['cookies?|biscuits?','🍪',''],['donuts?|beignets?','🍩',''],['miel','🍯',''],['pop ?corn','🍿','']
+];
+let EMO_RE=null;
+function suggestFood(name){
+  if(!EMO_RE)EMO_RE=EMO.map(([k,e,c])=>[new RegExp('(^| )('+k+')(s|x)?( |$)'),e,c]);
+  const t=normFood(name).replace(/[^a-z0-9]+/g,' ').trim();const out=[];
+  if(t)for(const[re,e,c]of EMO_RE)if(re.test(t)&&!out.some(x=>x.e===e))out.push({e,c});
+  return out}
+const suggestEmoji=n=>(suggestFood(n)[0]||{}).e||'';
+const PAS=['--c-meal','--c-work','--c-sport','--c-free','--c-money','--c-perso'];
+function foodIcon(f,cls=''){
+  if(f.e)return`<span class="fd-i ${cls}" aria-hidden="true">${esc(f.e)}</span>`;
+  const n=String(f.n||'?').trim();const ch=(n.match(/[\p{L}\p{N}]/u)||['?'])[0].toUpperCase();let h=0;for(const c of normFood(n))h=(h*31+c.charCodeAt(0))>>>0;
+  return`<span class="fd-i fd-pas ${cls}" style="--pc:var(${PAS[h%PAS.length]})" aria-hidden="true">${esc(ch)}</span>`}
+
+/* tuiles */
+const nbsp=t=>esc(t).replace(/(\d) (?=[a-zA-Zµ%])/g,'$1&nbsp;');
+function foodTiles(items,act,o={}){return items.map(f=>{const c=o.cnt&&o.cnt[f.id];
+  return`<button class="fd-tile${o.edit?' edit':''}${c?' on':''}${o.out?' out':''}" data-act="${o.edit?'fdDel':act}" data-l="${o.l||''}" data-v="${esc(f.id)}" aria-label="${esc(f.n)}${o.edit?' : retirer':''}">${foodIcon(f)}<span class="fd-n">${esc(f.n)}</span>${f.q?`<small>${nbsp(f.q)}</small>`:''}${c?`<b class="fd-c num">×${c}</b>`:''}${o.edit?`<i class="fd-x">${ic('x')}</i>`:''}</button>`}).join('')}
+function groupTiles(items,act,o){const out=[];const cats=[...Object.keys(FCAT),''];
+  for(const c of cats){const xs=items.filter(f=>c?f.c===c:!FCAT[f.c]);if(xs.length)out.push(`<span class="lbl fd-cat">${c?FCAT[c][1]+' '+FCAT[c][0]:'Autres'}</span><div class="fd-grid">${foodTiles(xs,act,o)}</div>`)}
+  return out.join('')}
+
+/* pointages de la journée (hors repas) : S.foodLog[jour] = [{t, n, e, ok}] (ok = dans la liste 1) */
+function logDay(f,ok){S.foodLog=S.foodLog||{};const d=today();(S.foodLog[d]=S.foodLog[d]||[]).push({t:Date.now(),n:String(f.n).slice(0,40),e:f.e||'',ok:!!ok});
+  const cut=addDs(d,-75);for(const k in S.foodLog)if(k<cut)delete S.foodLog[k];save()}
+function dayLogCard(){const lg=(S.foodLog||{})[today()]||[],omad=S.profile.omad;
+  return`<section class="card fd-log" style="gap:10px"><div class="row between"><span class="lbl">Aujourd’hui hors repas</span>${omad&&lg.some(x=>!x.ok)?'<span class="pill p-miss">Jeûne rompu</span>':omad&&lg.length?'<span class="pill p-done">OMAD respecté</span>':''}</div>
+   ${lg.length?`<div class="chips">${lg.map((x,i)=>`<button class="chip sm fd-lg${x.ok?'':' bad'}" data-act="fdLogDel" data-v="${i}" aria-label="Effacer ${esc(x.n)}">${x.e?esc(x.e)+' ':''}${esc(x.n)} · <span class="num">${clock(x.t)}</span></button>`).join('')}</div><p class="muted" style="font-size:12px">Touche un pointage pour l’effacer.</p>`:`<p class="muted" style="font-size:13.5px">Rien pointé pour l’instant.</p>`}</section>`}
+function dayGrid(q,edit){const L=foodLists();const xs=filterFoods(L.day,q);let h=xs.length?`<div class="fd-grid">${foodTiles(xs,'fdLog',{edit,l:'day'})}</div>`:'';
+  if(q.trim()&&!edit&&!sameFood(L.day,q)){const om=filterFoods(L.omad,q).filter(f=>!sameFood(L.day,f.n)).slice(0,6);const free=!om.length&&!sameFood(L.omad,q);
+    h+=`<div class="fd-out"><span class="lbl" style="color:var(--bad)">Pas dans ta liste de la journée${S.profile.omad?' · casse ton OMAD':''}</span>
+     <div class="fd-grid">${foodTiles(om,'fdOther',{out:1})}${free?`<button class="fd-tile out" data-act="fdOther" data-n="${esc(q.trim())}">${foodIcon({n:q,e:suggestEmoji(q)})}<span class="fd-n">${esc(q.trim())}</span><small>pointer quand même</small></button>`:''}</div>
+     ${free?`<button class="describe" data-act="fdAdd" data-l="day" data-n="${esc(q.trim())}">${ic('plus')} Ajouter « ${esc(q.trim())} » à ma liste de la journée</button>`:''}</div>`}
+  return h||`<p class="empty">Ta liste est vide : ajoute un aliment.</p>`}
+let DF=null;
+function dayFoodSheet(){DF=DF||{q:''};
+  openSheet(`<div class="grab"></div><span class="lbl">Hors repas OMAD · sans sucre</span><h2>Dans la journée</h2>
+   <p class="muted" style="font-size:13.5px">Touche ce que tu prends : ça ne casse pas ton jeûne.</p>
+   <input id="dfQ" class="fd-in" type="search" placeholder="Chercher (ex. banane)" value="${esc(DF.q)}" autocomplete="off">
+   <div id="dfGrid" class="stack" style="gap:10px">${dayGrid(DF.q,false)}</div>${dayLogCard()}`,'dayfood')}
+function foodRefresh(){const from=DF&&DF.from;if(from==='dayfood'){DF={q:''};dayFoodSheet()}else{DF=null;closeSheet();render()}}
+/* aliment hors liste 1 : avertissement « ça casse ton OMAD » */
+function breakSheet(f){
+  const o=S.profile.omad?omadInfo(today()):null,n=nowMin(),sug=sugarHit({plat:f.n,ing:[]},[]);
+  DF=DF||{q:''};DF.item=f;DF.from=sheetName==='dayfood'?'dayfood':'tab';
+  if(!o){logDay(f,false);toast(`${f.e?f.e+' ':''}${f.n} pointé`);foodRefresh();return}
+  const win=n>=o.start-30&&n<=o.end+30;
+  openSheet(`<div class="grab"></div><span class="lbl">OMAD</span><h2>${win?'C’est l’heure de ton repas':'Ça casse ton OMAD'}</h2>
+   <div class="fd-big">${foodIcon(f,'xl')}<b>${esc(f.n)}</b></div>
+   ${win?`<section class="card tint k-meal" style="gap:8px"><span class="lbl" style="color:var(--c-meal)">Fenêtre ouverte · ${hm(o.start)} → ${hm(o.end)}</span><p style="font-size:15px">Ajoute-le à ton repas plutôt que dans la journée : il sera compté avec le reste.</p></section>
+     <button class="btn btn-meal" data-act="fdToMeal">${ic('repas')} Ajouter à mon repas</button><button class="btn ghost" data-act="fdBack">Annuler</button>`
+   :`<section class="card" style="border:2px solid var(--bad);gap:8px"><span class="lbl" style="color:var(--bad)">Pas dans ta liste de la journée</span>
+     <p style="font-size:15px">« ${esc(f.n)} » n’est pas autorisé hors repas : si tu le prends maintenant, ton jeûne est rompu. ${o.done?`Ton repas est déjà pris : prochain repas demain vers <b>${hm(o.start)}</b>.`:`Ton repas est à <b>${hm(o.start)}</b>${n<o.start?' (dans '+durTxt(o.start-n)+')':''}.`}${sug?` En plus, c’est un sucre interdit (${esc(sug)}).`:''}</p>
+     <p class="muted" style="font-size:13px">Autorisé en attendant : ${esc(dayAllowedTxt())}.</p></section>
+     <button class="btn" data-act="fdBack">Je ne le prends pas</button><button class="btn danger" data-act="fdBreak">Je le prends quand même</button>`}`,'dayfood');
+}
+
+/* onglet Repas → Aliments */
+function renderAliments(){
+  const which=V.foodList==='omad'?'omad':'day',edit=!!V.foodEdit;
+  return`<div class="seg"><button class="${which==='day'?'on':''}" data-act="foodList" data-v="day">Dans la journée</button><button class="${which==='omad'?'on':''}" data-act="foodList" data-v="omad">Repas du soir</button></div>
+  <section class="card" style="gap:12px">
+   ${which==='day'?`<h2>Autorisé pendant la journée</h2><p class="muted" style="font-size:13.5px">Hors repas OMAD et sans sucre : ça ne casse pas ton jeûne. Touche un aliment pour le pointer.</p>`
+    :`<h2>Mon repas OMAD du soir</h2><p class="muted" style="font-size:13.5px">Rangés par catégorie, sans sucre interdit. Quand tu pointes ton repas, touche-les pour composer ton assiette.</p>`}
+   <div class="fd-bar"><input id="foodQ" class="fd-in" type="search" placeholder="Chercher un aliment" value="${esc(V.foodQ||'')}" autocomplete="off"><button class="chip sm${edit?' on':''}" data-act="fdEdit">${edit?'Terminé':'Modifier'}</button></div>
+   ${edit?`<p class="muted" style="font-size:13px">Touche un aliment pour le retirer de la liste.</p>`:''}
+   <div id="foodGrid" class="stack" style="gap:10px">${foodTabGrid()}</div>
+   <button class="btn ghost" data-act="fdAdd" data-l="${which}">${ic('plus')} Ajouter un aliment</button>
+   ${edit?`<button class="btn ghost sm" style="width:100%" data-act="fdReset" data-l="${which}">Remettre les aliments de départ</button>`:''}
+  </section>
+  ${which==='day'?dayLogCard():''}`}
+function foodTabGrid(){const L=foodLists(),q=V.foodQ||'',edit=!!V.foodEdit;
+  if(V.foodList!=='omad')return dayGrid(q,edit);
+  const xs=filterFoods(L.omad,q);
+  return(xs.length?groupTiles(xs,'fdInfo',{edit,l:'omad'}):`<p class="empty">Aucun aliment ne correspond.</p>`)+(q.trim()&&!edit&&!sameFood(L.omad,q)?`<button class="describe" data-act="fdAdd" data-l="omad" data-n="${esc(q.trim())}">${ic('plus')} Ajouter « ${esc(q.trim())} » à ma liste</button>`:'')}
+
+/* ajouter un aliment */
+let FD=null;
+function fdNew(list,name){const n=(name||'').trim(),s=suggestFood(n)[0];const c=list==='omad'?(s&&FCAT[s.c]?s.c:'proteines'):'boissons';const d=FCAT_DEF[c];
+  FD={list,n,e:s?s.e:'',manual:false,c,q:list==='omad'?d[0]:'',k:d[1],p:d[2],touched:false,from:sheetName==='dayfood'?'dayfood':'tab'};fdAddSheet()}
+function fdEmoChips(){const F=FD;const c=suggestFood(F.n).map(x=>x.e);const base=F.list==='omad'?[FCAT[F.c][1],'🍽️','🥘']:['🍵','💧','🥤'];
+  const all=[...new Set([F.e,...c,...base].filter(Boolean))].slice(0,7);
+  return all.map(e=>`<button class="fd-emo${F.e===e?' on':''}" data-act="fdEmo" data-v="${esc(e)}" aria-label="Emoji ${esc(e)}">${esc(e)}</button>`).join('')+`<button class="fd-emo${F.e?'':' on'}" data-act="fdEmo" data-v="" aria-label="Pastille avec l’initiale">${foodIcon({n:F.n||'?',e:''},'sm')}</button>`}
+function fdCatChips(){return Object.entries(FCAT).map(([k,[l,e]])=>`<button class="chip sm${FD.c===k?' on':''}" data-act="fdCat" data-v="${k}">${e} ${l}</button>`).join('')}
+function fdPreview(){const p=$('#fdPrev'),c=$('#fdEmo');if(p)p.innerHTML=foodIcon(FD,'xl');if(c)c.innerHTML=fdEmoChips()}
+function fdCapture(){const F=FD;if(!F)return;const v=id=>{const e=$('#'+id);return e?e.value:null};
+  const n=v('fdName');if(n!=null)F.n=n;const q=v('fdQty');if(q!=null)F.q=q;const k=v('fdK');if(k!=null)F.k=k;const p=v('fdP');if(p!=null)F.p=p}
+function fdAddSheet(){const F=FD,om=F.list==='omad';
+  openSheet(`<div class="grab"></div><span class="lbl">${om?'Mon repas OMAD du soir':'Autorisé pendant la journée'}</span><h2>Nouvel aliment</h2>
+   <div class="fd-new"><span id="fdPrev">${foodIcon(F,'xl')}</span><input id="fdName" class="fd-in" placeholder="Nom (ex. cerises)" value="${esc(F.n)}" autocomplete="off" autocapitalize="sentences"></div>
+   <div class="field"><span class="lbl">Emoji proposé · touche pour changer</span><div class="fd-emos" id="fdEmo">${fdEmoChips()}</div></div>
+   ${om?`<div class="field"><span class="lbl">Catégorie</span><div class="chips" id="fdCats">${fdCatChips()}</div></div>
+    <div class="fd-form"><label><span class="lbl">Portion</span><input id="fdQty" class="fd-in" value="${esc(F.q)}" autocomplete="off"></label><label><span class="lbl">kcal</span><input id="fdK" class="fd-in" type="number" inputmode="decimal" min="0" value="${esc(F.k)}"></label><label><span class="lbl">Protéines g</span><input id="fdP" class="fd-in" type="number" inputmode="decimal" min="0" value="${esc(F.p)}"></label></div>
+    <p class="muted" style="font-size:12.5px">Valeurs pour une portion, préremplies selon la catégorie : corrige-les si tu les connais.</p>`
+    :`<p class="muted" style="font-size:12.5px">Seulement ce qui ne casse pas ton jeûne : boissons sans sucre, presque sans calories.</p>`}
+   <button class="btn" data-act="fdAddSave">${ic('plus')} Ajouter à ma liste</button>`,'fdadd');
+  if(!F.n)setTimeout(()=>{const i=$('#fdName');if(i)try{i.focus()}catch(e){}},60)}
+function fdSave(){fdCapture();const F=FD;if(!F)return;const n=String(F.n||'').trim().slice(0,40);
+  if(!n){toast('Écris le nom de l’aliment');return}
+  const sug=sugarHit({plat:n,ing:[]},[]);if(sug){toast(`Sucre interdit (${sug}) : je ne l’ajoute pas`);return}
+  const L=foodLists(),list=L[F.list];if(sameFood(list,n)){toast('Déjà dans ta liste');return}
+  let id=fidOf(n),i=2;while(list.some(f=>f.id===id))id=fidOf(n)+'_'+i++;
+  let item;if(F.list==='omad'){const d=FCAT_DEF[F.c]||FCAT_DEF.proteines,k=Math.max(0,+String(F.k).replace(',','.')||0),r=d[1]?k/d[1]:0;
+    item={id,n,e:F.e||'',c:F.c,q:String(F.q||'').trim().slice(0,30)||'1 portion',k,p:Math.max(0,+String(F.p).replace(',','.')||0),g:Math.round(d[3]*r*10)/10,l:Math.round(d[4]*r*10)/10,mine:1}}
+  else item={id,n,e:F.e||'',q:'',c:'boissons',mine:1};
+  list.push(item);save();toast(`${item.e?item.e+' ':''}${n} ajouté à ta liste`);
+  const from=F.from;FD=null;V.foodQ='';if(from==='dayfood'){DF={q:''};dayFoodSheet()}else{closeSheet();render()}}
+
+/* boutons. ACT est aussi la table des niveaux d'activité (bureau, debout, physique) affichée par les Réglages :
+   les actions y sont ajoutées « non énumérables » pour ne pas apparaître dans cette liste. */
+function regAct(o){for(const[k,f]of Object.entries(o))Object.defineProperty(ACT,k,{value:f,enumerable:false,configurable:true,writable:true})}
+regAct({
+  foodList:(el,v)=>{V.foodList=v;V.foodQ='';V.foodEdit=false;render()},
+  fdEdit:()=>{V.foodEdit=!V.foodEdit;render()},
+  fdLog:(el,v)=>{const f=foodLists().day.find(x=>x.id===v);if(!f)return;logDay(f,true);toast(`${f.e?f.e+' ':''}${f.n} pointé · ton OMAD continue`);if(sheetName==='dayfood')dayFoodSheet();else render()},
+  fdLogDel:(el,v)=>{const lg=(S.foodLog||{})[today()]||[];const x=lg.splice(Number(v),1)[0];save();if(x)toast(`${x.n} effacé`);if(sheetName==='dayfood')dayFoodSheet();else render()},
+  fdOther:(el,v)=>{const L=foodLists();const f=v?L.omad.find(x=>x.id===v):{n:el.dataset.n||'',e:suggestEmoji(el.dataset.n||'')};if(!f||!f.n)return;
+    const inDay=sameFood(L.day,f.n);if(inDay){logDay(inDay,true);toast(`${f.n} pointé · ton OMAD continue`);if(sheetName==='dayfood')dayFoodSheet();else render();return}
+    breakSheet(f)},
+  fdBreak:()=>{if(!DF||!DF.item)return;logDay(DF.item,false);toast('Noté · jeûne rompu. Eau, café ou thé jusqu’au repas.');DF.q='';foodRefresh()},
+  fdBack:()=>foodRefresh(),
+  fdToMeal:()=>{const f=DF&&DF.item;if(!f)return;const om=foodLists().omad.find(x=>x.id===f.id||normFood(x.n)===normFood(f.n));DF=null;closeSheet();
+    if(om)openMeal('pick',om.id);else openMeal(aiReady()?'text':'pick',f.n)},
+  dayFood:()=>{DF={q:''};dayFoodSheet()},
+  fdInfo:(el,v)=>{const f=foodLists().omad.find(x=>x.id===v);if(f)toast(`${f.e?f.e+' ':''}${f.n} · ${f.q} · ${Math.round(f.k)} kcal · ${nf(f.p,0)} g prot.`)},
+  fdDel:(el,v)=>{const L=foodLists(),k=el.dataset.l==='omad'?'omad':'day',f=L[k].find(x=>x.id===v);L[k]=L[k].filter(x=>x.id!==v);save();render();if(f)toast(`${f.n} retiré de ta liste`)},
+  fdReset:(el)=>{const k=el.dataset.l==='omad'?'omad':'day',L=foodLists();const def=k==='omad'?FOOD_OMAD.map(mkOmad):FOOD_DAY.map(mkDay);let n=0;
+    for(const f of def)if(!L[k].some(x=>x.id===f.id)){L[k].push(f);n++}save();render();toast(n?`${n} aliment${n>1?'s':''} remis`:'Rien à remettre : tout y est')},
+  fdAdd:(el)=>fdNew(el.dataset.l==='omad'?'omad':'day',el.dataset.n||''),
+  fdEmo:(el,v)=>{if(!FD)return;fdCapture();FD.e=v||'';FD.manual=true;fdPreview()},
+  fdCat:(el,v)=>{if(!FD)return;fdCapture();FD.c=v;FD.catSet=true;if(!FD.touched){const d=FCAT_DEF[v];FD.q=d[0];FD.k=d[1];FD.p=d[2]}if(!FD.manual)FD.e=suggestEmoji(FD.n)||'';fdAddSheet()},
+  fdAddSave:()=>fdSave(),
+  /* pointer le repas : photo, texte ou assiette composée */
+  mealMode:(el,v)=>{const M=MEAL;if(!M)return;stopVoice();M.res=null;
+    if(v==='pick'){M.state='pick'}else if(v==='text'){M.want='text';M.state=aiReady()?'text':'key'}else if(v==='photo'){M.want='photo';M.state='key'}else{M.state='idle'}
+    mealSheet();if(M.state==='text')setTimeout(()=>{const a=$('#ansIn');if(a&&!a.value)try{a.focus()}catch(e){}},60)},
+  mealRedo:()=>{const M=MEAL;if(!M)return;M.res=null;M.state=M.src==='pick'?'pick':'text';if(M.src==='text')M.answer=M.desc;mealSheet()},
+  txtGo:()=>{const M=MEAL;if(!M)return;stopVoice();const el=$('#ansIn');if(el)M.answer=el.value;const t=String(M.answer||'').trim();
+    if(t.length<3){toast('Écris ce qu’il y a dans ton repas');return}M.desc=t.slice(0,400);M.src='text';M.notes=[];M.asks=0;M.skipped=false;M.bgRetry=0;analyzeMeal()},
+  fdPick:(el,v)=>{const M=MEAL;if(!M)return;M.plate[v]=Math.min(9,(M.plate[v]||0)+1);mealSheet()},
+  pickInc:(el,v)=>{const M=MEAL;if(!M)return;M.plate[v]=Math.min(9,(M.plate[v]||0)+1);mealSheet()},
+  pickDec:(el,v)=>{const M=MEAL;if(!M)return;M.plate[v]=Math.max(0,(M.plate[v]||0)-1);if(!M.plate[v])delete M.plate[v];mealSheet()},
+  pickGo:()=>{const M=MEAL;if(!M)return;if(!plateItems().length){toast('Touche au moins un aliment de ta liste');return}M.src='pick';M.ms=0;finishMeal(evalPlate())}
+});
+/* recherche en direct et formulaire d'ajout (sans perdre le clavier) */
+document.addEventListener('input',e=>{const id=e.target.id,v=e.target.value;
+  if(id==='foodQ'){V.foodQ=v;const g=$('#foodGrid');if(g)g.innerHTML=foodTabGrid()}
+  else if(id==='dfQ'&&DF){DF.q=v;const g=$('#dfGrid');if(g)g.innerHTML=dayGrid(v,false)}
+  else if(id==='pkQ'&&MEAL){MEAL.pq=v;const g=$('#pickGrid');if(g)g.innerHTML=pickGrid()}
+  else if(id==='fdName'&&FD){FD.n=v;if(!FD.manual)FD.e=suggestEmoji(v);
+    if(FD.list==='omad'&&!FD.catSet){const s=suggestFood(v)[0];if(s&&FCAT[s.c]&&s.c!==FD.c){FD.c=s.c;
+      if(!FD.touched){const d=FCAT_DEF[s.c];FD.q=d[0];FD.k=d[1];FD.p=d[2];for(const[i,x]of[['fdQty',FD.q],['fdK',FD.k],['fdP',FD.p]]){const el=$('#'+i);if(el)el.value=x}}
+      const cc=$('#fdCats');if(cc)cc.innerHTML=fdCatChips()}}
+    fdPreview()}
+  else if((id==='fdQty'||id==='fdK'||id==='fdP')&&FD){FD.touched=true;fdCapture()}
+});
