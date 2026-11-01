@@ -43,6 +43,19 @@ test('jours de salle : jamais les jours qui commencent à midi', async () => {
   noErr(a);
 });
 
+test('journée coupée : un seul service du début du premier à la fin du dernier', async () => {
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true });
+  assert.deepEqual(JSON.parse(a.ev(`JSON.stringify(workBlocks('2026-11-01').blocks.map(b=>[b.s,b.e,b.t,b.loc]))`)), [[720, 1230, 'Resto', 'Centre-ville']]);
+  assert.equal(a.ev(`dayTasks('2026-11-01').filter(t=>t.type==='travail').length`), 1);
+  assert.equal(a.ev(`dayStats('2026-11-01').work`), 510);
+  assert.equal(a.ev(`dayStats('2026-11-01').trips`), 2 * a.ev('S.profile.commute'), 'un seul aller-retour');
+  // estimé (après la fin de l'agenda) et manuel suivent la même règle
+  assert.equal(a.ev(`workBlocks('2026-11-22').src`), 'estime'); assert.equal(a.ev(`workBlocks('2026-11-22').blocks.length`), 1);
+  a.ev(`S.workOv['2026-11-05']={on:true,blocks:[{s:885,e:1100},{s:600,e:800}]}`);
+  assert.deepEqual(JSON.parse(a.ev(`JSON.stringify(workBlocks('2026-11-05').blocks.map(b=>[b.s,b.e]))`)), [[600, 1100]]);
+  noErr(a);
+});
+
 test('travail en cours : oubli = moitié, pas fait = négatif', async () => {
   const a = await boot({ now: '2026-11-04T16:00:00', agenda: true });
   assert.match(a.text('.hero'), /En cours/);

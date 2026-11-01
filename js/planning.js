@@ -6,13 +6,15 @@ function cycleOf(ds){if(!S.programStart)return 1;const diff=Math.round((parseYmd
 const TYPE={reveil:['Réveil',30],coucher:['Au lit',20],pesee:['Pesée',10],repas:['Repas',10],travail:['Travail',10],sport:['Sport',50],cardio:['Marche active',25],courses:['Courses',20],batch:['Batch cooking',30],etude:['Étude',20],maison:['Maison',15],rdv:['Rendez-vous',10],perso:['Perso',15],agenda:['Agenda',10]};
 const SINGLE=['reveil','coucher','pesee'];
 /* planning de travail : agenda > modif manuelle > horaires habituels */
+/* journée coupée = un seul service : début du premier, fin du dernier (titre et lieu du premier) */
+const oneBlock=b=>b.length<2?b:[{...b[0],e:Math.max(...b.map(x=>x.e))}];
 function workBlocks(ds){
   const o=S.workOv[ds];
-  if(o)return{src:'manuel',blocks:o.on?(o.blocks||[{s:o.start,e:o.end}]).map(b=>({s:b.s,e:b.e})):[]};
+  if(o)return{src:'manuel',blocks:o.on?oneBlock((o.blocks||[{s:o.start,e:o.end}]).map(b=>({s:b.s,e:b.e})).sort((a,b)=>a.s-b.s)):[]};
   const A=S.agenda;
-  if(A&&A.from<=ds&&ds<=A.to)return{src:'agenda',blocks:A.shifts.filter(x=>x.d===ds).map(x=>({s:x.s,e:x.e,t:x.t,loc:x.loc})).sort((a,b)=>a.s-b.s)};
-  if(A&&ds>A.to)for(let k=1;k<=4;k++){const r=addDs(ds,-7*k);if(r>=A.from&&r<=A.to)return{src:'estime',blocks:A.shifts.filter(x=>x.d===r).map(x=>({s:x.s,e:x.e,t:x.t,loc:x.loc})).sort((a,b)=>a.s-b.s)}}
-  const p=S.profile;return{src:'habituel',blocks:p.workDays.includes(dow(parseYmd(ds)))?[{s:p.workStart,e:p.workEnd}]:[]};
+  if(A&&A.from<=ds&&ds<=A.to)return{src:'agenda',blocks:oneBlock(A.shifts.filter(x=>x.d===ds).map(x=>({s:x.s,e:x.e,t:x.t,loc:x.loc})).sort((a,b)=>a.s-b.s))};
+  if(A&&ds>A.to)for(let k=1;k<=4;k++){const r=addDs(ds,-7*k);if(r>=A.from&&r<=A.to)return{src:'estime',blocks:oneBlock(A.shifts.filter(x=>x.d===r).map(x=>({s:x.s,e:x.e,t:x.t,loc:x.loc})).sort((a,b)=>a.s-b.s))}}
+  const p=S.profile;return{src:'habituel',blocks:oneBlock(p.workDays.includes(dow(parseYmd(ds)))?[{s:p.workStart,e:p.workEnd}]:[])};
 }
 const sleepNeed=()=>(S.profile.cycles||5)*90+15;
 function wakeFor(ds){const p=S.profile,b=workBlocks(ds).blocks;const ov=S.wakeOv[ds];if(ov!=null&&ov>=240&&ov<=780&&(!b.length||ov<=b[0].s-15))return ov;let w=p.wake;if(b.length)w=Math.min(w,b[0].s-(p.commute||0)-75);return Math.max(300,w)}

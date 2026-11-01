@@ -49,7 +49,7 @@ async function runDiag(){
       const L=await step(`Gemini · texte · ${m}`,async()=>{const body=JSON.parse(JSON.stringify(tiny));body.generationConfig={maxOutputTokens:30,temperature:0};
         const x=await timed(`${G}/${m}:generateContent`,{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':k},body:JSON.stringify(body)},8000);
         if(!x.r.ok)throw new Error('HTTP '+x.r.status+' '+x.body.replace(/\s+/g,' ').slice(0,160));return{s:x.ms>3000?'!!':'OK',d:`${x.ms} ms`}});
-      if(L.s!=='KO'&&/lite/.test(m))working.push({m,ms:+(L.d.match(/(\d+) ms/)||[])[1]||9999});
+      if(L.s!=='KO'&&/lite/.test(m)){const v=(L.d.match(/(\d+) ms/)||[])[1];working.push({m,ms:v!=null?+v:9999})}
     }
     // secours rangés du plus rapide au plus lent (mesuré), mémorisés pour les prochains repas
     working.sort((a,b)=>a.ms-b.ms);best=working[0]||null;const msOf=m=>{const w=working.find(x=>x.m===m);return w?` (${w.ms} ms)`:''};
@@ -92,7 +92,7 @@ async function runDiag(){
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-11-01.1638';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-11-01.1702';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
