@@ -353,6 +353,48 @@ test('glisser à gauche / à droite pour changer d’onglet', async () => {
   noErr(a);
 });
 
+test('planning : onglet « Planning », bouton +, fenêtre qui s’ouvre depuis la tâche', async () => {
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true });
+  assert.match(a.text('#tabs button[data-v="jour"]'), /Planning/);
+  assert.equal(a.$('#fab').hidden, false);
+  a.click('.tc[data-pop]'); assert.ok(a.$('#sheetRoot .scrim.pop'), 'la tâche doit s’ouvrir en petite fenêtre'); a.ev('closeSheet()');
+  a.click('[data-act="tab"][data-v="sport"]'); assert.equal(a.$('#fab').hidden, true, 'le + seulement sur le planning');
+  a.click('[data-act="tab"][data-v="jour"]'); assert.equal(a.$('#fab').hidden, false);
+  noErr(a);
+});
+
+test('créer une tâche en parlant : sans IA, écrit, avec question si l’heure manque', async () => {
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true });
+  const send = async (t) => { a.ev(`document.querySelector('#crIn').value=${JSON.stringify(t)}`); a.click('[data-act="crSend"]'); await wait(50); };
+  a.click('#fab'); assert.ok(a.$('#sheetRoot .scrim.pop'));
+  assert.ok(a.$('#crIn'), 'sans dictée : on passe à l’écrit'); // jsdom n’a pas de reconnaissance vocale
+  await send('Ajoute courses demain à 18 h pendant 45 min');
+  let c = JSON.parse(a.ev('JSON.stringify(S.custom.at(-1))'));
+  assert.deepEqual([c.title, c.type, c.date, c.start, c.dur, c.repeat], ['Courses', 'courses', '2026-11-05', 1080, 45, 'once']);
+  assert.match(a.text('.sheet h2'), /Tâche ajoutée/);
+  a.click('[data-act="crUndo"]'); assert.equal(a.ev('S.custom.length'), 0);
+  a.click('#fab'); await send('ajoute une tâche de tac-tac');
+  assert.match(a.text('.sheet h2'), /heure/i); assert.equal(a.ev('S.custom.length'), 0);
+  await send('à 15h');
+  c = JSON.parse(a.ev('JSON.stringify(S.custom.at(-1))'));
+  assert.deepEqual([c.title, c.start, c.date], ['Tac-tac', 900, '2026-11-04']);
+  assert.ok(a.ev(`dayTasks('2026-11-04').some(t=>t.title==='Tac-tac')`), 'la tâche apparaît dans le planning');
+  noErr(a);
+});
+
+test('créer une tâche en parlant : l’IA remplit et pose une question', async () => {
+  let n = 0;
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true, ls: { 'cadence.gkey': 'AQ.test' }, fetch: (u) => u.includes('generateContent') ? gemini(n++ === 0 ? { title: 'Lecture', type: 'etude', date: '', start: '', dur: 30, repeat: 'daily', q: 'À quelle heure veux-tu lire ?' } : { title: 'Lecture', type: 'etude', date: '2026-11-05', start: '20:30', dur: 30, repeat: 'daily', q: '' }) : null });
+  a.click('#fab'); a.ev(`document.querySelector('#crIn').value='ajoute lecture tous les jours'`); a.click('[data-act="crSend"]'); await wait(80);
+  assert.match(a.text('.sheet h2'), /À quelle heure veux-tu lire/);
+  a.ev(`document.querySelector('#crIn').value='20h30'`); a.click('[data-act="crSend"]'); await wait(80);
+  const c = JSON.parse(a.ev('JSON.stringify(S.custom.at(-1))'));
+  assert.deepEqual([c.title, c.type, c.date, c.start, c.dur, c.repeat, c.pts], ['Lecture', 'etude', '2026-11-05', 1230, 30, 'daily', 20]);
+  a.click('[data-act="crEdit"]'); assert.match(a.text('.sheet h2'), /Nouvelle tâche/); assert.equal(a.ev('S.custom.length'), 0);
+  assert.equal(a.ev('NT.start'), 1230);
+  noErr(a);
+});
+
 test('test complet de l’app (diagnostic)', async () => {
   const raw = webcrypto.getRandomValues(new Uint8Array(32));
   const b64u = Buffer.from(raw).toString('base64url');

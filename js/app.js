@@ -2,7 +2,7 @@
 /* ============ événements ============ */
 document.addEventListener('pointerdown',unlockAudio,{passive:true});
 document.addEventListener('click',e=>{
-  const el=e.target.closest('[data-act]');if(!el)return;const a=el.dataset.act,v=el.dataset.v;
+  const el=e.target.closest('[data-act]');if(!el)return;const a=el.dataset.act,v=el.dataset.v;TAP={el,t:Date.now()};
   if(a==='scrim'){if(e.target===el)closeSheet();return}
   if(el.tagName==='A')return;
   const H={

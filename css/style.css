@@ -195,6 +195,27 @@ p{margin:0}
 .tab-in-l{animation:tabInL .26s cubic-bezier(.2,.8,.2,1)}
 @keyframes tabInR{from{transform:translateX(56px);opacity:0}}
 @keyframes tabInL{from{transform:translateX(-56px);opacity:0}}
+/* Fenêtre « pop » : petite fenêtre centrée qui grandit depuis l'élément touché */
+.scrim.pop{align-items:center;padding:max(16px,env(safe-area-inset-top,0px)) 14px calc(16px + env(safe-area-inset-bottom,0px))}
+.scrim.pop .sheet{border-radius:26px;max-height:88%;animation:none;padding-bottom:20px;box-shadow:0 24px 60px rgba(8,10,14,.28)}
+.scrim.pop .grab{display:none}
+.scrim.pop.out .sheet{animation:popOut .18s ease-in forwards}
+@keyframes popOut{to{transform:scale(.9);opacity:0}}
+/* Bouton + flottant (planning) */
+.fab{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(82px + env(safe-area-inset-bottom,0px));z-index:25;width:60px;height:60px;border-radius:20px;
+  background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 10px 26px color-mix(in srgb,var(--accent) 38%,transparent),0 2px 6px rgba(8,10,14,.12);transition:transform .15s}
+.fab:active{transform:scale(.93)}
+.fab .ico{width:28px;height:28px;stroke-width:2.2}
+.fab[hidden]{display:none}
+/* Assistant de création (voix d'abord) */
+.cr-say{min-height:58px;border-radius:16px;background:var(--surface-2);padding:14px 16px;font-size:16px;color:var(--muted);margin:0}
+.cr-say.on{color:var(--ink);background:var(--accent-soft)}
+.cr-said{display:flex;flex-direction:column;gap:4px;font-size:13.5px;color:var(--muted)}
+.cr-think{display:flex;align-items:center;gap:12px;padding:18px 4px;font-weight:600}
+.cr-card{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;background:color-mix(in srgb,var(--c) 10%,var(--surface));border-radius:18px;padding:14px}
+.cr-card b{display:block;font-size:16.5px}
+.cr-card .num{display:block;font-size:13.5px;color:var(--muted)}
+.cr-gain{display:block;font-size:12.5px;font-weight:600;color:var(--money)}
 /* Réglages : parties séparées */
 .set-sec{gap:12px}
 .set-h{display:flex;align-items:center;gap:10px}
