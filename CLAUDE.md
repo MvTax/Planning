@@ -15,10 +15,12 @@ L'utilisateur l'ouvre en signet sur iPhone (Safari, écran d'accueil). Tout le t
 | **Repas** | `js/repas.js` + son bloc CSS | Aliments, recettes, nutrition, OMAD, photo du plat + IA, sucres interdits, onglet Repas, courses |
 
 Règles :
-- Ne modifie **que tes fichiers**. Si un changement ailleurs est nécessaire, explique-le à l'utilisateur pour qu'il le demande à l'agent concerné (ou à « Général »).
+- Travaille d'abord dans **tes fichiers**. Si ta demande exige un petit changement ailleurs (ex. remise à zéro, sauvegarde, diagnostic, état par défaut, un style global), **fais-le toi-même** : ne renvoie pas l'utilisateur vers un autre agent.
+  Garde ces changements courts et ciblés, ne réécris pas le code des autres, et cite chaque fichier touché hors de ton périmètre dans le message de commit (« Aussi : core.js … »).
+  Seule exception : une refonte importante d'une autre partie. Dans ce cas, donne à l'utilisateur un texte prêt à coller pour l'agent concerné.
 - Nouveaux boutons : n'ajoute rien dans `js/app.js`. Déclare tes actions dans ton fichier :
   `Object.assign(ACT,{monAction:(el,v)=>{…}})` puis `<button data-act="monAction" data-v="…">`.
-- Une seule conversation à la fois par fichier. Toujours `git pull --rebase` avant de pousser.
+- Commence toujours par `git pull --rebase origin main` (un autre agent a pu pousser entre-temps) et refais-le avant de pousser. En cas de conflit, garde les deux changements.
 
 ## Architecture
 
@@ -73,7 +75,7 @@ Règles :
 ## Faire un changement (procédure)
 
 1. `npm install` (une fois), puis lire le fichier concerné.
-2. Modifier **uniquement** tes fichiers.
+2. Modifier tes fichiers (et, si besoin, les petits ajustements ailleurs décrits plus haut).
 3. Ajouter ou adapter un test dans `tests/run.mjs` pour le comportement changé, puis `npm test` : tout doit passer.
 4. `./bump.sh "Une phrase pour l'utilisateur"` (numéro de version, cache des fichiers, bandeau « Nouvelle version »).
 5. Commit avec l'auteur `MvTax <MvTax@users.noreply.github.com>` (jamais l'adresse personnelle), puis :
