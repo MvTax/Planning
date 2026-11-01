@@ -331,6 +331,42 @@ svg.chart text{fill:var(--muted);font-family:var(--f-num);font-size:10px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 /* ===== Agent Jour : ajouter ici les nouveaux styles de la page Jour ===== */
+/* accueil : vue horaire de la journée (1 h = 64 px, voir AG_PX dans jour.js) */
+.ag-sec{padding-bottom:90px}
+.ag-hero{padding:14px 16px;gap:10px;border-radius:20px}
+.ag-hero .big{font-size:30px}
+.ag-hero h2{font-size:18px}
+.ag-hero .meta{font-size:13px}
+.ag-vb>.stack{display:grid;grid-template-columns:1fr 1fr}
+.ag-vb>.stack>:first-child:not(:last-child):nth-last-child(odd){grid-column:1/-1}
+.ag-vb .btn{padding:10px 12px;font-size:14px;border-radius:12px;gap:6px}
+.wd.ag-today:not(.on) b{color:var(--accent)}
+.ag{position:relative;max-height:62vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;background:var(--surface);border-radius:20px;box-shadow:var(--shadow);padding:12px 10px 12px 0}
+.ag-grid{position:relative;margin:6px 0}
+.ag-h{position:absolute;left:0;right:0;height:0;border-top:1px solid var(--line)}
+.ag-h span{position:absolute;left:0;width:48px;top:-8px;text-align:right;padding-right:8px;font-size:11px;color:var(--muted);background:var(--surface);line-height:16px}
+.ag-mark{position:absolute;left:52px;right:0;height:0;border-top:1.5px dashed color-mix(in srgb,var(--c-free) 70%,transparent);pointer-events:none}
+.ag-mark span{position:absolute;right:0;top:-9px;font-size:10.5px;font-weight:700;color:var(--c-free);background:var(--surface);padding:0 4px;border-radius:6px;line-height:18px}
+.ag-mark.bed{border-color:color-mix(in srgb,var(--c-sport) 70%,transparent)} .ag-mark.bed span{color:var(--c-sport)}
+.ag-col{position:absolute;left:54px;right:0;top:0;bottom:0}
+.ag-b{position:absolute;left:calc(var(--col) * 100% / var(--n));width:calc(100% / var(--n) - 3px);display:flex;align-items:flex-start;justify-content:space-between;gap:6px;
+  padding:6px 8px 6px 10px;border-radius:12px;text-align:left;overflow:hidden;
+  background:color-mix(in srgb,var(--c) 16%,var(--surface));border-left:4px solid var(--c);color:var(--ink);transition:transform .12s}
+.ag-b:active{transform:scale(.98)}
+.ag-b .ag-t{display:flex;flex-direction:column;min-width:0;gap:1px}
+.ag-b b{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:color-mix(in srgb,var(--c) 55%,var(--ink))}
+.ag-b .num{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-b .pill{padding:3px 8px;font-size:10.5px;flex:none}
+.ag-b.small{align-items:center;padding-block:2px}
+.ag-b.small .ag-t{flex-direction:row;gap:6px;align-items:baseline}
+.ag-b.meal{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--c) 20%,var(--surface)) 0 8px,color-mix(in srgb,var(--c) 12%,var(--surface)) 8px 16px)}
+.ag-b.info{border-left-style:dashed;background:color-mix(in srgb,var(--c) 9%,var(--surface))}
+.ag-b.past{opacity:.58}
+.ag-b.hot{outline:2px solid var(--warn);outline-offset:-2px}
+.ag-now{position:absolute;left:46px;right:0;height:0;border-top:2px solid var(--warn);z-index:2;pointer-events:none}
+.ag-now::before{content:"";position:absolute;left:-4px;top:-5px;width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.ag-now span{position:absolute;left:-46px;top:-9px;width:40px;text-align:right;font-size:11px;font-weight:700;color:var(--warn);background:var(--surface);line-height:16px}
+.ag-empty{position:absolute;left:54px;right:8px;top:40%;text-align:center;color:var(--muted);font-size:13.5px;background:var(--surface-2);border-radius:14px;padding:12px}
 
 /* ===== Agent Sommeil : ajouter ici les nouveaux styles du sommeil ===== */
 

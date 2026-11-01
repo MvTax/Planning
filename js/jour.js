@@ -3,23 +3,23 @@
 function greeting(){const h=new Date().getHours();return h<5?'Bonne nuit':h<12?'Bonjour':h<18?'Bon après-midi':'Bonsoir'}
 const KIND=t=>({travail:'work',sport:'sport',cardio:'sport',repas:'meal',courses:'meal',batch:'meal',agenda:'free',rdv:'free',etude:'perso',maison:'perso',perso:'perso'}[t]||'perso');
 function renderJour(){
-  V.date=today();const t=today(),ds=V.date,isToday=ds===t,T=dayTasks(ds),p=S.profile;
-  const mon=mondayOf(ds);const w=weekOf(ds);
+  const t=today();if(!V.date)V.date=t;const ds=V.date,isToday=ds===t,T=dayTasks(ds),p=S.profile;
+  const mon=mondayOf(ds);const w=weekOf(t);
   const strip=Array.from({length:7},(_,i)=>{const d=addDs(mon,i);const dot=d<=t?(S.perfect[d]?'full':dayPts(d)>0?'part':''):'';
-    return`<button class="wd ${d===ds?'on':''}" data-act="date" data-v="${d}">${DAYS[i]}<b>${parseYmd(d).getDate()}</b><i class="dot ${dot}"></i></button>`}).join('');
-  let hero='';
+    return`<button class="wd ${d===ds?'on':''}${d===t?' ag-today':''}" data-act="date" data-v="${d}">${DAYS[i]}<b>${parseYmd(d).getDate()}</b><i class="dot ${dot}"></i></button>`}).join('');
+  /* à faire tout de suite (en cours ou à valider) : seule carte détaillée gardée sur l'accueil */
+  let hero='',cur=null;
   if(isToday&&started()){
-    const cur=T.find(x=>!x.info&&['run','due'].includes(status(x)))||T.find(x=>!x.info&&status(x)==='soon');
-    if(cur){const s2=status(cur);const s=at(ds,cur.start),e=at(ds,cur.start+cur.dur);const mins=Math.round((s-Date.now())/6e4);
-      const when=cur.meal?(s2==='run'?`Fenêtre ${hm(cur.start)} → ${hm(cur.start+cur.dur)} · reste ${durTxt(Math.max(1,Math.round((e-Date.now())/6e4)))}`:s2==='due'?`Fenêtre ${hm(cur.start)} → ${hm(cur.start+cur.dur)} passée · mange maintenant`:`Fenêtre ${hm(cur.start)} → ${hm(cur.start+cur.dur)}`):s2==='run'?`Commencé à ${hm(cur.start)} · reste ${durTxt(Math.max(1,Math.round((e-Date.now())/6e4)))}`:mins>0?`Dans ${mins>=60?Math.floor(mins/60)+' h '+pad(mins%60):mins+' min'} · ${durTxt(cur.dur)}`:`Prévu à ${hm(cur.start)} · ${durTxt(-mins)} de retard`;
-      const [hc,hc2]=cur.meal||s2==='run'||s2==='due'?['#3F3C9C','#7A3D8E']:cur.type==='sport'?['#5A3DB6','#8B4CB0']:['#3550B8','#3B2E86'];
-      hero=`<section class="hero col" style="--hc:${hc};--hc2:${hc2}"><div class="row between"><span class="lbl">${cur.meal?(s2==='run'?'Fenêtre de repas ouverte':s2==='due'?'Tu n’as pas encore mangé':'Repas bientôt'):s2==='run'?'En cours · pas encore pointé':s2==='due'?'À valider':'Bientôt'}</span><span class="pts">${M$(cur.pts)}</span></div>
-        <div class="row" style="gap:14px;align-items:flex-end"><span class="big">${hm(cur.start)}</span><div style="min-width:0"><h2>${esc(cur.title)}</h2><p class="meta">${when}</p></div></div>${s2==='soon'?'':valBtns(cur,true)}</section>`;
+    cur=T.find(x=>!x.info&&!x.meal&&['run','due'].includes(status(x)));
+    if(cur){const s2=status(cur);const e=at(ds,cur.start+cur.dur);
+      const when=s2==='run'?`Commencé à ${hm(cur.start)} · reste ${durTxt(Math.max(1,Math.round((e-Date.now())/6e4)))}`:`${hm(cur.start)} → ${hm(cur.start+cur.dur)} · à valider`;
+      hero=`<section class="hero col ag-hero" style="--hc:#3F3C9C;--hc2:#7A3D8E"><div class="row between"><span class="lbl">${s2==='run'?'En cours · pas encore pointé':'À valider'}</span><span class="pts">${M$(cur.pts)}</span></div>
+        <div class="row" style="gap:12px;align-items:flex-end"><span class="big">${hm(cur.start)}</span><div style="min-width:0"><h2>${esc(cur.title)}</h2><p class="meta">${when}</p></div></div><div class="ag-vb">${valBtns(cur,true)}</div></section>`;
     }
   }
+  /* « Ma journée en chiffres » : s'ouvre au toucher (sablier) */
   const st=dayStats(ds);
   const wk=Array.from({length:7},(_,i)=>dayStats(addDs(mon,i)));const wWork=wk.reduce((a,x)=>a+x.work,0),wFree=wk.reduce((a,x)=>a+x.free,0);
-  const bar=(v,tot,c)=>`<i style="width:${tot?v/tot*100:0}%;background:${c}"></i>`;
   const n0=nowMin(),wl=isToday?workBlocks(ds).blocks.reduce((a,b)=>a+Math.max(0,b.e-Math.max(b.s,n0)),0):0,tb=isToday?Math.max(0,st.bed-n0):0;
   const seg=(v,k)=>v>0?`<i class="k-${k}" style="width:${st.awake?v/st.awake*100:0}%"></i>`:'';
   V.statsHTML=`<span class="lbl">${isToday?'Aujourd’hui':fmtShort(parseYmd(ds))} · éveillé de ${hm(st.wake)} à ${hm(st.bed)}</span><h2>Ma journée en chiffres</h2><p class="muted" style="font-size:13.5px">Le temps de ta journée, calculé à partir de ton planning de travail, de tes trajets et de ton heure de coucher.</p>
@@ -29,37 +29,60 @@ function renderJour(){
     <div class="segbar">${seg(st.work,'work')}${seg(st.trips,'trip')}${seg(st.free,'free')}</div>
     <div class="legend"><span class="k-work"><i></i>Travail <b class="num" style="color:var(--ink)">${st.work?durTxt(st.work):'0'}</b></span><span class="k-trip"><i></i>Trajets <b class="num" style="color:var(--ink)">${st.trips?durTxt(st.trips):'0'}</b></span><span class="k-free"><i></i>Libre <b class="num" style="color:var(--ink)">${durTxt(st.free)}</b></span></div>
     <p class="muted" style="font-size:12.5px;border-top:1px solid var(--line);padding-top:10px">Cette semaine : ${durTxt(wWork)} de travail · ${durTxt(Math.round(wFree/7))} de temps libre par jour en moyenne.</p></div>`;
-  const statsCard=`<button class="card row between" data-act="dayStats" style="width:100%;text-align:left;padding:14px 16px;gap:12px;flex-direction:row;align-items:center"><span class="badge sm k-free">${ic('hourglass')}</span><span style="flex:1;min-width:0"><b style="font-size:15px">${isToday?(wl?`Encore ${durTxt(wl)} de travail`:'Travail fini pour aujourd’hui'):`${durTxt(st.work)} de travail`}</b><br><span class="muted" style="font-size:13px">${isToday?`${durTxt(Math.max(0,tb-wl))} de temps libre avant de dormir`:`${durTxt(st.free)} de temps libre`}</span></span><span class="muted">${ic('arrow')}</span></button>`;
-  const row=x=>{const s2=status(x);const pu=S.punches[x.key]||{};const[,l]=STAMP[s2];const k=KIND(x.type);
-    const earned=x.info?0:S.ledger.filter(e=>e.key===x.key).reduce((a,e)=>a+e.pts,0);
-    const lbl=x.info?(l||durTxt(x.dur)):x.meal?MEAL_LBL[s2]:s2==='done'?(pu.how==='ok'?'Validé':HOW[pu.how]||'Validé'):l;
-    const rest=(s2==='run'||s2==='irun')&&isToday?` · reste ${durTxt(Math.max(1,Math.round((at(ds,x.start+x.dur)-Date.now())/6e4)))}`:'';
-    const hot=isToday&&(s2==='due'||s2==='run');
-    return`<button class="tc ${s2==='done'||s2==='miss'||s2==='idone'?'past':''}" data-act="task" data-k="${x.key}" data-pop style="${hot?'outline:2px solid var(--warn);outline-offset:-2px':''}">
-      <span class="badge sm k-${k}">${ic(x.type)}</span>
-      <span class="ti"><b>${esc(x.title)}</b><span class="num">${hm(x.start)}${x.dur?' → '+hm(x.start+x.dur):''}${rest}${x.loc?' · '+esc(x.loc):''}</span>
-      ${x.info?'':`<span style="font-size:12px;font-weight:600;color:${earned<0?'var(--bad)':earned>0?'var(--money)':'var(--muted)'}">${earned?M$(earned):M$(x.pts,false)+' à gagner'}</span>`}</span>
-      <span class="pill p-${s2}">${lbl}</span></button>`};
-  const isPast=x=>{const s2=status(x);return x.info?s2==='idone':(s2==='done'||s2==='miss')};
-  const rem=isToday?T.filter(x=>!isPast(x)):T,doneL=isToday?T.filter(isPast):[];
-  const list=rem.map(row).join('')+(doneL.length?`<button class="link" data-act="showDone" style="align-self:flex-start;font-size:13.5px;padding:2px 4px">${V.showDone?'Masquer':'Voir'} les ${doneL.length} élément${doneL.length>1?'s':''} terminé${doneL.length>1?'s':''}</button>${V.showDone?doneL.map(row).join(''):''}`:'');
   const wkLabel=w?`Semaine ${w} · ${PHASES[phaseOf(w)].n}`:`${PHASES[0].n} · programme le ${fmtShort(parseYmd(S.programStart||t))}`;
-  const mN=((S.meals||{})[t]||[]).length;
   return`<header class="top"><div class="stack" style="gap:4px;min-width:0"><span class="lbl">${fmtDate(new Date())}</span><h1>${greeting()}${p.name?', '+esc(p.name):''}</h1><span class="muted" style="font-size:13px">${wkLabel}</span></div>
     <button class="avatar" data-act="settings" aria-label="Réglages">${p.name?esc(p.name[0].toUpperCase()):ic('gear')}</button></header>
-  ${(()=>{let nx=null,nd=t;const base=started()?t:START_DAY;for(let k=0;k<7&&!nx;k++){nd=addDs(base,k);nx=dayTasks(nd).find(x=>!x.info&&['run','due','soon','up'].includes(status(x)))}
+  ${(()=>{let nx=null,nd=t;const base=started()?t:START_DAY;for(let k=0;k<7&&!nx;k++){nd=addDs(base,k);nx=dayTasks(nd).find(x=>!x.info&&(!hero||x.key!==cur.key)&&['run','due','soon','up'].includes(status(x)))}
     const s3=nx?status(nx):'';const l3=nx?(nx.meal?MEAL_LBL[s3]:STAMP[s3][1]):'';
     return`<div class="stats" style="grid-template-columns:1fr 1.35fr"><div class="stat k-money" data-act="tab" data-v="cagnotte"><span class="lbl">${ic('cagnotte')} Cagnotte</span><b>${eur(periodEur())}</b><span class="muted num" style="font-size:12px">${M$(dayPts(t))} aujourd’hui</span></div>
-    ${nx?`<button class="stat k-${KIND(nx.type)}" data-act="task" data-k="${nx.key}" data-pop style="text-align:left;${s3==='run'||s3==='due'?'outline:2px solid var(--warn);outline-offset:-2px':''}"><span class="lbl">${ic(nx.type)} Prochaine tâche</span><b style="font-family:var(--f-ui);font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nx.title)}</b><span class="row" style="gap:6px;justify-content:space-between"><span class="muted num" style="font-size:12px">${nd===t?'':fmtShort(parseYmd(nd))+' · '}${hm(nx.start)}</span><span class="pill p-${s3}" style="padding:3px 8px;font-size:11px">${l3}</span></span></button>`:
+    ${nx?`<button class="stat k-${KIND(nx.type)}" ${agAct(nx)} style="text-align:left;${s3==='run'||s3==='due'?'outline:2px solid var(--warn);outline-offset:-2px':''}"><span class="lbl">${ic(nx.type)} Prochaine tâche</span><b style="font-family:var(--f-ui);font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nx.title)}</b><span class="row" style="gap:6px;justify-content:space-between"><span class="muted num" style="font-size:12px">${nd===t?'':fmtShort(parseYmd(nd))+' · '}${hm(nx.start)}</span><span class="pill p-${s3}" style="padding:3px 8px;font-size:11px">${l3}</span></span></button>`:
       `<div class="stat k-free"><span class="lbl">${ic('check')} Prochaine tâche</span><b style="font-family:var(--f-ui);font-size:15px">Rien de prévu</b></div>`}</div>`})()}
   ${!started()?`<section class="card tint k-work" style="gap:6px"><span class="lbl">Tout est prêt</span><h2>Ton programme commence le dimanche 1er novembre</h2><p class="muted" style="font-size:13.5px">Cagnotte, pointages, repas et sport sont remis à zéro. Rendez-vous demain matin.</p></section>`:''}
   ${hasUpdate()?`<button class="banner info" data-act="forceUpdate" style="width:100%;text-align:left">${ic('arrow')}<span class="grow">Nouvelle version disponible${REMOTE_V.notes?' : '+esc(REMOTE_V.notes):''}. Touche pour mettre à jour.</span></button>`:''}
   ${hero}
-  ${isToday&&started()?mealCard():''}
-  <section class="sec"><div class="sec-h"><h2>${isToday?'Ce qui reste':fmtDate(parseYmd(ds))}</h2><button class="iconbtn" data-act="workday" data-v="${ds}" aria-label="Planning de la semaine">${ic('agenda')}</button><button class="iconbtn" data-act="addtask" aria-label="Ajouter une tâche">${ic('plus')}</button></div>
-  <div class="tl">${rem.length?'':`<div class="empty">${T.length?'Tout est fait pour aujourd’hui.':'Jour off : pas de travail ni de séance prévus.'}</div>`}${list}</div></section>
-  ${statsCard}`;
+  ${isToday&&started()?(p.omad?dayRow():mealCard()):''}
+  <section class="sec ag-sec"><div class="week">${strip}</div>
+   <div class="sec-h"><div class="stack" style="gap:2px;flex:1;min-width:0"><h2>${isToday?'Aujourd’hui':esc(fmtDate(parseYmd(ds)).replace(/^./,c=>c.toUpperCase()))}</h2><span class="muted num" style="font-size:12.5px">${st.work?durTxt(st.work)+' de travail · ':''}${durTxt(st.free)} de libre</span></div>
+    ${isToday?'':`<button class="chip sm" data-act="date" data-v="${t}">Aujourd’hui</button>`}
+    <button class="iconbtn" data-act="dayStats" data-pop aria-label="Ma journée en chiffres">${ic('hourglass')}</button><button class="iconbtn" data-act="workday" data-v="${ds}" aria-label="Planning de la semaine">${ic('agenda')}</button></div>
+   ${agendaView(ds,T,st)}</section>`;
 }
+/* ---------- vue horaire de la journée ---------- */
+const AG_PX=64/60;           // hauteur d'une minute (1 h = 64 px)
+const AG_MIN=26;             // hauteur minimale d'un bloc, pour pouvoir le toucher
+let AGS={ds:null,top:null};  // défilement gardé entre deux rendus (l'accueil se redessine toutes les 30 s)
+/* le bloc du repas OMAD d'aujourd'hui ouvre la fenêtre du repas ; les autres, le détail de la tâche */
+const agAct=x=>`data-act="${x.meal&&x.ds===today()?'agMeal':'task'}" data-k="${x.key}" data-pop`;
+function agRange(T,st){let lo=Math.min(st.wake,...T.map(x=>x.start)),hi=Math.max(st.bed,...T.map(x=>x.start+Math.max(x.dur,15)));
+  return{lo:Math.floor(lo/60)*60,hi:Math.ceil(hi/60)*60}}
+/* colonnes quand des blocs se chevauchent : chaque groupe se partage la largeur */
+function agLayout(T){const L=T.map(x=>({x,s:x.start,e:x.start+Math.max(x.dur*AG_PX,AG_MIN)/AG_PX,col:0,n:1})).sort((a,b)=>a.s-b.s||b.e-a.e);
+  let grp=[],end=-1e9;const flush=()=>{const cols=[];for(const b of grp){let c=cols.findIndex(e=>e<=b.s);if(c<0){c=cols.length;cols.push(0)}cols[c]=b.e;b.col=c}grp.forEach(b=>b.n=cols.length);grp=[]};
+  for(const b of L){if(b.s>=end)flush();grp.push(b);end=Math.max(end,b.e)}flush();return L}
+function agendaView(ds,T,st){
+  const{lo,hi}=agRange(T,st),y=m=>((m-lo)*AG_PX).toFixed(1),isToday=ds===today(),n=nowMin();
+  let hours='';for(let m=lo;m<=hi;m+=60)hours+=`<div class="ag-h" style="top:${y(m)}px"><span class="num">${hm(m)}</span></div>`;
+  const mark=(m,l,cls)=>`<div class="ag-mark ${cls}" style="top:${y(m)}px"><span>${l} · ${hm(m)}</span></div>`;
+  const blocks=agLayout(T).map(({x,col,n:nc})=>{const s2=status(x),k=KIND(x.type);const pu=S.punches[x.key]||{};
+    const lbl=x.info?'':x.meal?MEAL_LBL[s2]:s2==='done'?(pu.how&&pu.how!=='ok'?HOW[pu.how]:'Validé'):STAMP[s2][1];
+    const h=Math.max(x.dur*AG_PX,AG_MIN),small=h<46;
+    const when=x.meal?`Fenêtre ${hm(x.start)} → ${hm(x.start+x.dur)}`:`${hm(x.start)}${x.dur?' → '+hm(x.start+x.dur):''}`;
+    const cls=[x.info?'info':'',s2==='done'||s2==='miss'||s2==='idone'?'past':'',isToday&&(s2==='run'||s2==='due')?'hot':'',small?'small':'',x.meal?'meal':''].join(' ');
+    return`<button class="ag-b k-${k} ${cls}" ${agAct(x)} data-start="${x.start}" style="top:${y(x.start)}px;height:${h.toFixed(1)}px;--col:${col};--n:${nc}" aria-label="${esc(x.title)}, ${when}">
+      <span class="ag-t"><b>${x.meal?'Repas OMAD':esc(x.title)}</b><span class="num">${when}${x.loc&&!small?' · '+esc(x.loc):''}</span></span>${lbl&&!small?`<span class="pill p-${s2}">${lbl}</span>`:''}</button>`}).join('');
+  const now=isToday&&n>=lo&&n<=hi?`<div class="ag-now" style="top:${y(n)}px"><span class="num">${hm(n)}</span></div>`:'';
+  const H=((hi-lo)*AG_PX).toFixed(0);
+  /* défilement : même jour = on garde la position ; sinon un peu avant maintenant (aujourd'hui) ou la première tâche */
+  const keep=AGS.ds===ds&&AGS.top!=null,first=T.length?T[0].start:st.wake,target=keep?AGS.top:Math.max(0,((isToday?n-60:first-30)-lo)*AG_PX);
+  AGS={ds,top:keep?AGS.top:null};
+  setTimeout(()=>{const b=document.getElementById('agScroll');if(!b)return;b.scrollTop=target;AGS={ds,top:b.scrollTop};
+    b.onscroll=()=>{if(AGS.ds===ds)AGS.top=b.scrollTop}},0);
+  return`<div class="ag" id="agScroll" data-lo="${lo}" data-hi="${hi}"><div class="ag-grid" style="height:${H}px">${hours}
+    ${mark(st.wake,'Réveil','wake')}${mark(st.bed,'Au lit','bed')}
+    <div class="ag-col">${blocks}</div>${now}
+    ${T.length?'':`<div class="ag-empty">Jour off : pas de travail ni de séance prévus.</div>`}</div></div>`;
+}
+Object.assign(ACT,{agMeal:()=>openMeal()});
 function dayStatsSheet(){render();openSheet(`<div class="grab"></div>${V.statsHTML||''}<button class="btn ghost" data-act="workday" data-v="${V.date}">Voir le planning de la semaine</button>`,'stats')}
 
 /* ---------- détail tâche ---------- */
