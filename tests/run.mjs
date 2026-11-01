@@ -280,6 +280,22 @@ test('Réglages : la fenêtre ne se referme pas et ne se rouvre pas (pas de clig
   noErr(a);
 });
 
+test('Réglages : parties séparées, clé IA repliée quand elle marche', async () => {
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true, ls: { 'cadence.gkey': 'AQ.test' } });
+  a.click('header [data-act="settings"]');
+  assert.deepEqual(a.$$('.sheet [data-sec]').map((e) => e.dataset.sec), ['profil', 'affichage', 'repas', 'pointage', 'ia', 'agenda', 'donnees', 'app', 'reset']);
+  for (const act of ['reonboard', 'theme', 'setTog', 'omad', 'omadWin', 'bkExport', 'forceUpdate', 'diag', 'reset']) assert.ok(a.$(`.sheet [data-act="${act}"]`), 'bouton manquant : ' + act);
+  assert.ok(a.$('.sheet label[for="icsIn"]') && a.$('.sheet label[for="bkIn"]'));
+  assert.ok(!a.$('#apiKeyIn'), 'la clé IA doit être repliée');
+  a.click('[data-act="setAi"]'); assert.ok(a.$('#apiKeyIn'));
+  a.ev('closeSheet()'); a.click('header [data-act="settings"]'); assert.ok(!a.$('#apiKeyIn'), 'repliée à la réouverture');
+  a.click('[data-act="reset"]'); assert.ok(a.$('[data-act="resetDo"]')); a.click('[data-act="resetCancel"]');
+  noErr(a);
+  const b = await boot({ now: '2026-11-04T10:00:00', agenda: true });
+  b.click('header [data-act="settings"]'); assert.ok(b.$('#apiKeyIn'), 'sans clé : le formulaire est ouvert');
+  noErr(b);
+});
+
 test('test complet de l’app (diagnostic)', async () => {
   const raw = webcrypto.getRandomValues(new Uint8Array(32));
   const b64u = Buffer.from(raw).toString('base64url');

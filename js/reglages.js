@@ -92,28 +92,36 @@ async function runDiag(){
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-11-01.0352';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-11-01.0355';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
 function forceUpdate(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}toast('Mise à jour…');setTimeout(()=>location.replace(location.pathname+'?v='+Date.now()+location.hash),300)}
+/* Réglages en parties séparées : sec(icône, couleur, titre, contenu). La clé IA est repliée tant qu'elle marche. */
+let SETAI=false;
 function settingsSheet(checked){if(!checked&&!upChecking){upChecking=true;checkUpdate().then(()=>{upChecking=false;if(sheetName==='settings')settingsSheet(true)})}
-  const s=S.settings,p=S.profile;
+  const s=S.settings,p=S.profile,k=apiKey(),note=t=>`<p class="muted set-note">${t}</p>`;
   const tog=(k,l,d)=>`<button class="ing" data-act="setTog" data-v="${k}" style="grid-template-columns:1fr auto"><span class="nm">${l}<small>${d}</small></span><span class="ck ${s[k]?'on':''}">${s[k]?ic('check'):''}</span></button>`;
+  const sec=(icon,kind,title,body,id)=>`<section class="card set-sec k-${kind}" data-sec="${id}"><div class="set-h"><span class="set-i">${ic(icon)}</span><h3>${title}</h3></div>${body}</section>`;
   openSheet(`<div class="grab"></div><h2>Réglages</h2>
-  <div class="field"><span class="lbl">Apparence</span><div class="seg">${[['auto','Auto'],['light','Jour'],['dark','Nuit']].map(([k,l])=>`<button class="${s.theme===k?'on':''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div></div>
-  <section class="card" style="gap:0">${tog('sound','Son d’alarme','Sonne dans l’app quand un pointage est dû (app ouverte).')}${tog('ai','Vérification de la salle par l’IA','La photo doit montrer une salle de sport. Sinon : simple contrôle de luminosité.')}${tog('malus','Malus si non validé','Une tâche marquée pas fait, ou non validée le lendemain, retire sa somme de la cagnotte.')}</section>
-  <div class="field"><span class="lbl">Façon de manger</span><div class="seg"><button class="${p.omad?'on':''}" data-act="omad" data-v="1">OMAD · 1 repas</button><button class="${!p.omad?'on':''}" data-act="omad" data-v="0">Plusieurs repas</button></div>
-   ${p.omad?`<span class="lbl">Heure de ton repas</span>${stepper('PF','omadTime',15,600,1320,'time')}<div class="chips">${[30,60,90,120].map(v=>`<button class="chip sm ${(p.omadWin||60)===v?'on':''}" data-act="omadWin" data-v="${v}">Fenêtre ${durTxt(v)}</button>`).join('')}</div><p class="muted" style="font-size:12.5px">Si ton travail tombe à cette heure, la fenêtre se décale toute seule sur le créneau libre le plus proche. Repas à l’heure : ${M$(OMAD_PTS,false)}, en retard : ${M$(OMAD_PTS/2,false)}.</p>`:''}</div>
-  <div class="field"><span class="lbl">Analyse des repas (IA)</span><div class="flat row between"><span>${aiProv()==='gemini'?'Gemini':'Claude'} · ${apiKey()?'clé enregistrée':'aucune clé'}</span><span class="stamp ${apiKey()?'st-done':'st-up'}">${apiKey()?'Active':'Inactive'}</span></div>${keySetup()}</div>
-  <div class="field"><span class="lbl">Agenda</span><label for="icsIn" class="btn ghost">${ic('agenda')} Importer un agenda (.ics)</label><p class="muted" style="font-size:12.5px">${S.ics.length?`${S.ics.length} événements importés. `:''}Exporte ton planning en .ics (Google Agenda, Outlook, appli RH) puis choisis le fichier ici : les événements des 60 prochains jours deviennent des tâches à pointer.</p></div>
-  <div class="field"><span class="lbl">Sauvegarde</span><div class="row" style="gap:8px"><button class="btn ghost sm" style="flex:1" data-act="bkExport">Exporter</button><label for="bkIn" class="btn ghost sm" style="flex:1">Importer</label></div><p class="muted" style="font-size:12.5px">Tes données vivent sur ce téléphone, dans Safari. Exporte une sauvegarde de temps en temps (elle va dans l’app Fichiers).</p></div>
-  <div class="field"><span class="lbl">Application</span><div class="flat row between"><span>Version <span class="num">${APP_VERSION}</span></span>${hasUpdate()?`<span class="stamp st-done">Nouvelle : ${esc(REMOTE_V.v)}</span>`:REMOTE_V?'<span class="stamp st-up">À jour</span>':''}</div>
-   ${hasUpdate()&&REMOTE_V.notes?`<p style="font-size:13.5px">${esc(REMOTE_V.notes)}</p>`:''}
-   <button class="btn ${hasUpdate()?'':'ghost'}" data-act="forceUpdate">Forcer la mise à jour</button><button class="btn" data-act="diag">Tester l’application</button><p class="muted" style="font-size:12.5px">Recharge la dernière version publiée sur GitHub. Tes données restent sur le téléphone.</p></div>
-  <button class="btn ghost" data-act="reonboard">Modifier mon profil et mon programme</button>
-  <section class="flat"><p style="font-size:13px">${UID?'Tes données sont synchronisées dans ton espace privé Claude : retrouvées sur tous tes appareils.':'Données gardées sur cet appareil.'} Les selfies ne sont jamais enregistrés.</p></section>
-  ${rstConfirm?`<div class="row"><button class="btn danger" data-act="resetDo">Tout effacer</button><button class="btn ghost" data-act="resetCancel">Annuler</button></div>`:`<button class="btn danger" data-act="reset">Réinitialiser l’application</button>`}`,'settings')}
+  ${sec('perso','pts','Profil',`<div class="flat row between"><span><b>${esc(p.name||'Toi')}</b>${p.weight?` · ${nf(p.weight,p.weight%1?1:0)} kg${p.goal?` → objectif ${nf(p.goal,0)} kg`:''}`:''}</span></div>
+    <button class="btn ghost" data-act="reonboard">Modifier mon profil et mon programme</button>`,'profil')}
+  ${sec('jour','work','Affichage et alarmes',`<div class="seg">${[['auto','Auto'],['light','Jour'],['dark','Nuit']].map(([k,l])=>`<button class="${s.theme===k?'on':''}" data-act="theme" data-v="${k}">${l}</button>`).join('')}</div>
+    <div>${tog('sound','Son d’alarme','Sonne dans l’app quand un pointage est dû (app ouverte).')}</div>`,'affichage')}
+  ${sec('repas','meal','Repas',`<div class="seg"><button class="${p.omad?'on':''}" data-act="omad" data-v="1">OMAD · 1 repas</button><button class="${!p.omad?'on':''}" data-act="omad" data-v="0">Plusieurs repas</button></div>
+    ${p.omad?`<div class="field"><span class="lbl">Heure de ton repas</span>${stepper('PF','omadTime',15,600,1320,'time')}</div><div class="chips">${[30,60,90,120].map(v=>`<button class="chip sm ${(p.omadWin||60)===v?'on':''}" data-act="omadWin" data-v="${v}">Fenêtre ${durTxt(v)}</button>`).join('')}</div>${note(`Si ton travail tombe à cette heure, la fenêtre se décale toute seule sur le créneau libre le plus proche. Repas à l’heure : ${M$(OMAD_PTS,false)}, en retard : ${M$(OMAD_PTS/2,false)}.`)}`:''}`,'repas')}
+  ${sec('cagnotte','money','Pointage et cagnotte',`<div>${tog('ai','Vérification de la salle par l’IA','La photo doit montrer une salle de sport. Sinon : simple contrôle de luminosité.')}${tog('malus','Malus si non validé','Une tâche marquée pas fait, ou non validée le lendemain, retire sa somme de la cagnotte.')}</div>`,'pointage')}
+  ${sec('cam','sport','Analyse photo (IA)',`<div class="flat row between"><span>${aiProv()==='gemini'?'Gemini':'Claude'} · ${k?'clé enregistrée':'aucune clé'}</span><span class="stamp ${k?'st-done':'st-up'}">${k?'Active':'Inactive'}</span></div>
+    ${k&&!SETAI?`<button class="btn ghost sm" data-act="setAi">Changer de fournisseur ou de clé</button>`:keySetup()}`,'ia')}
+  ${sec('agenda','work','Agenda',`<label for="icsIn" class="btn ghost">${ic('agenda')} Importer un agenda (.ics)</label>${note(`${S.ics.length?`${S.ics.length} événements importés. `:''}Exporte ton planning en .ics (Google Agenda, Outlook, appli RH) puis choisis le fichier ici : les événements des 60 prochains jours deviennent des tâches à pointer.`)}`,'agenda')}
+  ${sec('disk','trip','Tes données',`<div class="row" style="gap:8px"><button class="btn ghost sm" style="flex:1" data-act="bkExport">Exporter</button><label for="bkIn" class="btn ghost sm" style="flex:1">Importer</label></div>
+    ${note(`Tes données vivent sur ce téléphone, dans Safari. Exporte une sauvegarde de temps en temps (elle va dans l’app Fichiers). ${UID?'Elles sont aussi synchronisées dans ton espace privé Claude.':''} Les selfies ne sont jamais enregistrés.`)}`,'donnees')}
+  ${sec('gear','trip','Application',`<div class="flat row between"><span>Version <span class="num">${APP_VERSION}</span></span>${hasUpdate()?`<span class="stamp st-done">Nouvelle : ${esc(REMOTE_V.v)}</span>`:REMOTE_V?'<span class="stamp st-up">À jour</span>':''}</div>
+    ${hasUpdate()&&REMOTE_V.notes?`<p style="font-size:13.5px">${esc(REMOTE_V.notes)}</p>`:''}
+    <div class="row" style="gap:8px"><button class="btn sm ${hasUpdate()?'':'ghost'}" style="flex:1" data-act="forceUpdate">Forcer la mise à jour</button><button class="btn ghost sm" style="flex:1" data-act="diag">Tester l’application</button></div>
+    ${note('« Forcer la mise à jour » recharge la dernière version publiée. Tes données restent sur le téléphone.')}`,'app')}
+  <section class="set-danger" data-sec="reset">${rstConfirm?`<p class="set-note">Tout ton historique, ta cagnotte et tes réglages seront effacés de ce téléphone.</p><div class="row" style="gap:8px"><button class="btn danger" style="flex:1" data-act="resetDo">Tout effacer</button><button class="btn ghost" style="flex:1" data-act="resetCancel">Annuler</button></div>`:`<button class="btn danger" data-act="reset">Réinitialiser l’application</button>`}</section>`,'settings')}
+Object.assign(ACT,{setAi:()=>{SETAI=true;settingsSheet()}});
 
 /* ---------- ONBOARDING ---------- */
 let OB=null;

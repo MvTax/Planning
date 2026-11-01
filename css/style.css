@@ -187,6 +187,15 @@ p{margin:0}
 .sheet{background:var(--bg);width:100%;max-width:560px;max-height:calc(100% - env(safe-area-inset-top,0px) - 24px);position:relative;overflow-y:auto;border-radius:26px 26px 0 0;
   padding:10px max(18px,env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));
   display:flex;flex-direction:column;gap:16px;animation:sheetUp .34s cubic-bezier(.32,.72,0,1);backface-visibility:hidden}
+/* Réglages : parties séparées */
+.set-sec{gap:12px}
+.set-h{display:flex;align-items:center;gap:10px}
+.set-h h3{margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em}
+.set-i{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent)}
+.set-i .ico{width:17px;height:17px}
+.set-sec .ing{padding:10px 0}
+.set-note{font-size:12.5px;margin:0}
+.set-danger{display:flex;flex-direction:column;gap:10px;margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}
 .grab{width:40px;height:5px;border-radius:9px;background:var(--line);margin:0 auto 4px}
 .sheet-x{position:sticky;top:0;align-self:flex-end;margin:-6px -4px -50px 0;width:40px;height:40px;border-radius:50%;background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center;color:var(--ink);z-index:3;flex:none}
 .sheet-x .ico{width:20px;height:20px;stroke-width:2.2}
