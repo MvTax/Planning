@@ -47,7 +47,6 @@ Règles :
 - Sport : 3 séances/semaine, sur les jours de repos et les services de 14:45, **jamais** les jours qui commencent à midi (`sportDays`).
 - Sommeil : rythme en cycles de 90 min + 15 min d'endormissement (par défaut 4 cycles, réveil 8:00, au lit 1:45). Mode chevet = 3 alarmes à 5 min.
 - Démarrage : `START_DAY = 2026-11-01`. Rien n'est compté avant.
-- 1er novembre : thème drapeau algérien automatique (`isFete`), uniquement ce jour-là.
 
 ## Design
 

@@ -130,5 +130,4 @@ async function connect(){
 }
 
 let themeByApp=false;
-const isFete=()=>{const d=new Date();let f='';try{f=localStorage.getItem('cadence.fete')||''}catch(e){}return(d.getMonth()===10&&d.getDate()===1)||f==='dz'};
-function applyTheme(){const R=document.documentElement;if(isFete())R.dataset.fete='dz';else delete R.dataset.fete;const t=S.settings.theme,r=document.documentElement;if(t==='auto'){if(themeByApp){delete r.dataset.theme;themeByApp=false}}else{r.dataset.theme=t;themeByApp=true}}
+function applyTheme(){const t=S.settings.theme,r=document.documentElement;if(t==='auto'){if(themeByApp){delete r.dataset.theme;themeByApp=false}}else{r.dataset.theme=t;themeByApp=true}}

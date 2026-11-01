@@ -352,12 +352,10 @@ test('test complet de l’app (diagnostic)', async () => {
   noErr(b);
 });
 
-test('thème du 1er Novembre : seulement ce jour-là', async () => {
+test('pas de thème spécial le 1er novembre', async () => {
   const a = await boot({ now: '2026-11-01T10:00:00', agenda: true });
-  assert.equal(a.d.documentElement.dataset.fete, 'dz'); assert.ok(a.$('.fete'));
-  const b = await boot({ now: '2026-11-02T10:00:00', agenda: true });
-  assert.equal(b.d.documentElement.dataset.fete, undefined); assert.ok(!b.$('.fete'));
-  noErr(a); noErr(b);
+  assert.equal(a.d.documentElement.dataset.fete, undefined); assert.ok(!a.$('.fete'));
+  noErr(a);
 });
 
 test('cagnotte en euros, sans points', async () => {

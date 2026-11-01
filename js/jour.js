@@ -1,23 +1,6 @@
 /* JOUR : page d'accueil, détail d'une tâche, ajout de tâche, planning de travail / agenda. Propriétaire : « Agent Jour ». */
 /* ---------- JOUR ---------- */
 function greeting(){const h=new Date().getHours();return h<5?'Bonne nuit':h<12?'Bonjour':h<18?'Bon après-midi':'Bonsoir'}
-function feteCard(){
-  const fighter=(x,s)=>`<g transform="translate(${x} 0) scale(${s})" fill="#04140C"><circle cx="0" cy="-58" r="5.5"/><path d="M-6 -52h12l3 22-4 1-2 22h-4l-1-18-1 18h-4l-2-22-4-1z"/><path d="M5 -48l16-16 2 2-15 17z"/><path d="M-6 -60c3-6 9-6 12 0z"/></g>`;
-  return`<section class="fete" aria-label="1er Novembre 1954">
-  <svg viewBox="0 0 360 170" role="img" aria-label="Drapeau algérien au-dessus des montagnes des Aurès, avec des moudjahidine">
-   <defs><linearGradient id="dzsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0B2A1B"/><stop offset=".62" stop-color="#2A5A3A"/><stop offset="1" stop-color="#C9A86A"/></linearGradient>
-    <mask id="dzcres"><rect width="60" height="40" fill="#fff"/><circle cx="33.5" cy="20" r="8.2" fill="#000"/></mask></defs>
-   <rect width="360" height="170" fill="url(#dzsky)"/>
-   <circle cx="282" cy="132" r="34" fill="#F4D58D" opacity=".55"/>
-   <path d="M0 150 L40 112 L70 128 L110 88 L150 120 L190 96 L230 126 L270 102 L310 130 L360 108 V170 H0Z" fill="#163B27"/>
-   <path d="M0 170 L0 156 L60 138 L120 150 L180 134 L250 148 L300 140 L360 152 V170Z" fill="#0A2216"/>
-   <rect x="64" y="20" width="2.6" height="122" fill="#E9E4D8"/>
-   <g transform="translate(66.6 22)"><path d="M0 0 C20 -4 40 4 60 0 V40 C40 44 20 36 0 40Z" fill="#fff"/><path d="M0 0 C10 -2 20 -1 30 1 V39 C20 37 10 38 0 40Z" fill="#006233"/>
-    <g transform="translate(0 0)"><circle cx="30" cy="20" r="10" fill="#D21034" mask="url(#dzcres)"/><path d="M38.2 20 l-3.4 1.1 0 3.6 -2.1-2.9 -3.4 1.1 2.1-2.9 -2.1-2.9 3.4 1.1 2.1-2.9 0 3.6z" fill="#D21034"/></g></g>
-   <g transform="translate(0 150)">${fighter(170,1)}${fighter(205,.95)}${fighter(238,1.05)}</g>
-  </svg>
-  <div class="txt"><span class="lbl" style="color:rgba(255,255,255,.8)">1er Novembre 1954 · Toussaint rouge</span><b>Déclenchement de la Révolution algérienne</b><span style="font-size:14px;opacity:.9">Gloire à nos martyrs. Tahya El Djazaïr.</span><span class="ar">المجد والخلود لشهدائنا الأبرار</span></div></section>`;
-}
 const KIND=t=>({travail:'work',sport:'sport',cardio:'sport',repas:'meal',courses:'meal',batch:'meal',agenda:'free',rdv:'free',etude:'perso',maison:'perso',perso:'perso'}[t]||'perso');
 function renderJour(){
   V.date=today();const t=today(),ds=V.date,isToday=ds===t,T=dayTasks(ds),p=S.profile;
@@ -69,7 +52,6 @@ function renderJour(){
     return`<div class="stats" style="grid-template-columns:1fr 1.35fr"><div class="stat k-money" data-act="tab" data-v="cagnotte"><span class="lbl">${ic('cagnotte')} Cagnotte</span><b>${eur(periodEur())}</b><span class="muted num" style="font-size:12px">${M$(dayPts(t))} aujourd’hui</span></div>
     ${nx?`<button class="stat k-${KIND(nx.type)}" data-act="task" data-k="${nx.key}" style="text-align:left;${s3==='run'||s3==='due'?'outline:2px solid var(--warn);outline-offset:-2px':''}"><span class="lbl">${ic(nx.type)} Prochaine tâche</span><b style="font-family:var(--f-ui);font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nx.title)}</b><span class="row" style="gap:6px;justify-content:space-between"><span class="muted num" style="font-size:12px">${nd===t?'':fmtShort(parseYmd(nd))+' · '}${hm(nx.start)}</span><span class="pill p-${s3}" style="padding:3px 8px;font-size:11px">${l3}</span></span></button>`:
       `<div class="stat k-free"><span class="lbl">${ic('check')} Prochaine tâche</span><b style="font-family:var(--f-ui);font-size:15px">Rien de prévu</b></div>`}</div>`})()}
-  ${isFete()?feteCard():''}
   ${!started()?`<section class="card tint k-work" style="gap:6px"><span class="lbl">Tout est prêt</span><h2>Ton programme commence le dimanche 1er novembre</h2><p class="muted" style="font-size:13.5px">Cagnotte, pointages, repas et sport sont remis à zéro. Rendez-vous demain matin.</p></section>`:''}
   ${hasUpdate()?`<button class="banner info" data-act="forceUpdate" style="width:100%;text-align:left">${ic('arrow')}<span class="grow">Nouvelle version disponible${REMOTE_V.notes?' : '+esc(REMOTE_V.notes):''}. Touche pour mettre à jour.</span></button>`:''}
   ${hero}

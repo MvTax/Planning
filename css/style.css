@@ -207,18 +207,6 @@ p{margin:0}
 @keyframes fade{from{opacity:0}}
 
 
-/* Thème du 1er Novembre (drapeau algérien) : actif uniquement ce jour-là */
-:root[data-fete="dz"]{--accent:#006233;--accent-ink:#FFFFFF;--accent-soft:#E1F0E6;--c-work:#00703A;--c-pts:#006233;--c-sport:#0E5A3A;--c-meal:#D21034;--warn:#D21034;--warn-soft:#FBE4E7;--money:#007A3D;--c-money:#007A3D}
-@media (prefers-color-scheme: dark){:root[data-fete="dz"]:not([data-theme="light"]){--accent:#3FBF7A;--accent-ink:#06140C;--accent-soft:#12301F;--c-work:#45C47F;--c-pts:#3FBF7A;--c-sport:#5FD39A;--c-meal:#FF5C6F;--warn:#FF6B7C;--warn-soft:#331419;--money:#4FD08E;--c-money:#4FD08E}}
-:root[data-theme="dark"][data-fete="dz"]{--accent:#3FBF7A;--accent-ink:#06140C;--accent-soft:#12301F;--c-work:#45C47F;--c-pts:#3FBF7A;--c-sport:#5FD39A;--c-meal:#FF5C6F;--warn:#FF6B7C;--warn-soft:#331419;--money:#4FD08E;--c-money:#4FD08E}
-:root[data-fete="dz"] .hero.col{background:linear-gradient(150deg,#006233 0%,#00472A 100%)!important;box-shadow:0 14px 34px rgba(0,98,51,.32);position:relative}
-:root[data-fete="dz"] .hero.col::after{content:"";position:absolute;left:22px;right:22px;bottom:0;height:4px;border-radius:4px 4px 0 0;background:#D21034}
-:root[data-fete="dz"] .hero.col .btn.go{color:#006233}
-.fete{border-radius:24px;overflow:hidden;background:#0B2A1B;color:#fff;box-shadow:var(--shadow);display:flex;flex-direction:column}
-.fete svg{display:block;width:100%;height:auto}
-.fete .txt{padding:14px 18px 18px;display:flex;flex-direction:column;gap:4px;background:#006233;border-top:4px solid #D21034}
-.fete .txt b{font-size:19px;letter-spacing:-.01em}
-.fete .ar{font-size:17px;direction:rtl;text-align:right;color:#fff;opacity:.95}
 /* micro réponse repas */
 .mic{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:20px;border-radius:20px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:17px}
 .mic .ico{width:26px;height:26px}
