@@ -90,7 +90,7 @@ async function runDiag(){
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-11-01.0240';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-11-01.0243';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
@@ -108,7 +108,7 @@ function settingsSheet(checked){if(!checked&&!upChecking){upChecking=true;checkU
   <div class="field"><span class="lbl">Sauvegarde</span><div class="row" style="gap:8px"><button class="btn ghost sm" style="flex:1" data-act="bkExport">Exporter</button><label for="bkIn" class="btn ghost sm" style="flex:1">Importer</label></div><p class="muted" style="font-size:12.5px">Tes données vivent sur ce téléphone, dans Safari. Exporte une sauvegarde de temps en temps (elle va dans l’app Fichiers).</p></div>
   <div class="field"><span class="lbl">Application</span><div class="flat row between"><span>Version <span class="num">${APP_VERSION}</span></span>${hasUpdate()?`<span class="stamp st-done">Nouvelle : ${esc(REMOTE_V.v)}</span>`:REMOTE_V?'<span class="stamp st-up">À jour</span>':''}</div>
    ${hasUpdate()&&REMOTE_V.notes?`<p style="font-size:13.5px">${esc(REMOTE_V.notes)}</p>`:''}
-   <button class="btn ${hasUpdate()?'':'ghost'}" data-act="forceUpdate">Forcer la mise à jour</button><button class="btn" data-act="diag">Tester l’application</button><a class="btn ghost" href="agents.html" style="text-decoration:none">Mes agents Claude (mode d’emploi)</a><p class="muted" style="font-size:12.5px">Recharge la dernière version publiée sur GitHub. Tes données restent sur le téléphone.</p></div>
+   <button class="btn ${hasUpdate()?'':'ghost'}" data-act="forceUpdate">Forcer la mise à jour</button><button class="btn" data-act="diag">Tester l’application</button><p class="muted" style="font-size:12.5px">Recharge la dernière version publiée sur GitHub. Tes données restent sur le téléphone.</p></div>
   <button class="btn ghost" data-act="reonboard">Modifier mon profil et mon programme</button>
   <section class="flat"><p style="font-size:13px">${UID?'Tes données sont synchronisées dans ton espace privé Claude : retrouvées sur tous tes appareils.':'Données gardées sur cet appareil.'} Les selfies ne sont jamais enregistrés.</p></section>
   ${rstConfirm?`<div class="row"><button class="btn danger" data-act="resetDo">Tout effacer</button><button class="btn ghost" data-act="resetCancel">Annuler</button></div>`:`<button class="btn danger" data-act="reset">Réinitialiser l’application</button>`}`,'settings')}

@@ -80,10 +80,6 @@ Règles :
    `git pull --rebase origin main && git push origin main && git push origin main:gh-pages`
 6. Dire à l'utilisateur : Réglages → « Forcer la mise à jour » (GitHub Pages met 1 à 2 minutes).
 
-## Mode d’emploi des agents
-
-`agents.html` (lien dans Réglages) : étapes et textes de départ de chaque agent, à copier. À tenir à jour si un agent est ajouté.
-
 ## Diagnostic
 
 Réglages → « Tester l'application » produit un rapport (réseau, IA, fichiers chiffrés, fonctions de l'iPhone, journal d'erreurs).
