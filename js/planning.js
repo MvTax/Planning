@@ -133,11 +133,12 @@ function render(){
 /* ============ feuilles ============ */
 let sheetName=null;
 /* fenêtre déjà ouverte : on remplace seulement son contenu (pas de nouvelle animation = pas de clignotement) */
-function openSheet(html,name){const same=sheetName===(name||'x');sheetName=name||'x';const r=$('#sheetRoot');const was=r.querySelector('.scrim:not(.out) .sheet');
+/* openSheet(html, nom, {full:true}) : page plein écran (tout l'écran défile, pas de zone qui défile dans la page) */
+function openSheet(html,name,o){o=o||{};const same=sheetName===(name||'x');sheetName=name||'x';const r=$('#sheetRoot');const was=r.querySelector('.scrim:not(.out) .sheet');
   const inner=`<button class="sheet-x" data-act="close" aria-label="Fermer">${ic('x')}</button>${html}`;
-  if(was){const sc=was.scrollTop;was.innerHTML=inner;was.scrollTop=same?sc:0;return}
+  if(was){const sc=was.scrollTop;was.innerHTML=inner;was.parentNode.classList.toggle('full',!!o.full);was.scrollTop=same?sc:0;return}
   const src=TAP&&Date.now()-TAP.t<700&&TAP.el.isConnected&&TAP.el.closest('[data-pop]');
-  r.innerHTML=`<div class="scrim${src?' pop':''}" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true">${inner}</div></div>`;
+  r.innerHTML=`<div class="scrim${src?' pop':''}${o.full?' full':''}" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true">${inner}</div></div>`;
   if(src)popFrom(r.querySelector('.sheet'),src.getBoundingClientRect())}
 /* petite fenêtre qui s'ouvre depuis l'élément touché (ajoute data-pop sur l'élément) */
 let TAP=null;
@@ -174,17 +175,18 @@ function crLocal(txt){const t=' '+txt.toLowerCase().replace(/’/g,"'")+' ',now=
     .replace(/\s*(aujourd'hui|après-demain|apres-demain|demain|ce soir|tous les jours|chaque jour|chaque semaine|en semaine)\b.*$/i,'').replace(/\s*(à|a|vers|pendant|de|le|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+\d.*$/i,'').replace(/\s*\d{1,2}\s*(h|:).*$/i,'').trim();
   if(!title||title.length<2)title='';
   return{title:title?title[0].toUpperCase()+title.slice(1):'',type,date,start:start==null?'':hm(start),dur,repeat,q:start==null?(title?`À quelle heure pour « ${title} » ?`:'Quelle tâche, et à quelle heure ?'):!title?'Qu’est-ce que tu veux faire à cette heure-là ?':''}}
-function crClean(o,said){const v={};const ty=String(o.type||'').toLowerCase();v.type=CR_TYPES.includes(ty)?ty:'perso';
+function crClean(o,said,pre){const v={};const ty=String(o.type||'').toLowerCase();v.type=CR_TYPES.includes(ty)?ty:'perso';
   v.title=String(o.title||'').trim().slice(0,60);v.date=/^\d{4}-\d{2}-\d{2}$/.test(o.date||'')&&o.date>=addDs(today(),-1)&&o.date<=addDs(today(),370)?o.date:today();
   const m=String(o.start||'').match(/^(\d{1,2})[:h](\d{2})/);v.start=m&&+m[1]<24&&+m[2]<60?+m[1]*60+ +m[2]:null;
   v.dur=Math.round(clamp(+o.dur||({sport:60,cardio:45,repas:45,travail:240,etude:60,maison:30,courses:45,rdv:60,perso:30}[v.type]),5,720)/5)*5;
   v.repeat=['once','daily','weekdays','weekly'].includes(o.repeat)?o.repeat:'once';v.q=String(o.q||'').trim().slice(0,140);
   if(v.start!=null&&v.title)v.q='';else if(!v.q)v.q=v.title?`À quelle heure pour « ${v.title} » ?`:'Qu’est-ce que tu veux faire, et à quelle heure ?';
+  if(pre){v.date=pre.date;v.start=pre.start;v.dur=pre.dur;v.q=v.title?'':String(o.q||'').trim().slice(0,140)||'Qu’est-ce que tu fais sur ce créneau ?'}
   if(said.filter(x=>x.q).length>=2&&v.q){if(!v.title)v.title=said[0].a.slice(0,40);if(v.start==null)v.start=Math.min(1425,Math.ceil((nowMin()+15)/15)*15);v.q=''}
   return v}
 async function crThink(){const M=CR;if(!M)return;M.step='think';M.err='';createSheet();let o=null;
-  if(aiReady())try{o=await aiTask(M.said)}catch(e){M.aiErr=e.message;logE('ai','assistant : '+e.message)}
-  if(CR!==M)return;if(!o)o=crLocal(M.said.map(x=>x.a).join(' '));const v=crClean(o,M.said);
+  if(aiReady())try{o=await aiTask(M.said,M.pre)}catch(e){M.aiErr=e.message;logE('ai','assistant : '+e.message)}
+  if(CR!==M)return;if(!o)o=crLocal(M.said.map(x=>x.a).join(' '));const v=crClean(o,M.said,M.pre);
   if(v.q){M.step='ask';M.q=v.q;M.text='';createSheet();return}
   const id='c'+Date.now().toString(36);const pts=(TYPE[v.type]||[0,15])[1];
   S.custom.push({id,type:v.type,title:v.title||TYPE[v.type][0],start:v.start,dur:v.dur,pts,repeat:v.repeat,date:v.date,by:'voix'});save();render();
@@ -215,6 +217,9 @@ function createSheet(){const M=CR;if(!M)return;
    <button class="mic ${M.listening?'on':''}" data-act="crMic">${ic('mic')} ${M.listening?'J’écoute… touche pour valider':ask?'Répondre à la voix':'Parler'}</button>
    <button class="btn ghost" data-act="crWrite">${ic('pen')} Écrire plutôt</button>`}
   ${M.err?`<p class="muted" style="font-size:13px;color:var(--bad)">${esc(M.err)}</p>`:''}`,'create')}
+/* createAt(jour, début, fin) : créneau choisi dans le planning (minutes) → on demande seulement ce qu'il faut faire, à la voix */
+function createAt(ds,s,e){s=clamp(Math.round(s/5)*5,0,1435);e=clamp(Math.round(e/5)*5,s+5,1440);
+  CR={step:'ask',said:[],mode:'voice',text:'',pre:{date:ds,start:s,dur:e-s},q:`Qu’est-ce que tu fais de ${hm(s)} à ${hm(e)} ?`};crListen()}
 Object.assign(ACT,{
   create:()=>{CR={step:'listen',said:[],mode:'voice',text:''};crListen()},
   crMic:()=>{if(!CR)return;if(CR.listening){const r=CRREC;if(r)try{r.stop()}catch(e){}return}crListen()},

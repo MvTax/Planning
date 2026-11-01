@@ -429,6 +429,24 @@ test('créer une tâche en parlant : l’IA remplit et pose une question', async
   noErr(a);
 });
 
+test('créneau choisi dans le planning : on demande seulement quoi faire', async () => {
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true });
+  a.ev(`createAt('2026-11-05',842,931)`);
+  assert.match(a.text('.sheet h2'), /de 14:00 à 15:30/);
+  a.ev(`document.querySelector('#crIn').value='réviser mon code'`); a.click('[data-act="crSend"]'); await wait(50);
+  const c = JSON.parse(a.ev('JSON.stringify(S.custom.at(-1))'));
+  assert.deepEqual([c.title, c.type, c.date, c.start, c.dur], ['Réviser mon code', 'etude', '2026-11-05', 840, 90]);
+  assert.match(a.text('.sheet h2'), /Tâche ajoutée/);
+  noErr(a);
+});
+
+test('page plein écran : openSheet(…, {full:true})', async () => {
+  const a = await boot({ now: '2026-11-04T10:00:00', agenda: true });
+  a.ev(`openSheet('<h2>Planning détaillé</h2>','plan',{full:true})`); assert.ok(a.$('#sheetRoot .scrim.full'));
+  a.ev(`openSheet('<h2>Détail</h2>','x')`); assert.ok(!a.$('#sheetRoot .scrim.full'), 'redevient une fenêtre normale');
+  noErr(a);
+});
+
 test('test complet de l’app (diagnostic)', async () => {
   const raw = webcrypto.getRandomValues(new Uint8Array(32));
   const b64u = Buffer.from(raw).toString('base64url');

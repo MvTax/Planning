@@ -33,11 +33,11 @@ function keySetup(){const pv=aiProv(),k=apiKey(),m=aiModel();
 const parseJSON=txt=>{const a=txt.indexOf('{'),b=txt.lastIndexOf('}');if(a<0)throw new Error('Réponse illisible. Reprends la photo.');return JSON.parse(txt.slice(a,b+1))};
 
 /* aiTask(échanges) : ce que l'utilisateur a dit → tâche {title,type,date,start,dur,repeat,q}. q = une question si l'heure ou le quoi manque. */
-async function aiTask(said){const d=new Date(),wd=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][d.getDay()];
+async function aiTask(said,pre){const d=new Date(),wd=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][d.getDay()];
   return aiText(`Tu crées une tâche d'agenda à partir de ce que dit l'utilisateur. Aujourd'hui : ${wd} ${today()}, il est ${hm(nowMin())}.
 Types : sport, cardio, repas, travail, etude, maison, courses, rdv, perso.
 Échanges :
-${said.map(x=>(x.q?'Question : '+x.q+'\n':'')+'Utilisateur : '+x.a).join('\n')}
+${pre?`Créneau déjà choisi : ${pre.date} de ${hm(pre.start)} à ${hm(pre.start+pre.dur)} (ne demande ni le jour ni l'heure).\n`:''}${said.map(x=>(x.q?'Question : '+x.q+'\n':'')+'Utilisateur : '+x.a).join('\n')}
 Réponds en JSON : {"title":"titre court","type":"","date":"AAAA-MM-JJ","start":"HH:MM","dur":minutes,"repeat":"once|daily|weekdays|weekly","q":""}
 Date par défaut : aujourd'hui. Durée par défaut selon l'activité. Si l'activité ou l'heure manque, laisse le champ vide et pose UNE question courte, en tutoyant, dans "q". Sinon "q" vide.`,200)}
 /* aiRaw(canvas, prompt) : image + texte → JSON. aiText(prompt) : texte seul (ex. repas décrit par écrit), mêmes modèles et mêmes erreurs. */
