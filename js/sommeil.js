@@ -2,24 +2,24 @@
 /* ---------- SOMMEIL ---------- */
 let SL={mode:'now',wakeAt:null};
 /* Plan de la nuit. Avant l'heure du coucher : réveil prévu (habituel ou avancé pour le travail).
-   Déjà passé l'heure du coucher : on part de maintenant (+15 min d'endormissement + les cycles choisis).
-   Jour de travail : le réveil ne dépasse pas l'heure de départ (début - trajet - 75 min), on retire des cycles si besoin. */
+   Déjà passé l'heure du coucher : réveil = maintenant + 15 min d'endormissement + la durée choisie.
+   Jour de travail : si ce réveil dépasse l'heure de départ (début - trajet - 75 min), on prévient (workWake) sans rien imposer. */
 function sleepPlan(){
   const p=S.profile,t=today(),n=nowMin(),C=p.cycles||5;
   let wd=n<600?t:addDs(t,1),W=wakeFor(wd);
   if(n<600&&n>=W){wd=addDs(t,1);W=wakeFor(wd)}
   const nowR=wd===t?n+1440:n,WR=W+1440;/* minutes depuis minuit, la veille du réveil */
-  const plan={wd,wake:W,bed:W-sleepNeed(),asleep:W-C*90,cycles:C,late:false,limited:false,early:W!==p.wake};
+  const plan={wd,wake:W,bed:W-sleepNeed(),asleep:W-C*90,cycles:C,late:false,early:W!==p.wake};
   if(nowR<=WR-sleepNeed()||nowR>=WR)return plan;
-  const b=workBlocks(wd).blocks,lim=b.length?Math.max(W,b[0].s-(p.commute||0)-75)+1440:Infinity;
-  let c=C;while(c>1&&nowR+15+c*90>lim)c--;
-  const wR=Math.min(lim,nowR+15+c*90);
-  return{wd,wake:wR%1440,bed:n,asleep:(nowR+15)%1440,cycles:c,late:true,limited:wR<nowR+15+C*90,early:false};
+  const wR=nowR+15+C*90,b=workBlocks(wd).blocks,lim=b.length?Math.max(W,b[0].s-(p.commute||0)-75)+1440:Infinity;
+  const out={wd,wake:wR%1440,bed:n,asleep:(nowR+15)%1440,cycles:C,late:true,early:false};
+  if(wR>lim){let c=C;while(c>1&&nowR+15+c*90>lim)c--;out.workWake=Math.min(lim,nowR+15+c*90)%1440;out.workCycles=c}
+  return out;
 }
 function renderSommeil(){
   const n=nowMin(),P=sleepPlan(),myC=S.profile.cycles||5;
   const {wake,bed,asleep,early}=P,shown=P.cycles;
-  const lateTxt=P.late?(P.limited?' · écourté pour ton travail':' · calculé depuis maintenant'):'';
+  const lateTxt=P.late?' · calculé depuis maintenant':'';
   const nights=(S.nights||[]).filter(r=>!r.short&&r.asleep).slice(0,7).reverse().map(r=>({d:r.d,h:r.asleep/60}));
   const last=(S.nights||[])[0];
   const cyc=`<div class="cycles" aria-hidden="true" style="height:10px"><i class="lat" style="background:rgba(255,255,255,.25)"></i>${Array.from({length:shown},()=>'<i style="background:rgba(255,255,255,.55)"></i>').join('')}</div>`;
@@ -31,6 +31,7 @@ function renderSommeil(){
     <div class="stack" style="gap:2px;text-align:right"><span class="lbl">Réveil</span><span class="big" style="font-size:40px">${hm(wake)}</span></div></div>
    ${cyc}
    <p class="meta">Endormi vers ${hm(asleep)} · ${shown} cycle${shown>1?'s':''} · ${nf(((wake-asleep)%1440+1440)%1440/60,1)} h${early?' · réveil avancé pour ton travail':''}${lateTxt}</p>
+   ${P.workWake!=null?`<p class="meta"><b>Attention, tu travailles :</b> pour partir à l’heure, lève-toi au plus tard à ${hm(P.workWake)} (${P.workCycles} cycle${P.workCycles>1?'s':''}).</p>`:''}
    <button class="btn go" data-act="night" data-wake="${wake}">${ic('coucher')} Lancer le mode chevet</button>
    <button class="btn" data-act="alarms" data-bed="${bed}" data-wake="${wake}">${ic('bell')} Alarmes iPhone ${hm(wake)} · ${hm(wake+5)} · ${hm(wake+10)}</button></section>
   <section class="sec"><div class="sec-h"><h2>Mon rythme</h2></div>

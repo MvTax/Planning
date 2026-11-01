@@ -252,12 +252,14 @@ test('sommeil : passé l’heure du coucher, le réveil part de maintenant', asy
   noErr(a);
 });
 
-test('sommeil : jour de travail, le réveil ne dépasse pas l’heure de départ', async () => {
+test('sommeil : jour de travail, réveil selon la durée choisie et avertissement', async () => {
   const a = await boot({ now: '2026-11-06T03:42:00', agenda: true });
   a.ev('S.profile.cycles=6;S.profile.commute=30');
   const s0 = a.ev('workBlocks(today()).blocks[0].s'); assert.equal(s0, 720);
   const P = a.ev('sleepPlan()');
-  assert.equal(P.late, true); assert.equal(P.limited, true); assert.equal(P.cycles, 4); assert.equal(P.wake, 597);
+  assert.equal(P.late, true); assert.equal(P.cycles, 6); assert.equal(P.wake, 777);
+  assert.equal(P.workWake, 597); assert.equal(P.workCycles, 4);
+  a.click('[data-act="tab"][data-v="sommeil"]'); assert.match(a.text('.hero'), /12:57/); assert.match(a.text('.hero'), /au plus tard à 09:57/);
   noErr(a);
 });
 
