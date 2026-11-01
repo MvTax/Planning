@@ -49,6 +49,8 @@ const P={
  bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2ZM10 21h4"/>', gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>', play:'<path d="M7 4v16l13-8Z"/>', map:'<path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/>'
 };
+/* registre des boutons : chaque fichier y ajoute ses actions avec Object.assign(ACT,{…}) (lu par app.js) */
+const ACT={};
 const ic=(n,cls='')=>`<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[n]||P.perso}</svg>`;
 
 /* ============ état ============ */
@@ -59,7 +61,7 @@ function defaultState(){return{
     workDays:[0,1,2,3,4],workStart:540,workEnd:1050,wake:480,cycles:5,exp:'debutant',place:'salle',days:[0,2,4],sessionTime:1110,sessionMin:60,
     injuries:[],diet:[],meals:4,omad:false,omadTime:1260,omadWin:120,commute:30,budget:80,store:'lidl',shopDay:6,rate:0.02,payout:'hebdo',firstReward:'vetements',firstPrice:60},
   programStart:null,custom:[],punches:{},ledger:[],payouts:[],spent:[],periodStart:0,rewards:[],weights:[],
-  shifts:{},skips:{},missed:{},perfect:{},streakBonus:{},wakeOv:{},bedOv:{},workOv:{},lifts:{},setsDone:{},shopChecked:{},ics:[],agenda:null,agendaCal:'',meals:{},nights:[],nightLive:null,
+  shifts:{},skips:{},missed:{},perfect:{},streakBonus:{},wakeOv:{},bedOv:{},workOv:{},lifts:{},setsDone:{},shopChecked:{},ics:[],agenda:null,agendaCal:'',meals:{},nights:[],nightLive:null,foodLists:null,foodLog:{},
   settings:{theme:'auto',sound:true,selfieOut:false,ai:true,malus:true}
 }}
 let S=defaultState();

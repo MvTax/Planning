@@ -10,6 +10,9 @@ const okAI = { v: 'ok', plat: 'Poulet riz légumes', kcal: 2100, p: 130, g: 200,
 
 test('premier lancement : formulaire puis tous les onglets', async () => {
   const a = await boot({ now: '2026-11-04T10:00:00', state: null });
+  for (let i = 0; i < 2; i++) a.click('[data-act="obNext"]');
+  assert.equal(a.$$('[data-k="activity"]').length, 3, 'niveaux d’activité : 3 attendus');
+  for (let i = 0; i < 2; i++) a.click('[data-act="obPrev"]');
   for (let i = 0; i < 7; i++) a.click('[data-act="obNext"]');
   assert.equal(a.$$('#tabs button').length, 5);
   for (const t of ['sommeil', 'sport', 'repas', 'cagnotte', 'jour']) { a.click(`[data-act="tab"][data-v="${t}"]`); assert.ok(a.text('#main').length > 50, 'onglet vide : ' + t); }
@@ -156,7 +159,7 @@ test('listes d’aliments : par défaut, emojis, sans sucre interdit, enregistr�
   const saved = JSON.parse(a.w.localStorage.getItem('cadence.v1'));
   assert.ok(saved.foodLists.omad.some((f) => f.n === 'Cerises')); assert.ok(!saved.foodLists.omad.some((f) => f.id === 'banane'));
   // les Réglages ne voient que les 3 niveaux d'activité
-  assert.equal(a.ev('Object.keys(ACT).length'), 3); assert.equal(typeof a.ev('ACT.fdLog'), 'function');
+  assert.equal(a.ev('Object.keys(ACTIVITY).length'), 3); assert.equal(typeof a.ev('ACT.fdLog'), 'function');
   noErr(a);
 });
 
@@ -201,12 +204,13 @@ test('repas composé avec la liste : validé, puis trop léger = à corriger', a
 });
 
 test('repas écrit : même analyse que la photo (IA + sucres interdits)', async () => {
-  const prompts = []; let n = 0;
-  const a = await boot({ now: '2026-11-04T22:00:00', agenda: true, ls: { 'cadence.gkey': 'AQ.test' }, fetch: (u, o) => { if (!u.includes('generateContent')) return null; prompts.push(JSON.parse(o.body).contents[0].parts[1].text); return gemini(++n === 1 ? okAI : { ...okAI, plat: 'Riz poulet' }); } });
+  const prompts = [], parts = []; let n = 0;
+  const a = await boot({ now: '2026-11-04T22:00:00', agenda: true, ls: { 'cadence.gkey': 'AQ.test' }, fetch: (u, o) => { if (!u.includes('generateContent')) return null; const ps = JSON.parse(o.body).contents[0].parts; parts.push(ps); prompts.push(ps[ps.length - 1].text); return gemini(++n === 1 ? okAI : { ...okAI, plat: 'Riz poulet' }); } });
   a.ev('S.profile.omadTime=nowMin()-10');
   a.ev('openMeal()'); a.click('[data-act="mealMode"][data-v="text"]');
   typeIn(a, '#ansIn', 'Une crêpe au nutella'); a.click('[data-act="txtGo"]'); await wait(50);
   assert.match(prompts[0], /crêpe au nutella/); assert.match(prompts[0], /Pas de photo/);
+  assert.ok(parts.every((ps) => ps.length === 1 && !ps[0].inline_data), 'un repas écrit part sans image');
   assert.match(a.text('.sheet'), /INTERDIT/); assert.equal(a.ev('dayPts(today())'), 0);
   a.click('[data-act="mealRedo"]');
   typeIn(a, '#ansIn', '250 g de riz, 300 g de poulet, brocoli, huile d’olive'); a.click('[data-act="txtGo"]'); await wait(50);

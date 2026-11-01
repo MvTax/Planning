@@ -69,12 +69,12 @@ function macros(ing,f=1){let k=0,p=0,c=0,l=0;for(const[id,g]of ing){const x=I[id
 /* ============ calculs nutrition ============ */
 function age(){const b=new Date(S.profile.birth);if(isNaN(b))return 30;const n=new Date();let a=n.getFullYear()-b.getFullYear();if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate()))a--;return clamp(a,14,90)}
 function curWeight(){const w=S.weights;return w.length?w[w.length-1].kg:S.profile.weight}
-const ACT={bureau:[1.375,'Bureau, assis'],debout:[1.5,'Debout souvent'],physique:[1.65,'Travail physique']};
+const ACTIVITY={bureau:[1.375,'Bureau, assis'],debout:[1.5,'Debout souvent'],physique:[1.65,'Travail physique']};
 const PACE={doux:[.15,'Doux'],standard:[.2,'Standard'],rapide:[.25,'Soutenu']};
 function targets(){
   const p=S.profile,w=curWeight(),a=age();
   const bmr=10*w+6.25*p.height-5*a+(p.sex==='f'?-161:5);
-  const tdee=bmr*(ACT[p.activity]||ACT.bureau)[0];
+  const tdee=bmr*(ACTIVITY[p.activity]||ACTIVITY.bureau)[0];
   const def=(PACE[p.pace]||PACE.standard)[0];
   let kcal=Math.round(tdee*(1-def)/10)*10;kcal=Math.max(kcal,p.sex==='f'?1400:1700);
   const goal=Math.min(p.goal,w);
@@ -235,7 +235,7 @@ function mealPrompt(){
   const M=MEAL,p=S.profile,{bk,bp,omad,ms}=mealBudget();
   const diet=(p.diet||[]).map(d=>({halal:'halal',sansporc:'sans porc',vegetarien:'végétarien',pescetarien:'pescétarien',sanslactose:'sans lactose'}[d])).join(', ');
   const last=M.tries[M.tries.length-1];const noQ=M.notes.length||M.asks>=2||M.skipped;
-  const src=M.src==='text'?`Pas de photo (ignore l’image vide) : l’utilisateur décrit par écrit le plat qu’il va manger : « ${String(M.desc||'').replace(/[«»"]/g,'')} ».`:'Photo d’un plat avant de le manger.';
+  const src=M.src==='text'?`Pas de photo : l’utilisateur décrit par écrit le plat qu’il va manger : « ${String(M.desc||'').replace(/[«»"]/g,'')} ».`:'Photo d’un plat avant de le manger.';
   return`Coach nutrition. ${src} Objectif : perte de gras, garder le muscle.${diet?' Régime '+diet+'.':''}
 ${omad?`Mode OMAD : c’est le SEUL repas de la journée${ms.length?' (complément du repas déjà validé)':''}. Il doit être copieux et complet : protéines, légumes, féculents. Budget ${bk} kcal : valide entre 75 % et 115 % du budget ; s’il en manque beaucoup, demande d’ajouter (fix). Au moins ${bp} g de protéines.`:`Repas : ${SLOT_L[M.slot]}. Budget ${bk} kcal (±20 %), au moins ${bp} g de protéines.`}${last?` Essai précédent : ${Math.round(last.kcal||0)} kcal, demandé : ${(last.fix||[]).join(' ; ')||'rien'}. Si c’est corrigé et dans le budget, valide.`:''}${M.notes.length?` Ingrédients donnés par l’utilisateur (à utiliser) : ${M.notes.join(' ; ')}.`:''}${M.skipped?' Ingrédients cachés inconnus : prends les plus probables.':''}
 Estime les quantités et les calories. Verdict v :
@@ -260,12 +260,8 @@ function sugarHit(r,notes){const txt=normTxt([r.plat,...(r.ing||[]),r.bad,...(no
   return null}
 
 async function aiVision(cv,prompt){return normAI(await aiRaw(cv,prompt,400))}
-/* repas écrit : pas de photo. aiRaw a besoin d'une image : on envoie une petite image vide (le prompt dit de l'ignorer).
-   Si « Général » ajoute un jour aiText(prompt, maxTokens) dans ia.js, il est utilisé à la place. */
-function blankCv(){const c=document.createElement('canvas');c.width=c.height=16;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,16,16);return c}
-async function aiMeal(M,prompt){
-  if(M.src==='text')return normAI(typeof aiText==='function'?await aiText(prompt,400):await aiRaw(blankCv(),prompt,400));
-  return aiVision(M.cv,prompt)}
+/* repas écrit : appel IA sans image (aiText) ; photo : aiRaw */
+async function aiMeal(M,prompt){return M.src==='text'?normAI(await aiText(prompt,400)):aiVision(M.cv,prompt)}
 
 async function handleMealPhoto(file){
   const M=MEAL;if(!M||!file)return;M.src='photo';
@@ -412,7 +408,7 @@ function renderCibles(){
    <div class="kv"><div><span class="lbl">Calories</span><b>${tg.kcal}</b></div><div><span class="lbl">Protéines</span><b>${tg.prot} g</b></div><div><span class="lbl">Glucides</span><b>${tg.carb} g</b></div><div><span class="lbl">Lipides</span><b>${tg.fat} g</b></div><div><span class="lbl">Fibres</span><b>30-35 g</b></div><div><span class="lbl">Eau</span><b>${nf(tg.water,1)} L</b></div></div></section>
   <section class="card"><span class="lbl">Comment c’est calculé</span>
    <div class="ledger"><span>Métabolisme de base (Mifflin-St Jeor, ${tg.a} ans)</span><span class="num">${Math.round(tg.bmr)} kcal</span></div>
-   <div class="ledger"><span>Dépense totale · ${ACT[p.activity][1].toLowerCase()} + sport</span><span class="num">${Math.round(tg.tdee)} kcal</span></div>
+   <div class="ledger"><span>Dépense totale · ${(ACTIVITY[p.activity]||ACTIVITY.bureau)[1].toLowerCase()} + sport</span><span class="num">${Math.round(tg.tdee)} kcal</span></div>
    <div class="ledger"><span>Déficit ${PACE[p.pace][1].toLowerCase()} (−${Math.round(tg.def*100)} %)</span><span class="num">−${Math.round(tg.tdee-tg.kcal)} kcal</span></div>
    <div class="ledger"><span>Perte attendue</span><span class="num">${nf(tg.lossWk,2)} kg/sem.</span></div>
    <p style="font-size:13.5px;padding-top:8px">Protéines à environ 2 g par kg de poids visé (${nf(p.goal,0)} kg) : c’est ce qui protège et construit le muscle pendant que tu perds du gras. Lipides à 0,8 g/kg pour les hormones. Le reste en glucides, placés surtout autour de l’entraînement. Les cibles se recalculent à chaque pesée.</p></section>
@@ -612,10 +608,8 @@ function fdSave(){fdCapture();const F=FD;if(!F)return;const n=String(F.n||'').tr
   list.push(item);save();toast(`${item.e?item.e+' ':''}${n} ajouté à ta liste`);
   const from=F.from;FD=null;V.foodQ='';if(from==='dayfood'){DF={q:''};dayFoodSheet()}else{closeSheet();render()}}
 
-/* boutons. ACT est aussi la table des niveaux d'activité (bureau, debout, physique) affichée par les Réglages :
-   les actions y sont ajoutées « non énumérables » pour ne pas apparaître dans cette liste. */
-function regAct(o){for(const[k,f]of Object.entries(o))Object.defineProperty(ACT,k,{value:f,enumerable:false,configurable:true,writable:true})}
-regAct({
+/* boutons de l'onglet Repas */
+Object.assign(ACT,{
   foodList:(el,v)=>{V.foodList=v;V.foodQ='';V.foodEdit=false;render()},
   fdEdit:()=>{V.foodEdit=!V.foodEdit;render()},
   fdLog:(el,v)=>{const f=foodLists().day.find(x=>x.id===v);if(!f)return;logDay(f,true);toast(`${f.e?f.e+' ':''}${f.n} pointé · ton OMAD continue`);if(sheetName==='dayfood')dayFoodSheet();else render()},

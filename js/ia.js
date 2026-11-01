@@ -29,11 +29,14 @@ function keySetup(){const pv=aiProv(),k=apiKey(),m=aiModel();
 
 const parseJSON=txt=>{const a=txt.indexOf('{'),b=txt.lastIndexOf('}');if(a<0)throw new Error('Réponse illisible. Reprends la photo.');return JSON.parse(txt.slice(a,b+1))};
 
-async function aiRaw(cv,prompt,maxTok){
-  if(SAMPLE&&SAMPLE_IMG){const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.72));return await SAMPLE.json(prompt,{images:blob,modelTier:'quick',cache:false})}
-  const data=cv.toDataURL('image/jpeg',.72).split(',')[1];
+/* aiRaw(canvas, prompt) : image + texte → JSON. aiText(prompt) : texte seul (ex. repas décrit par écrit), mêmes modèles et mêmes erreurs. */
+async function aiRaw(cv,prompt,maxTok){return aiCall(cv,prompt,maxTok)}
+async function aiText(prompt,maxTok){return aiCall(null,prompt,maxTok)}
+async function aiCall(cv,prompt,maxTok){
+  if(SAMPLE&&(SAMPLE_IMG||(!cv&&!apiKey()))){if(!cv)return await SAMPLE.json(prompt,{modelTier:'quick',cache:false});const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.72));return await SAMPLE.json(prompt,{images:blob,modelTier:'quick',cache:false})}
+  const data=cv?cv.toDataURL('image/jpeg',.72).split(',')[1]:'';
   const go=async(u,o,lim)=>{const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),lim||10000);const t0=performance.now(),hid0=document.hidden,host=u.split('/')[2],mdl=(u.match(/models\/([^:]+)/)||[])[1]||aiModel();
-    try{const r=await fetch(u,Object.assign({method:'POST',signal:ctl.signal},o));logE('ai',`${host} ${mdl} → HTTP ${r.status} en ${Math.round(performance.now()-t0)} ms · image ${Math.round(data.length*.75/1024)} Ko`);return r}
+    try{const r=await fetch(u,Object.assign({method:'POST',signal:ctl.signal},o));logE('ai',`${host} ${mdl} → HTTP ${r.status} en ${Math.round(performance.now()-t0)} ms · ${data?'image '+Math.round(data.length*.75/1024)+' Ko':'texte seul'}`);return r}
     catch(e){const ms=Math.round(performance.now()-t0),bg=hid0||document.hidden||(MEAL&&MEAL.hid);logE('ai',`${host} ${mdl} → ÉCHEC ${e&&e.name}: ${e&&e.message} après ${ms} ms${bg?' (app en arrière-plan)':''} · en ligne=${navigator.onLine}`);
       const err=new Error(bg?'Analyse interrompue : l’app est passée en arrière-plan.':e&&e.name==='AbortError'?'L’IA met trop de temps à répondre. Réessaie.':!navigator.onLine?'Pas de connexion internet. Réessaie dans un instant.':'La requête vers l’IA a échoué ('+(e&&e.message||'réseau')+').');err.bg=bg;err.slow=e&&e.name==='AbortError'&&!bg;throw err}
     finally{clearTimeout(to)}};
@@ -41,7 +44,7 @@ async function aiRaw(cv,prompt,maxTok){
     let lastErr=null;
     for(const mdl of GEM_MODELS){
       let res;try{res=await go(`https://generativelanguage.googleapis.com/v1beta/models/${mdl}:generateContent`,{headers:{'content-type':'application/json','x-goog-api-key':apiKey()},
-        body:JSON.stringify({contents:[{role:'user',parts:[{inline_data:{mime_type:'image/jpeg',data}},{text:prompt}]}],generationConfig:{temperature:.2,maxOutputTokens:maxTok||400,responseMimeType:'application/json'}})},9000)}
+        body:JSON.stringify({contents:[{role:'user',parts:[...(data?[{inline_data:{mime_type:'image/jpeg',data}}]:[]),{text:prompt}]}],generationConfig:{temperature:.2,maxOutputTokens:maxTok||400,responseMimeType:'application/json'}})},9000)}
       catch(e){if(e.slow){lastErr=e;continue}throw e}
       if(res.ok){const j=await res.json();if(mdl!==GEM_MODELS[0]){GEM_MODELS=[mdl,...GEM_MODELS.filter(x=>x!==mdl)];try{localStorage.setItem('cadence.gmodel',mdl)}catch(e){}}
         return parseJSON(((j.candidates||[])[0]?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join(''))}
@@ -52,7 +55,7 @@ async function aiRaw(cv,prompt,maxTok){
     throw lastErr||new Error('Gemini ne répond pas. Réessaie.');
   }
   const res=await go('https://api.anthropic.com/v1/messages',{headers:{'content-type':'application/json','x-api-key':apiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:aiModel(),max_tokens:maxTok||400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data}},{type:'text',text:prompt}]}]})},15000);
+    body:JSON.stringify({model:aiModel(),max_tokens:maxTok||400,messages:[{role:'user',content:[...(data?[{type:'image',source:{type:'base64',media_type:'image/jpeg',data}}]:[]),{type:'text',text:prompt}]}]})},15000);
   if(!res.ok){let m='';try{m=(await res.json()).error?.message||''}catch(e){}
     throw new Error(res.status===401?'Clé API refusée. Vérifie-la dans Réglages → Analyse des repas.':res.status===400&&/credit/i.test(m)?'Plus de crédit sur ton compte Anthropic (Billing).':res.status===429||res.status===529?'Le service est surchargé. Réessaie dans une minute.':res.status===404?'Modèle indisponible : choisis l’autre modèle dans Réglages.':'Erreur de l’IA ('+res.status+'). '+m)}
   const j=await res.json();return parseJSON((j.content||[]).map(c=>c.text||'').join(''));

@@ -90,7 +90,7 @@ async function runDiag(){
 /* ---------- RÉGLAGES ---------- */
 let rstConfirm=false;
 /* ---------- mise à jour de l'app ---------- */
-const APP_VERSION='2026-11-01.0321';let REMOTE_V=null,upChecking=false;
+const APP_VERSION='2026-11-01.0335';let REMOTE_V=null,upChecking=false;
 async function checkUpdate(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;REMOTE_V=await r.json();return REMOTE_V}catch(e){return null}}
 const vNewer=(a,b)=>String(a).localeCompare(String(b),'en',{numeric:true})>0;
 const hasUpdate=()=>!!(REMOTE_V&&REMOTE_V.v&&vNewer(REMOTE_V.v,APP_VERSION));
@@ -133,7 +133,7 @@ function renderOnboarding(){
     <div class="field"><span class="lbl">Rythme</span><div class="chips">${c('pace','doux','Doux')}${c('pace','standard','Standard')}${c('pace','rapide','Soutenu')}</div></div>`;
   if(s===2)body=`<h1>Ton quotidien</h1>
     <div class="field"><span class="lbl">Réveil souhaité</span>${stepper('OB','wake',15,240,720,'time','big')}</div>
-    <div class="field"><span class="lbl">Ton travail</span><div class="chips">${Object.entries(ACT).map(([k,[,l]])=>c('activity',k,l)).join('')}</div></div>
+    <div class="field"><span class="lbl">Ton travail</span><div class="chips">${Object.entries(ACTIVITY).map(([k,[,l]])=>c('activity',k,l)).join('')}</div></div>
     <div class="field"><span class="lbl">Jours travaillés</span><div class="chips">${DAYS.map((d,i)=>m('workDays',i,d)).join('')}</div></div>
     <div class="row" style="gap:10px"><div class="field" style="flex:1;min-width:0"><span class="lbl">Début</span>${stepper('OB','workStart',15,240,1380,'time')}</div><div class="field" style="flex:1;min-width:0"><span class="lbl">Fin</span>${stepper('OB','workEnd',15,300,1440,'time')}</div></div>
     <div class="field"><span class="lbl">Trajet domicile → travail</span><div class="chips">${[0,15,30,45,60].map(v=>c('commute',v,v?v+' min':'Aucun',1)).join('')}</div></div>
