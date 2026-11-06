@@ -39,9 +39,10 @@ Règles :
 ## Règles métier à ne pas casser
 
 - **Pas de points à l'écran** : uniquement des euros (`M$`). Les `pts` sont internes × `profile.rate`.
-- Barème : service de travail 10, séance 50, repas OMAD 40 (retard 20), journée parfaite 30.
+- Barème : séance 50, repas OMAD 40 (retard 20), tâches perso selon leur montant, journée parfaite 30.
   À l'heure = tout ; retard ou oubli = moitié ; pas fait = tout en négatif ; non validé le lendemain = pas fait (si malus actif).
-- Le travail se valide (« En cours » prune, puis vert/rouge). Le sport se valide par **photo de la salle** vérifiée par l'IA.
+- Le **travail ne se pointe pas** : il est affiché (« En cours », « Fini ») et organise la journée, sans gain ni malus (`dayTasks` le marque `info`).
+  Le sport se valide par **photo de la salle** vérifiée par l'IA.
 - Repas : **OMAD** (fenêtre par défaut 21:00–23:00, décalée autour du travail). Photo refusée avant la fenêtre et après un repas déjà pris.
   L'IA peut poser **une** question sur les ingrédients (réponse vocale ou écrite). **Sucres interdits** (IA + contrôle `sugarHit`).
 - Sport : 3 séances/semaine, sur les jours de repos et les services de 14:45, **jamais** les jours qui commencent à midi (`sportDays`).

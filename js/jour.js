@@ -20,7 +20,7 @@ function renderJour(){
   if(document.getElementById('agPage'))agRefresh();   // planning détaillé ouvert dessous : on le garde à jour
   return`<header class="top"><div class="stack" style="gap:4px;min-width:0"><span class="lbl">${fmtDate(new Date())}</span><h1>${greeting()}${p.name?', '+esc(p.name):''}</h1><span class="muted" style="font-size:13px">${wkLabel}</span></div>
     <button class="avatar" data-act="settings" aria-label="Réglages">${p.name?esc(p.name[0].toUpperCase()):ic('gear')}</button></header>
-  ${(()=>{let nx=null,nd=t;const base=started()?t:START_DAY;for(let k=0;k<7&&!nx;k++){nd=addDs(base,k);nx=dayTasks(nd).find(x=>!x.info&&(!cur||x.key!==cur.key)&&['run','due','soon','up'].includes(status(x)))}
+  ${(()=>{let nx=null,nd=t;const base=started()?t:START_DAY;for(let k=0;k<7&&!nx;k++){nd=addDs(base,k);nx=dayTasks(nd).find(x=>(!x.info||x.type==='travail')&&(!cur||x.key!==cur.key)&&['run','due','soon','up','iup','irun'].includes(status(x)))}
     const s3=nx?status(nx):'';
     return`<div class="stats" style="grid-template-columns:1fr 1.35fr"><div class="stat k-money" data-act="tab" data-v="cagnotte"><span class="lbl">${ic('cagnotte')} Cagnotte</span><b>${eur(periodEur())}</b><span class="muted num" style="font-size:12px">${M$(dayPts(t))} aujourd’hui</span></div>
     ${nx?`<button class="stat k-${KIND(nx.type)}" ${agAct(nx)} style="text-align:left;${s3==='run'||s3==='due'?'outline:2px solid var(--warn);outline-offset:-2px':''}"><span class="lbl">${ic(nx.type)} Prochaine tâche</span><b style="font-family:var(--f-ui);font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nx.title)}</b><span class="row" style="gap:6px;justify-content:space-between"><span class="muted num" style="font-size:12px">${nd===t?'':fmtShort(parseYmd(nd))+' · '}${hm(nx.start)}</span><span class="pill p-${s3}" style="padding:3px 8px;font-size:11px">${agLbl(nx,s3)}</span></span></button>`:
@@ -152,7 +152,14 @@ function dayStatsSheet(){render();openSheet(`<div class="grab"></div>${V.statsHT
 /* ---------- détail tâche ---------- */
 function taskSheet(key){
   const ds=key.split(':')[0];const t=dayTasks(ds).find(x=>x.key===key);if(!t)return closeSheet();
-  if(t.info){openSheet(`<div class="grab"></div><span class="lbl">${TYPE[t.type]?TYPE[t.type][0]:''} · ${fmtShort(parseYmd(ds))}</span><h2>${esc(t.title)}</h2><p class="muted num">${hm(t.start)} → ${hm(t.start+t.dur)} · ${durTxt(t.dur)}</p><p class="muted" style="font-size:13px">Pour les statistiques uniquement, pas de pointage.</p><button class="btn ghost" data-act="close">Fermer</button>`);return}
+  if(t.info){const w=t.type==='travail',st=status(t);
+    openSheet(`<div class="grab"></div><span class="lbl">${TYPE[t.type]?TYPE[t.type][0]:''} · ${fmtShort(parseYmd(ds))}</span><h2>${esc(t.title)}</h2>
+     <p class="muted num">${hm(t.start)} → ${hm(t.start+t.dur)} · ${durTxt(t.dur)}${st==='irun'?' · en cours':st==='idone'?' · fini':''}</p>
+     ${w&&!t.custom?`<p class="muted" style="font-size:13px">${t.src==='agenda'?'Depuis ton agenda':t.src==='manuel'?'Modifié à la main':t.src==='estime'?'Estimé : planning pas encore publié':'Horaires habituels'}${t.loc?' · '+esc(t.loc):''}</p>`:''}
+     <p class="muted" style="font-size:13px">${w?'Le travail ne se pointe pas : il sert à organiser ta journée (sport, repas, sommeil).':'Pour les statistiques uniquement, pas de pointage.'}</p>
+     ${w&&!t.custom?`<button class="btn ghost" data-act="woDay" data-v="${ds}">${ic('agenda')} Modifier mon travail ce jour-là</button>`:''}
+     ${t.custom?`<button class="btn ghost danger" data-act="delcustom" data-v="${esc(t.id)}">Supprimer cette tâche</button>`:''}
+     <button class="btn ghost" data-act="close">Fermer</button>`);return}
   const st=status(t),pu=S.punches[t.key]||{},isToday=ds===today();
   const earned=S.ledger.filter(e=>e.key===t.key);
   let actions='';

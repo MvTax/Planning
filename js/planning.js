@@ -37,7 +37,7 @@ function dayTasks(ds){
   for(const c of S.custom){let ok=false;
     if(c.repeat==='once')ok=c.date===ds;else if(c.repeat==='daily')ok=ds>=c.date;else if(c.repeat==='weekdays')ok=ds>=c.date&&wd<5;else if(c.repeat==='weekly')ok=ds>=c.date&&dow(parseYmd(c.date))===wd;
     if(ok)T.push({id:c.id,type:c.type,title:c.title,start:c.start,dur:c.dur,pts:c.pts,custom:1})}
-  return T.filter(t=>!S.skips[ds+':'+t.id]).map(t=>{const k=ds+':'+t.id;const sh=S.shifts[k]||0;return Object.assign(t,{key:k,ds,start:t.start+sh})}).sort((a,b)=>a.start-b.start);
+  return T.filter(t=>!S.skips[ds+':'+t.id]).map(t=>{const k=ds+':'+t.id;const sh=S.shifts[k]||0;if(t.type==='travail')Object.assign(t,{info:1,pts:0});/* travail : affiché, plus pointé */return Object.assign(t,{key:k,ds,start:t.start+sh})}).sort((a,b)=>a.start-b.start);
 }
 function dayStats(ds){
   const p=S.profile,cm=p.commute||0;const wake=wakeFor(ds),bed=S.bedOv[ds]??(wakeFor(addDs(ds,1))+1440-sleepNeed());

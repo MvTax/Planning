@@ -56,15 +56,23 @@ test('journée coupée : un seul service du début du premier à la fin du derni
   noErr(a);
 });
 
-test('travail en cours : oubli = moitié, pas fait = négatif', async () => {
+test('travail : plus de pointage (ni gain ni malus) ; tâches perso : oubli = moitié, pas fait = négatif', async () => {
   const a = await boot({ now: '2026-11-04T16:00:00', agenda: true });
-  assert.match(a.text('.hero'), /En cours/);
-  assert.match(a.text('.hero'), /oublié de pointer/);
-  a.click('.hero [data-act="val"][data-v="forgot"]');
-  assert.equal(a.ev('dayPts(today())'), 5);
+  const w = JSON.parse(a.ev(`JSON.stringify(dayTasks(today()).filter(x=>x.type==='travail').map(x=>[x.info,x.pts,status(x)]))`));
+  assert.deepEqual(w, [[1, 0, 'irun']], 'travail affiché « en cours », sans gain');
+  assert.ok(!a.$('.hero'), 'pas de carte « à valider » pour le travail');
+  assert.match(a.text('.stat[data-act="task"]'), /Travail[\s\S]*En cours/, 'le service reste la prochaine tâche');
+  a.click('.stat[data-act="task"]'); assert.ok(!a.$('.sheet [data-act="val"]'), 'aucun bouton de pointage');
+  assert.match(a.text('.sheet'), /ne se pointe pas/); assert.ok(a.$('.sheet [data-act="woDay"]')); a.ev('closeSheet()');
+  a.ev('S.since=0;S.settings.malus=true;sweepMissed()');
+  assert.equal(a.ev(`S.ledger.filter(e=>/Travail/.test(e.label)).length`), 0, 'pas de malus pour un service non pointé');
+  assert.equal(a.ev(`Object.keys(S.missed).filter(k=>k.includes(':travail')).length`), 0);
+  a.ev('S.ledger=[];S.missed={}');
   a.ev(`S.custom.push({id:'cx',type:'perso',title:'Lecture',start:nowMin()-30,dur:30,pts:20,repeat:'once',date:today()});render()`);
+  a.ev(`valAct(today()+':cx','forgot')`);
+  assert.equal(a.ev('dayPts(today())'), 10);
   a.ev(`valAct(today()+':cx','miss')`);
-  assert.equal(a.ev('dayPts(today())'), -15);
+  assert.equal(a.ev('dayPts(today())'), -20);
   assert.ok(!/\bpts\b/.test(a.text('#main')), 'le mot « pts » ne doit plus apparaître');
   noErr(a);
 });
@@ -212,7 +220,8 @@ test('repas composé avec la liste : validé, puis trop léger = à corriger', a
   assert.match(a.text('.sheet'), /VALIDÉ/);
   const m = JSON.parse(a.ev('JSON.stringify(S.meals[today()][0])'));
   assert.equal(m.src, 'pick'); assert.equal(m.kcal, kc); assert.equal(m.tries, 2);
-  assert.equal(a.ev('dayPts(today())'), 40);
+  assert.equal(a.ev(`S.ledger.filter(l=>l.key==='meal').reduce((x,l)=>x+l.pts,0)`), 40);
+  assert.equal(a.ev('dayPts(today())'), 70, 'repas + journée parfaite (le travail ne se pointe plus)');
   noErr(a);
 });
 
@@ -229,7 +238,8 @@ test('repas écrit : même analyse que la photo (IA + sucres interdits)', async 
   typeIn(a, '#ansIn', '250 g de riz, 300 g de poulet, brocoli, huile d’olive'); a.click('[data-act="txtGo"]'); await wait(50);
   assert.match(a.text('.sheet'), /VALIDÉ/);
   assert.equal(a.ev('S.meals[today()][0].src'), 'text');
-  assert.equal(a.ev('dayPts(today())'), 40);
+  assert.equal(a.ev(`S.ledger.filter(l=>l.key==='meal').reduce((x,l)=>x+l.pts,0)`), 40);
+  assert.equal(a.ev('dayPts(today())'), 70, 'repas + journée parfaite (le travail ne se pointe plus)');
   noErr(a);
 });
 
